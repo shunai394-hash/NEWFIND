@@ -39,6 +39,7 @@ export function SettingsForm() {
       .then(() => refresh())
       .catch((err) => {
         console.error("[settings] ensureMyProfile", err);
+        console.error("[ProfileView] profile load error", { scope: "settings.ensureMyProfile", err });
         if (!cancelled) setProfileError("プロフィールを読み込めませんでした");
       })
       .finally(() => {

@@ -39,7 +39,11 @@ export function ProfileView({ username }: { username: string }) {
             }),
           ]);
         } catch (err) {
-          console.error("[profile] getProfileByUsername", err);
+          console.error("[ProfileView] profile load error", {
+            scope: "getProfileByUsername",
+            username: key,
+            err,
+          });
         }
 
         if (!found && me && usernamesMatch(me.username, key)) {
@@ -73,14 +77,18 @@ export function ProfileView({ username }: { username: string }) {
             setFollowing(false);
           }
         } catch (err) {
-          console.error("[profile] posts/counts", err);
+          console.error("[ProfileView] profile load error", {
+            scope: "posts/counts",
+            username: key,
+            err,
+          });
           if (!cancelled) {
             setPosts([]);
             setCounts({ followers: 0, following: 0 });
           }
         }
       } catch (err) {
-        console.error("[profile] load", err);
+        console.error("[ProfileView] profile load error", { scope: "load", username: key, err });
         if (!cancelled) {
           setProfile(null);
           setState("error");

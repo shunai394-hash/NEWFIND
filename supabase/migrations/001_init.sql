@@ -223,3 +223,14 @@ create policy media_auth_update on storage.objects for update
 create policy media_auth_delete on storage.objects for delete
   to authenticated
   using (bucket_id = 'media' and owner = auth.uid());
+
+-- Table privileges (RLS is not enough; PostgREST needs GRANTs)
+grant usage on schema public to anon, authenticated;
+
+grant select on table public.profiles, public.posts, public.follows, public.likes, public.wants, public.saves, public.comments, public.shares
+  to anon, authenticated;
+
+grant insert, update, delete on table public.profiles, public.posts, public.follows, public.likes, public.wants, public.saves, public.comments, public.shares
+  to authenticated;
+
+grant usage, select on all sequences in schema public to authenticated;

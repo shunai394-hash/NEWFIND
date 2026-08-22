@@ -44,6 +44,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setMe(profile);
     } catch (err) {
       console.error("[auth] ensureMyProfile", err);
+      console.error("[Supabase] ensureMyProfile failed", err);
     }
   }, []);
 

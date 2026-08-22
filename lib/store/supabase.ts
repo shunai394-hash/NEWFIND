@@ -1,6 +1,22 @@
 import { mediaTypeFromFile } from "@/lib/media";
 import { createClient } from "@/lib/supabase/client";
 import type { Store } from "@/lib/store/types";
+
+function logSupabaseError(scope: string, error: {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+} | null, extra?: Record<string, unknown>) {
+  if (!error) return;
+  console.error("[Supabase]", scope, {
+    code: error.code ?? null,
+    message: error.message ?? null,
+    details: error.details ?? null,
+    hint: error.hint ?? null,
+    ...extra,
+  });
+}
 import type {
   CategoryId,
   CommentView,
@@ -82,6 +98,11 @@ async function ensureProfile(
   displayName?: string,
 ) {
   const existing = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+  if (existing.error) {
+    logSupabaseError("ensureProfile.select", existing.error, {
+      status: (existing as { status?: number }).status ?? null,
+    });
+  }
   if (existing.data) return mapProfile(existing.data as ProfileRow);
 
   const base = email.split("@")[0].toLowerCase().replace(/[^a-z0-9._]/g, "").slice(0, 16) || "user";
@@ -105,7 +126,15 @@ async function ensureProfile(
     .single();
 
   if (inserted.error) {
+    logSupabaseError("ensureProfile.insert", inserted.error, {
+      status: (inserted as { status?: number }).status ?? null,
+    });
     const retry = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+    if (retry.error) {
+      logSupabaseError("ensureProfile.retry", retry.error, {
+        status: (retry as { status?: number }).status ?? null,
+      });
+    }
     if (retry.data) return mapProfile(retry.data as ProfileRow);
     throw new Error(inserted.error.message);
   }
@@ -247,8 +276,11 @@ export const supabaseStore: Store = {
 
   async getProfile(id) {
     const supabase = createClient();
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
-    if (error) throw new Error(error.message);
+    const { data, error, status } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
+    if (error) {
+      logSupabaseError("getProfile", error, { status });
+      throw new Error(error.message);
+    }
     return data ? mapProfile(data as ProfileRow) : null;
   },
 
@@ -262,7 +294,12 @@ export const supabaseStore: Store = {
     if (!key) return null;
     const supabase = createClient();
     const exact = await supabase.from("profiles").select("*").eq("username", key).maybeSingle();
-    if (exact.error) throw new Error(exact.error.message);
+    if (exact.error) {
+      logSupabaseError("getProfileByUsername", exact.error, {
+        status: (exact as { status?: number }).status ?? null,
+      });
+      throw new Error(exact.error.message);
+    }
     if (exact.data) return mapProfile(exact.data as ProfileRow);
 
     const lowered = key.toLowerCase();
@@ -496,7 +533,9 @@ export const supabaseStore: Store = {
       .eq("author_id", userId)
       .order("created_at", { ascending: false });
     if (error) {
-      console.error("[newfind] getUserPosts", error.message);
+      logSupabaseError("getUserPosts", error, {
+        status: (error as { status?: number }).status ?? null,
+      });
       return [];
     }
     try {
@@ -562,8 +601,8 @@ export const supabaseStore: Store = {
       supabase.from("follows").select("follower_id", { count: "exact", head: true }).eq("followee_id", userId),
       supabase.from("follows").select("followee_id", { count: "exact", head: true }).eq("follower_id", userId),
     ]);
-    if (followers.error) console.error("[newfind] followers count", followers.error.message);
-    if (following.error) console.error("[newfind] following count", following.error.message);
+    if (followers.error) logSupabaseError("getFollowCounts.followers", followers.error);
+    if (following.error) logSupabaseError("getFollowCounts.following", following.error);
     return {
       followers: followers.count ?? 0,
       following: following.count ?? 0,

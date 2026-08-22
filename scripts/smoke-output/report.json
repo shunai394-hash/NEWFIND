@@ -1,0 +1,202 @@
+{
+  "failCount": 0,
+  "results": [
+    {
+      "name": "1. For You tab visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "1. Posts render",
+      "ok": true,
+      "detail": "8 articles"
+    },
+    {
+      "name": "1. Home images",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "1. Guest Like → login",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "1. Guest Share copy",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "7. Login page",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "7. Google button",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "7. Apple button",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "7. Google/Apple local mode message",
+      "ok": true,
+      "detail": "local mode (expected)"
+    },
+    {
+      "name": "7. Email signup",
+      "ok": true,
+      "detail": "http://localhost:3000/"
+    },
+    {
+      "name": "1. Like toggles",
+      "ok": true,
+      "detail": "0 → 1"
+    },
+    {
+      "name": "1. Want toggles",
+      "ok": true,
+      "detail": "0 → 1"
+    },
+    {
+      "name": "1. Save click",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "2. Follow from feed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "2. Following screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "2. Following posts",
+      "ok": true,
+      "detail": "2 articles"
+    },
+    {
+      "name": "3. Discover tabs",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "3. Search",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "3. Trending grid",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "3. New Finds grid",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "3. Category",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4. Photo post",
+      "ok": true,
+      "detail": "4b4b702d-81d6-4d70-8f45-8d3b516fe23e"
+    },
+    {
+      "name": "4. Caption saved",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4. Product URL CTA",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "9. CTA text is white",
+      "ok": true,
+      "detail": "rgb(255, 255, 255)"
+    },
+    {
+      "name": "4. Video post",
+      "ok": true,
+      "detail": "http://localhost:3000/p/a38cfbb6-d8d5-424d-9228-87a4360ccbd5"
+    },
+    {
+      "name": "5. Post detail",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "5. Comment",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "5/9. 商品を見る href",
+      "ok": true,
+      "detail": "https://www.muji.com/"
+    },
+    {
+      "name": "6. Profile",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6. Profile posts",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6. Follow on profile",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8. Settings",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8. Profile edit + Business",
+      "ok": true,
+      "detail": "smoke.1787386761 :: NEWFIND 設定 S 2 投稿 0 フォロワー 2 フォロー Smoke Edited @smoke.1787386761 ビジネスアカウント · Smoke Inc www.brandbridge.jp プロフィールを編集 ▶ ホーム Discover 投稿 保存 プロフィール"
+    },
+    {
+      "name": "7. Email login",
+      "ok": true,
+      "detail": "http://localhost:3000/"
+    },
+    {
+      "name": "404 status",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "name": "Desktop phone frame",
+      "ok": true,
+      "detail": "width=430"
+    },
+    {
+      "name": "Desktop images",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "consoleErrors": [
+    {
+      "label": "mobile",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    }
+  ],
+  "pageErrors": []
+}

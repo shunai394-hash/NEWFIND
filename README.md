@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NEWFIND
 
-## Getting Started
+商品を発見するSNSのMVP。Instagram / TikTok 型の操作感で、投稿から外部EC・公式サイトへ送ります。NEWFIND 内で販売・決済・配送はしません。
 
-First, run the development server:
+## 動かし方
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Supabase の環境変数が未設定のときは、ブラウザ内のローカルモードでフィード・投稿・SNS機能が動きます。メールでアカウントを作ってください。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Supabase に切り替える
 
-## Learn More
+1. 新しい Supabase プロジェクトを作成する
+2. `supabase/migrations/001_init.sql` を SQL Editor で実行する
+3. Authentication で Email / Google / Apple を有効化する
+4. Redirect URL に `http://localhost:3000/auth/callback` を追加する
+5. `.env.local` に URL と anon key を入れる
 
-To learn more about Next.js, take a look at the following resources:
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+画像・動画は Supabase Storage の `media` バケットに保存します。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 作っていないもの
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+商品マスタ、売上分配、独自EC、在庫、配送、高度なAI推薦。

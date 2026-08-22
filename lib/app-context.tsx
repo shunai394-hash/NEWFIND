@@ -39,8 +39,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     setSession(next);
-    const profile = await store.ensureMyProfile(next);
-    setMe(profile);
+    try {
+      const profile = await store.ensureMyProfile(next);
+      setMe(profile);
+    } catch (err) {
+      console.error("[auth] ensureMyProfile", err);
+    }
   }, []);
 
   useEffect(() => {
@@ -84,6 +88,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .ensureMyProfile(next)
         .then((profile) => {
           if (mounted) setMe(profile);
+        })
+        .catch((err) => {
+          console.error("[auth] onAuthStateChange ensureMyProfile", err);
         });
     });
 

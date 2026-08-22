@@ -10,6 +10,7 @@ import {
   UserIcon,
 } from "@/components/icons";
 import { useApp } from "@/lib/app-context";
+import { profilePath } from "@/lib/username";
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -19,7 +20,7 @@ export function BottomNav() {
     !ready
       ? null
       : me
-        ? `/u/${me.username}`
+        ? profilePath(me.username)
         : session
           ? "/settings"
           : "/login";

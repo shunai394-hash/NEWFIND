@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { getStore } from "@/lib/store";
 import type { AccountType } from "@/lib/types";
+import { profilePath } from "@/lib/username";
 
 export function SettingsForm() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export function SettingsForm() {
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [companyDescription, setCompanyDescription] = useState("");
   const [error, setError] = useState("");
+  const [profileError, setProfileError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -25,6 +27,28 @@ export function SettingsForm() {
       router.replace("/login?next=/settings");
     }
   }, [ready, session, router]);
+
+  useEffect(() => {
+    if (!ready || !session || me) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (!cancelled) setProfileError("プロフィールを読み込めませんでした");
+    }, 12000);
+    getStore()
+      .ensureMyProfile(session)
+      .then(() => refresh())
+      .catch((err) => {
+        console.error("[settings] ensureMyProfile", err);
+        if (!cancelled) setProfileError("プロフィールを読み込めませんでした");
+      })
+      .finally(() => {
+        window.clearTimeout(timer);
+      });
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [ready, session, me, refresh]);
 
   useEffect(() => {
     if (!session || !me) return;
@@ -41,7 +65,11 @@ export function SettingsForm() {
   if (!ready) return null;
   if (!session) return null;
   if (!me) {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-400">プロフィールを準備しています...</p>;
+    return (
+      <p className="px-4 py-16 text-center text-sm text-neutral-500">
+        {profileError || "プロフィールを準備しています..."}
+      </p>
+    );
   }
 
   async function save(event: React.FormEvent) {
@@ -66,7 +94,7 @@ export function SettingsForm() {
       });
 
       await refresh();
-      router.push(`/u/${username.trim()}`);
+      router.push(profilePath(username.trim()));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "プロフィールの保存に失敗しました",

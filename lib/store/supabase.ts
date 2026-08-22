@@ -247,7 +247,8 @@ export const supabaseStore: Store = {
 
   async getProfile(id) {
     const supabase = createClient();
-    const { data } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
+    if (error) throw new Error(error.message);
     return data ? mapProfile(data as ProfileRow) : null;
   },
 
@@ -257,13 +258,20 @@ export const supabaseStore: Store = {
   },
 
   async getProfileByUsername(username) {
+    const key = username.trim();
+    if (!key) return null;
     const supabase = createClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .ilike("username", username)
-      .maybeSingle();
-    return data ? mapProfile(data as ProfileRow) : null;
+    const exact = await supabase.from("profiles").select("*").eq("username", key).maybeSingle();
+    if (exact.error) throw new Error(exact.error.message);
+    if (exact.data) return mapProfile(exact.data as ProfileRow);
+
+    const lowered = key.toLowerCase();
+    if (lowered !== key) {
+      const again = await supabase.from("profiles").select("*").eq("username", lowered).maybeSingle();
+      if (again.error) throw new Error(again.error.message);
+      if (again.data) return mapProfile(again.data as ProfileRow);
+    }
+    return null;
   },
 
   async updateProfile(id, patch) {
@@ -487,8 +495,16 @@ export const supabaseStore: Store = {
       .select("*")
       .eq("author_id", userId)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return hydratePosts(supabase, ((data ?? []) as PostRow[]).map(mapPost), viewerId);
+    if (error) {
+      console.error("[newfind] getUserPosts", error.message);
+      return [];
+    }
+    try {
+      return await hydratePosts(supabase, ((data ?? []) as PostRow[]).map(mapPost), viewerId);
+    } catch (err) {
+      console.error("[newfind] hydratePosts", err);
+      return [];
+    }
   },
 
   async search(query, viewerId) {
@@ -546,6 +562,8 @@ export const supabaseStore: Store = {
       supabase.from("follows").select("follower_id", { count: "exact", head: true }).eq("followee_id", userId),
       supabase.from("follows").select("followee_id", { count: "exact", head: true }).eq("follower_id", userId),
     ]);
+    if (followers.error) console.error("[newfind] followers count", followers.error.message);
+    if (following.error) console.error("[newfind] following count", following.error.message);
     return {
       followers: followers.count ?? 0,
       following: following.count ?? 0,

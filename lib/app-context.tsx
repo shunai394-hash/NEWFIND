@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   createContext,
@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { getStore, storeMode } from "@/lib/store";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import type { Profile, Session } from "@/lib/types";
 
 type AppContextValue = {
@@ -28,18 +29,64 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<Profile | null>(null);
 
   const refresh = useCallback(async () => {
-    const store = getStore();
-    const next = await store.getSession();
-    setSession(next);
-    if (next) {
-      setMe(await store.getProfile(next.userId));
-    } else {
-      setMe(null);
+    try {
+      const store = getStore();
+      const next = await store.getSession();
+      setSession(next);
+      if (next) {
+        setMe(await store.getProfile(next.userId));
+      } else {
+        setMe(null);
+      }
+    } catch {
+      // 一時的な取得失敗でログイン状態を消さない
     }
   }, []);
 
   useEffect(() => {
-    refresh().finally(() => setReady(true));
+    let mounted = true;
+
+    refresh().finally(() => {
+      if (mounted) setReady(true);
+    });
+
+    if (storeMode() !== "supabase") {
+      return () => {
+        mounted = false;
+      };
+    }
+
+    const supabase = createSupabaseClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, authSession) => {
+      if (!mounted) return;
+
+      if (event === "INITIAL_SESSION") return;
+
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+        setMe(null);
+        return;
+      }
+
+      if (!authSession?.user) return;
+
+      setSession({
+        userId: authSession.user.id,
+        email: authSession.user.email ?? "",
+      });
+      void getStore()
+        .getProfile(authSession.user.id)
+        .then((profile) => {
+          if (mounted) setMe(profile);
+        });
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [refresh]);
 
   const requireAuth = useCallback(() => Boolean(session), [session]);

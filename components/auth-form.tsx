@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useApp } from "@/lib/app-context";
+import { safeNextPath } from "@/lib/config";
 import { getStore, storeMode } from "@/lib/store";
 
 export function AuthForm() {
@@ -15,7 +16,7 @@ export function AuthForm() {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState(params.get("error") ?? "");
   const [busy, setBusy] = useState(false);
-  const next = params.get("next") || "/";
+  const next = safeNextPath(params.get("next"));
   const local = storeMode() === "local";
 
   async function submit(event: React.FormEvent) {
@@ -30,6 +31,10 @@ export function AuthForm() {
         await store.signInEmail(email, password);
       }
       await refresh();
+      const confirmed = await store.getSession();
+      if (!confirmed) {
+        throw new Error("ログイン状態を確認できませんでした。もう一度お試しください。");
+      }
       router.replace(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "ログインに失敗しました");
@@ -41,7 +46,7 @@ export function AuthForm() {
   async function oauth(provider: "google" | "apple") {
     setError("");
     try {
-      await getStore().signInOAuth(provider);
+      await getStore().signInOAuth(provider, next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "OAuthに失敗しました");
     }

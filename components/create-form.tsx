@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,7 +10,7 @@ import { CATEGORIES, type CategoryId, type MediaType, type PostSource } from "@/
 
 export function CreateForm() {
   const router = useRouter();
-  const { session, me } = useApp();
+  const { ready, session, me } = useApp();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [mediaType, setMediaType] = useState<MediaType>("photo");
@@ -28,10 +28,10 @@ export function CreateForm() {
   const isBusiness = me?.accountType === "business";
 
   useEffect(() => {
-    if (!session) router.replace("/login?next=/create");
-  }, [session, router]);
+    if (ready && !session) router.replace("/login?next=/create");
+  }, [ready, session, router]);
 
-  if (!session) return null;
+  if (!ready || !session) return null;
 
   function onFile(next: File | null) {
     setFile(next);
@@ -107,7 +107,7 @@ export function CreateForm() {
             <img src={preview} alt="" className="mx-auto max-h-72 rounded-xl object-cover" />
           )
         ) : (
-          <span className="text-sm text-neutral-500">写真または動画を選択</span>
+          <span className="text-sm text-neutral-500">画像または動画を選択</span>
         )}
       </label>
 
@@ -144,7 +144,7 @@ export function CreateForm() {
       <input
         value={productLabel}
         onChange={(e) => setProductLabel(e.target.value)}
-        placeholder="ボタン名（デフォルト: 商品を見る）"
+        placeholder="ボタン名（デフォルト：商品を見る）"
         className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
       />
 
@@ -171,13 +171,13 @@ export function CreateForm() {
               <input
                 value={sourceRef}
                 onChange={(e) => setSourceRef(e.target.value)}
-                placeholder="BrandBridge 案件ID（任意）"
+                placeholder="BrandBridge商品ID（任意）"
                 className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
               />
               <input
                 value={sourceUrl}
                 onChange={(e) => setSourceUrl(e.target.value)}
-                placeholder="BrandBridge 公開URL（任意）"
+                placeholder="BrandBridge公開URL（任意）"
                 className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
               />
             </>
@@ -196,3 +196,9 @@ export function CreateForm() {
     </form>
   );
 }
+
+
+
+
+
+

@@ -18,7 +18,7 @@ export type Store = {
     password: string,
     displayName: string,
   ): Promise<Session>;
-  signInOAuth(provider: "google" | "apple"): Promise<void>;
+  signInOAuth(provider: "google" | "apple", next?: string): Promise<void>;
   signOut(): Promise<void>;
   getProfile(id: string): Promise<Profile | null>;
   getProfileByUsername(username: string): Promise<Profile | null>;

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -8,7 +8,8 @@ import type { AccountType } from "@/lib/types";
 
 export function SettingsForm() {
   const router = useRouter();
-  const { session, me, refresh } = useApp();
+  const { ready, session, me, refresh } = useApp();
+
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -20,14 +21,14 @@ export function SettingsForm() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!session) {
+    if (ready && !session) {
       router.replace("/login?next=/settings");
     }
-  }, [session, router]);
+  }, [ready, session, router]);
 
   useEffect(() => {
-    if (!session) return;
-    if (!me) return;
+    if (!session || !me) return;
+
     setUsername(me.username);
     setDisplayName(me.displayName);
     setBio(me.bio);
@@ -35,29 +36,39 @@ export function SettingsForm() {
     setCompanyName(me.companyName ?? "");
     setCompanyWebsite(me.companyWebsite ?? "");
     setCompanyDescription(me.companyDescription ?? "");
-  }, [session, me, router]);
+  }, [session, me]);
 
-  if (!session || !me) return null;
+  if (!ready || !session || !me) {
+    return null;
+  }
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError("");
+
     try {
       await getStore().updateProfile(session!.userId, {
         username: username.trim(),
         displayName: displayName.trim(),
         bio,
         accountType,
-        companyName: accountType === "business" ? companyName.trim() || null : null,
-        companyWebsite: accountType === "business" ? companyWebsite.trim() || null : null,
+        companyName:
+          accountType === "business" ? companyName.trim() || null : null,
+        companyWebsite:
+          accountType === "business" ? companyWebsite.trim() || null : null,
         companyDescription:
-          accountType === "business" ? companyDescription.trim() || null : null,
+          accountType === "business"
+            ? companyDescription.trim() || null
+            : null,
       });
+
       await refresh();
       router.push(`/u/${username.trim()}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "保存に失敗しました");
+      setError(
+        err instanceof Error ? err.message : "プロフィールの保存に失敗しました",
+      );
     } finally {
       setBusy(false);
     }
@@ -71,9 +82,20 @@ export function SettingsForm() {
 
   return (
     <form onSubmit={save} className="space-y-3 px-4 py-4">
-      <h1 className="text-lg font-semibold">プロフィール</h1>
-      <Field label="ユーザー名" value={username} onChange={setUsername} />
-      <Field label="表示名" value={displayName} onChange={setDisplayName} />
+      <h1 className="text-lg font-semibold">プロフィール設定</h1>
+
+      <Field
+        label="ユーザー名"
+        value={username}
+        onChange={setUsername}
+      />
+
+      <Field
+        label="表示名"
+        value={displayName}
+        onChange={setDisplayName}
+      />
+
       <label className="block text-xs font-semibold text-neutral-500">
         自己紹介
         <textarea
@@ -83,19 +105,36 @@ export function SettingsForm() {
           className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-normal text-neutral-900"
         />
       </label>
+
       <label className="flex items-center justify-between rounded-lg bg-white px-3 py-3 text-sm">
         ビジネスアカウント
         <input
           type="checkbox"
           checked={accountType === "business"}
-          onChange={(e) => setAccountType(e.target.checked ? "business" : "personal")}
+          onChange={(e) =>
+            setAccountType(e.target.checked ? "business" : "personal")
+          }
         />
       </label>
+
       {accountType === "business" ? (
         <div className="space-y-3 rounded-2xl bg-white p-3">
-          <p className="text-xs font-semibold text-neutral-500">企業プロフィール</p>
-          <Field label="会社名" value={companyName} onChange={setCompanyName} />
-          <Field label="Webサイト" value={companyWebsite} onChange={setCompanyWebsite} />
+          <p className="text-xs font-semibold text-neutral-500">
+            会社プロフィール
+          </p>
+
+          <Field
+            label="会社名"
+            value={companyName}
+            onChange={setCompanyName}
+          />
+
+          <Field
+            label="Webサイト"
+            value={companyWebsite}
+            onChange={setCompanyWebsite}
+          />
+
           <label className="block text-xs font-semibold text-neutral-500">
             会社説明
             <textarea
@@ -107,14 +146,17 @@ export function SettingsForm() {
           </label>
         </div>
       ) : null}
+
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
+
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white"
+        className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
       >
-        保存
+        {busy ? "保存中..." : "保存"}
       </button>
+
       <button
         type="button"
         onClick={signOut}
@@ -146,3 +188,4 @@ function Field({
     </label>
   );
 }
+

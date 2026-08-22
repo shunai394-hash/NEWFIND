@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -21,7 +21,7 @@ export function PostCard({
   post: PostView;
   onChange?: (post: PostView) => void;
 }) {
-  const { session, me } = useApp();
+  const { ready, session, me } = useApp();
   const [post, setPost] = useState(initial);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -55,6 +55,7 @@ export function PostCard({
   }
 
   function needLogin() {
+    if (!ready) return true;
     if (session) return false;
     window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
     return true;
@@ -185,7 +186,7 @@ export function PostCard({
           onClick={() => setCommentsOpen(true)}
           className="text-sm text-neutral-400"
         >
-          コメント{post.commentCount > 0 ? ` ${post.commentCount}件` : ""}を見る
+          {`コメント${post.commentCount > 0 ? ` ${post.commentCount}件` : ""}を見る`}
         </button>
         <p className="text-[11px] uppercase tracking-wide text-neutral-400">
           {timeAgo(post.createdAt)}
@@ -211,3 +212,5 @@ export function PostCard({
     </article>
   );
 }
+
+

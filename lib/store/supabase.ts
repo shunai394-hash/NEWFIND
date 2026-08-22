@@ -104,7 +104,11 @@ async function ensureProfile(
     .select("*")
     .single();
 
-  if (inserted.error) throw new Error(inserted.error.message);
+  if (inserted.error) {
+    const retry = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+    if (retry.data) return mapProfile(retry.data as ProfileRow);
+    throw new Error(inserted.error.message);
+  }
   return mapProfile(inserted.data as ProfileRow);
 }
 
@@ -177,19 +181,44 @@ function score(view: PostView) {
 
 export const supabaseStore: Store = {
   async getSession() {
-    const supabase = createClient();
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return null;
-    await ensureProfile(supabase, data.user.id, data.user.email ?? "");
-    return { userId: data.user.id, email: data.user.email ?? "" };
+    try {
+      const supabase = createClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      let user = sessionData.session?.user ?? null;
+
+      if (!user) {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) return null;
+        user = data.user ?? null;
+      }
+
+      if (!user) return null;
+
+      try {
+        await ensureProfile(supabase, user.id, user.email ?? "");
+      } catch {
+        // プロフィール未作成でも認証は維持する
+      }
+
+      return { userId: user.id, email: user.email ?? "" };
+    } catch {
+      return null;
+    }
   },
 
   async signInEmail(email, password) {
     const supabase = createClient();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error || !data.user) throw new Error(error?.message || "ログインに失敗しました");
-    await ensureProfile(supabase, data.user.id, data.user.email ?? email);
-    return { userId: data.user.id, email: data.user.email ?? email };
+    if (error || !data.session?.user) {
+      throw new Error(error?.message || "ログインに失敗しました");
+    }
+    const user = data.session.user;
+    try {
+      await ensureProfile(supabase, user.id, user.email ?? email);
+    } catch {
+      // 認証は成功している
+    }
+    return { userId: user.id, email: user.email ?? email };
   },
 
   async signUpEmail(email, password, displayName) {
@@ -199,18 +228,30 @@ export const supabaseStore: Store = {
       password,
       options: { data: { display_name: displayName } },
     });
-    if (error || !data.user) throw new Error(error?.message || "登録に失敗しました");
-    await ensureProfile(supabase, data.user.id, data.user.email ?? email, displayName);
-    return { userId: data.user.id, email: data.user.email ?? email };
+    if (error) throw new Error(error.message);
+    if (!data.session?.user) {
+      throw new Error(
+        "確認メールを送信しました。メール内のリンクを開いてからログインしてください。",
+      );
+    }
+    const user = data.session.user;
+    try {
+      await ensureProfile(supabase, user.id, user.email ?? email, displayName);
+    } catch {
+      // 認証は成功している
+    }
+    return { userId: user.id, email: user.email ?? email };
   },
 
-  async signInOAuth(provider) {
+  async signInOAuth(provider, next = "/") {
     const supabase = createClient();
+    const redirectTo = new URL("/auth/callback", window.location.origin);
+    if (next.startsWith("/") && !next.startsWith("//")) {
+      redirectTo.searchParams.set("next", next);
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { redirectTo: redirectTo.toString() },
     });
     if (error) throw new Error(error.message);
   },

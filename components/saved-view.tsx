@@ -9,11 +9,12 @@ import type { PostView } from "@/lib/types";
 
 export function SavedView() {
   const router = useRouter();
-  const { session } = useApp();
+  const { ready, session } = useApp();
   const [posts, setPosts] = useState<PostView[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!ready) return;
     if (!session) {
       router.replace("/login?next=/saved");
       return;
@@ -30,9 +31,9 @@ export function SavedView() {
     return () => {
       cancelled = true;
     };
-  }, [session, router]);
+  }, [ready, session, router]);
 
-  if (!session) return null;
+  if (!ready || !session) return null;
 
   return (
     <div>

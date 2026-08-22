@@ -190,7 +190,7 @@ export const localStore: Store = {
     });
   },
 
-  async signInOAuth() {
+  async signInOAuth(_provider, _next) {
     throw new Error(
       "Google / Apple ログインは Supabase Auth の設定後に利用できます",
     );

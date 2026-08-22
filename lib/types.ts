@@ -10,6 +10,7 @@ export const CATEGORIES = [
   "tech",
   "sports",
   "lifestyle",
+  "travel",
   "other",
 ] as const;
 

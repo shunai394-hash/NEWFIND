@@ -8,6 +8,7 @@ export const CATEGORY_LABELS: Record<CategoryId, string> = {
   tech: "テック",
   sports: "スポーツ",
   lifestyle: "ライフスタイル",
+  travel: "トラベル",
   other: "その他",
 };
 

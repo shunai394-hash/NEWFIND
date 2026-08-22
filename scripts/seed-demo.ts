@@ -42,12 +42,15 @@ type Flags = {
   purge: boolean;
 };
 
-function loadEnvLocal() {
+function parseEnvLocal(): Map<string, string> {
+  const map = new Map<string, string>();
   const path = resolve(process.cwd(), ".env.local");
-  if (!existsSync(path)) return;
-  for (const raw of readFileSync(path, "utf8").split(/\r?\n/)) {
-    const line = raw.trim();
+  if (!existsSync(path)) return map;
+  const text = readFileSync(path, "utf8").replace(/^\uFEFF/, "");
+  for (const raw of text.split(/\r?\n/)) {
+    let line = raw.trim();
     if (!line || line.startsWith("#")) continue;
+    if (line.startsWith("export ")) line = line.slice(7).trim();
     const eq = line.indexOf("=");
     if (eq <= 0) continue;
     const key = line.slice(0, eq).trim();
@@ -58,8 +61,30 @@ function loadEnvLocal() {
     ) {
       value = value.slice(1, -1);
     }
-    if (!process.env[key]) process.env[key] = value;
+    map.set(key, value);
   }
+  return map;
+}
+
+function envLocal(name: string) {
+  return parseEnvLocal().get(name)?.trim() || process.env[name]?.trim() || "";
+}
+
+function keyKind(value: string) {
+  if (!value) return "missing";
+  if (value.startsWith("sb_publishable_")) return "publishable";
+  if (value.startsWith("sb_secret_")) return "secret";
+  if (value.startsWith("eyJ")) {
+    try {
+      const payload = JSON.parse(
+        Buffer.from(value.split(".")[1] ?? "", "base64url").toString("utf8"),
+      ) as { role?: string };
+      return payload.role === "service_role" ? "jwt:service_role" : `jwt:${payload.role || "unknown"}`;
+    } catch {
+      return "jwt:unparsed";
+    }
+  }
+  return "other";
 }
 
 function parseFlags(argv: string[]): Flags {
@@ -102,10 +127,10 @@ function assertDemoOnlyPayload() {
 }
 
 function createAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    process.env.SERVICE_ROLE_KEY?.trim();
+  const url = envLocal("NEXT_PUBLIC_SUPABASE_URL");
+  const anonKey = envLocal("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const key = envLocal("SUPABASE_SERVICE_ROLE_KEY") || envLocal("SERVICE_ROLE_KEY");
+  const kind = keyKind(key);
 
   if (!url || !url.startsWith("http")) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL が .env.local にありません");
@@ -115,12 +140,30 @@ function createAdmin() {
       "SUPABASE_SERVICE_ROLE_KEY が .env.local にありません。ダミー投入には service role が必要です。",
     );
   }
-  if (key.startsWith("sb_publishable_")) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY に anon/publishable key が設定されています");
+  if (anonKey && key === anonKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY が anon/publishable key と同じです");
+  }
+  if (kind === "publishable" || kind.startsWith("jwt:anon") || kind.startsWith("jwt:authenticated")) {
+    throw new Error(`SUPABASE_SERVICE_ROLE_KEY が service role ではありません (${kind})`);
+  }
+  if (kind !== "secret" && kind !== "jwt:service_role") {
+    throw new Error(`SUPABASE_SERVICE_ROLE_KEY の形式を確認してください (${kind})`);
   }
 
+  console.log(`  client      : service_role (${kind})`);
+
   return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+    global: {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+    },
   });
 }
 
@@ -336,10 +379,10 @@ function printPlan(flags: Flags) {
 }
 
 async function main() {
-  loadEnvLocal();
   const flags = parseFlags(process.argv.slice(2));
   assertDemoOnlyPayload();
   printPlan(flags);
+  console.log(`  service key : ${keyKind(envLocal("SUPABASE_SERVICE_ROLE_KEY") || envLocal("SERVICE_ROLE_KEY"))}`);
 
   if (!flags.apply) {
     console.log("No writes. Re-run with --apply to upsert demo rows only.");

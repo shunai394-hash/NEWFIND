@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,18 +15,17 @@ export function BottomNav() {
   const pathname = usePathname();
   const { ready, session, me } = useApp();
 
-  const profileHref =
-    !ready || (session && !me) ? null : me ? `/u/${me.username}` : "/login";
+  const profileHref = !ready ? null : me ? `/u/${me.username}` : session ? "/settings" : "/login";
 
   const items = [
-    { href: "/", icon: HomeIcon, label: "ホーム", active: pathname === "/" || pathname === "/following" },
+    { href: "/", icon: HomeIcon, label: "繝帙・繝", active: pathname === "/" || pathname === "/following" },
     { href: "/discover", icon: SearchIcon, label: "Discover", active: pathname.startsWith("/discover") },
-    { href: "/create", icon: PlusIcon, label: "投稿", active: pathname.startsWith("/create") },
+    { href: "/create", icon: PlusIcon, label: "謚慕ｨｿ", active: pathname.startsWith("/create") },
     { href: "/saved", icon: BookmarkIcon, label: "保存", active: pathname.startsWith("/saved") },
     {
       href: profileHref,
       icon: UserIcon,
-      label: "プロフィール",
+      label: "繝励Ο繝輔ぅ繝ｼ繝ｫ",
       active: pathname.startsWith("/u/") || pathname.startsWith("/settings"),
     },
   ];
@@ -58,3 +57,5 @@ export function BottomNav() {
     </nav>
   );
 }
+
+

@@ -18,6 +18,8 @@ export function SettingsForm() {
   const [companyName, setCompanyName] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [companyDescription, setCompanyDescription] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [profileError, setProfileError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -56,6 +58,7 @@ export function SettingsForm() {
 
     setUsername(me.username);
     setDisplayName(me.displayName);
+    setAvatarUrl(me.avatarUrl ?? "");
     setBio(me.bio);
     setAccountType(me.accountType);
     setCompanyName(me.companyName ?? "");
@@ -79,9 +82,17 @@ export function SettingsForm() {
     setError("");
 
     try {
+      let nextAvatarUrl = avatarUrl;
+
+      if (avatarFile) {
+        const uploaded = await getStore().uploadMedia(avatarFile);
+        nextAvatarUrl = uploaded.url;
+      }
+
       await getStore().updateProfile(session!.userId, {
         username: username.trim(),
         displayName: displayName.trim(),
+        avatarUrl: nextAvatarUrl || null,
         bio,
         accountType,
         companyName:
@@ -94,6 +105,8 @@ export function SettingsForm() {
             : null,
       });
 
+      setAvatarUrl(nextAvatarUrl);
+      setAvatarFile(null);
       await refresh();
       router.push(profilePath(username.trim()));
     } catch (err) {
@@ -114,6 +127,48 @@ export function SettingsForm() {
   return (
     <form onSubmit={save} className="space-y-3 px-4 py-4">
       <h1 className="text-lg font-semibold">プロフィール設定</h1>
+
+      <div className="rounded-2xl bg-white p-4">
+        <p className="text-xs font-semibold text-neutral-500">プロフィール画像</p>
+
+        <div className="mt-3 flex items-center gap-4">
+          <div className="h-20 w-20 overflow-hidden rounded-full bg-neutral-200">
+            {avatarFile ? (
+              <img
+                src={URL.createObjectURL(avatarFile)}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-neutral-500">
+                {displayName?.charAt(0)?.toUpperCase() || "?"}
+              </div>
+            )}
+          </div>
+
+          <label className="cursor-pointer rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white">
+            画像を変更
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+        </div>
+
+        {avatarFile ? (
+          <p className="mt-2 text-xs text-neutral-500">
+            {avatarFile.name} を選択中。保存するとプロフィール画像が更新されます。
+          </p>
+        ) : null}
+      </div>
 
       <Field
         label="ユーザー名"
@@ -219,4 +274,5 @@ function Field({
     </label>
   );
 }
+
 

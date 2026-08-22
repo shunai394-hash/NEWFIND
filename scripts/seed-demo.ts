@@ -530,6 +530,8 @@ function printPlan(flags: Flags) {
   console.log(`  productUrl  : ${jp.productUrl}`);
   console.log(`  sponsored   : ${jp.sponsored}`);
   console.log(`  brandbridge : ${jp.brandbridge}`);
+  console.log(`  videos      : ${jp.videos}`);
+  console.log(`  video+thumb : ${jp.videoWithThumb}`);
   console.log(`  categories  : ${JSON.stringify(jp.categories)}`);
   console.log(`  sample users: ${SEED_JP_PROFILES.slice(0, 5).map((p) => p.username).join(", ")}`);
 }
@@ -575,6 +577,8 @@ async function main() {
   console.log(`  productUrl  : ${jp.productUrl}`);
   console.log(`  sponsored   : ${jp.sponsored}`);
   console.log(`  brandbridge : ${jp.brandbridge}`);
+  console.log(`  videos      : ${jp.videos}`);
+  console.log(`  video+thumb : ${jp.videoWithThumb}`);
 }
 
 main().catch((err) => {

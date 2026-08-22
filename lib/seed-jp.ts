@@ -254,6 +254,104 @@ const LIFE_IMAGES = [
   "1513364776144-60967b0f800f", "1523275335684-37898b6baf30",
 ];
 
+/** Publicly playable sample MP4s (Google sample bucket). Not image URLs. */
+const VIDEO_CLIPS = [
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4",
+];
+
+const VIDEO_THEMES = [
+  "コーデ紹介",
+  "今日の服",
+  "購入品紹介",
+  "コスメ紹介",
+  "メイク動画",
+  "ネイル",
+  "バッグの中身",
+  "カフェ",
+  "スイーツ",
+  "推し活",
+  "旅行",
+  "ルックブック",
+  "GRWM",
+] as const;
+
+function videoCaption(i: number, theme: (typeof VIDEO_THEMES)[number], category: CategoryId) {
+  const lines: Record<(typeof VIDEO_THEMES)[number], string[]> = {
+    コーデ紹介: [
+      "今日のコーデ、動画の方が雰囲気伝わる気がする。\n動きながら撮ってみた。",
+      "ルックブック風に回してみた。\n色のグラデがわかりやすいはず。",
+    ],
+    今日の服: [
+      "今日の服、短めに撮った。\n朝はこれで十分だった。",
+      "通学コーデを歩いてみた。\n靴の音まで残ってる。",
+    ],
+    購入品紹介: [
+      "購入品紹介、中身開けながら。\nパケ見たい人向け。",
+      "届いたものだけ動画で残す。\n写真より早い。",
+    ],
+    コスメ紹介: [
+      "コスメ紹介、テクスチャが見えるように撮った。\n塗り比べは次の動画で。",
+      "リップの発色だけ先に動画。\n写真だと透け感が弱い。",
+    ],
+    メイク動画: [
+      "GRWM風に、ベースからざっくり。\n学校メイク寄り。",
+      "涙袋だけ丁寧に塗るところ。\n短めのメイク動画。",
+    ],
+    ネイル: [
+      "ネイル、角度を変えながら。\nラメの入り方が好き。",
+      "短いネイルの質感。\nライブ前でも引っかからない。",
+    ],
+    バッグの中身: [
+      "バッグの中身、出してみた。\nポーチが主役。",
+      "中身チェック動画。\n余計なものが減った。",
+    ],
+    カフェ: [
+      "カフェの席、店内を少しだけ回した。\n写真より空気感が出る。",
+      "ドリンク来るまでの待ち時間動画。\n光がきれいだった。",
+    ],
+    スイーツ: [
+      "スイーツ、切るところまで。\n食感は動画の方が伝わる。",
+      "クロッフルの断面。\n熱いうちに撮った。",
+    ],
+    推し活: [
+      "推し色の小物を並べただけ。\n参戦前の儀式。",
+      "グッズ紹介を短く。\n本人コーデではなく雰囲気寄せ。",
+    ],
+    旅行: [
+      "旅先の朝、窓からの光。\n短めの旅行メモ。",
+      "駅から宿までの歩き。\n荷物は最小。",
+    ],
+    ルックブック: [
+      "ルックブック風に3パターン。\n淡色多め。",
+      "休日ルックを回してみた。\nきれいめ寄り。",
+    ],
+    GRWM: [
+      "GRWM、朝のざっくり版。\nベースとリップだけ気合入れた。",
+      "出かける前のGRWM。\nメイク薄め。",
+    ],
+  };
+  const pool = lines[theme];
+  const base = pool[i % pool.length]!;
+  if (category === "fashion" && theme === "コーデ紹介") return base;
+  return base;
+}
+
+function shouldBeVideo(i: number) {
+  // ~40 of 360 posts (~11%): every 9th post starting at 3
+  return i % 9 === 3;
+}
+
 function imageUrl(id: string, sig?: number) {
   const base = `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&q=80`;
   return sig === undefined ? base : `${base}&sig=${sig}`;
@@ -417,6 +515,9 @@ function buildPosts(profiles: Profile[]): Post[] {
     let productUrl: string | null = null;
     let productLabel: string | null = null;
     let mediaUrl: string;
+    let mediaType: "photo" | "video" = "photo";
+    let thumbnailUrl: string | null = null;
+    const asVideo = shouldBeVideo(i);
 
     const forceFashion = def.interest === "fashion" || (def.accountType === "personal" && roll < 0.34);
     const forceBeauty = !forceFashion && (def.interest === "beauty" || roll < 0.58);
@@ -462,6 +563,27 @@ function buildPosts(profiles: Profile[]): Post[] {
       }
     }
 
+    if (asVideo) {
+      const videoTheme = VIDEO_THEMES[(i + def.n) % VIDEO_THEMES.length]!;
+      // Prefer theme-category alignment for a natural mix
+      const alignedTheme =
+        category === "fashion"
+          ? (["コーデ紹介", "今日の服", "ルックブック", "購入品紹介", "推し活"] as const)[
+              (i + def.n) % 5
+            ]!
+          : category === "beauty"
+            ? (["メイク動画", "コスメ紹介", "GRWM", "ネイル", "購入品紹介"] as const)[
+                (i + def.n) % 5
+              ]!
+            : category === "food"
+              ? (["カフェ", "スイーツ"] as const)[(i + def.n) % 2]!
+              : (["バッグの中身", "旅行", "推し活", "ネイル"] as const)[(i + def.n) % 4]!;
+      caption = videoCaption(i + def.n, alignedTheme ?? videoTheme, category);
+      thumbnailUrl = mediaUrl;
+      mediaUrl = VIDEO_CLIPS[(i + def.n) % VIDEO_CLIPS.length]!;
+      mediaType = "video";
+    }
+
     const isSponsored = i % 8 === 0;
     const isBrandbridge = i % 14 === 0 || (author.accountType === "business" && i % 9 === 0);
     if (isBrandbridge) {
@@ -476,9 +598,9 @@ function buildPosts(profiles: Profile[]): Post[] {
     posts.push({
       id: demoJpPostId(i),
       authorId: author.id,
-      mediaType: "photo",
+      mediaType,
       mediaUrl,
-      thumbnailUrl: null,
+      thumbnailUrl,
       caption,
       category,
       productUrl,
@@ -607,6 +729,7 @@ export function jpSeedStats() {
     acc[post.category] = (acc[post.category] ?? 0) + 1;
     return acc;
   }, {});
+  const videos = SEED_JP_POSTS.filter((p) => p.mediaType === "video");
   return {
     profiles: SEED_JP_PROFILES.length,
     reactors: SEED_JP_REACTORS.length,
@@ -619,6 +742,8 @@ export function jpSeedStats() {
     productUrl: SEED_JP_POSTS.filter((p) => p.productUrl).length,
     sponsored: SEED_JP_POSTS.filter((p) => p.isSponsored).length,
     brandbridge: SEED_JP_POSTS.filter((p) => p.source === "brandbridge").length,
+    videos: videos.length,
+    videoWithThumb: videos.filter((p) => Boolean(p.thumbnailUrl)).length,
     categories,
   };
 }

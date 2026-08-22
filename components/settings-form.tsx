@@ -38,8 +38,10 @@ export function SettingsForm() {
     setCompanyDescription(me.companyDescription ?? "");
   }, [session, me]);
 
-  if (!ready || !session || !me) {
-    return null;
+  if (!ready) return null;
+  if (!session) return null;
+  if (!me) {
+    return <p className="px-4 py-16 text-center text-sm text-neutral-400">プロフィールを準備しています...</p>;
   }
 
   async function save(event: React.FormEvent) {

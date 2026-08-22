@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { safeNextPath } from "@/lib/config";
 import { getStore, storeMode } from "@/lib/store";
@@ -9,7 +9,7 @@ import { getStore, storeMode } from "@/lib/store";
 export function AuthForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const { refresh } = useApp();
+  const { ready, session, me, refresh } = useApp();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +18,12 @@ export function AuthForm() {
   const [busy, setBusy] = useState(false);
   const next = safeNextPath(params.get("next"));
   const local = storeMode() === "local";
+
+  useEffect(() => {
+    if (ready && session && me) {
+      router.replace(next);
+    }
+  }, [ready, session, me, next, router]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -35,6 +41,7 @@ export function AuthForm() {
       if (!confirmed) {
         throw new Error("ログイン状態を確認できませんでした。もう一度お試しください。");
       }
+      await store.ensureMyProfile(confirmed);
       router.replace(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "ログインに失敗しました");

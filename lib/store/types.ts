@@ -22,6 +22,7 @@ export type Store = {
   signOut(): Promise<void>;
   getProfile(id: string): Promise<Profile | null>;
   getProfileByUsername(username: string): Promise<Profile | null>;
+  ensureMyProfile(session: Session): Promise<Profile>;
   updateProfile(id: string, patch: UpdateProfileInput): Promise<Profile>;
   getFeed(kind: "foryou" | "following", viewerId: string | null): Promise<PostView[]>;
   getPost(id: string, viewerId: string | null): Promise<PostView | null>;

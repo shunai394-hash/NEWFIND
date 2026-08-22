@@ -194,12 +194,6 @@ export const supabaseStore: Store = {
 
       if (!user) return null;
 
-      try {
-        await ensureProfile(supabase, user.id, user.email ?? "");
-      } catch {
-        // プロフィール未作成でも認証は維持する
-      }
-
       return { userId: user.id, email: user.email ?? "" };
     } catch {
       return null;
@@ -213,11 +207,6 @@ export const supabaseStore: Store = {
       throw new Error(error?.message || "ログインに失敗しました");
     }
     const user = data.session.user;
-    try {
-      await ensureProfile(supabase, user.id, user.email ?? email);
-    } catch {
-      // 認証は成功している
-    }
     return { userId: user.id, email: user.email ?? email };
   },
 
@@ -235,11 +224,6 @@ export const supabaseStore: Store = {
       );
     }
     const user = data.session.user;
-    try {
-      await ensureProfile(supabase, user.id, user.email ?? email, displayName);
-    } catch {
-      // 認証は成功している
-    }
     return { userId: user.id, email: user.email ?? email };
   },
 
@@ -265,6 +249,11 @@ export const supabaseStore: Store = {
     const supabase = createClient();
     const { data } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
     return data ? mapProfile(data as ProfileRow) : null;
+  },
+
+  async ensureMyProfile(session) {
+    const supabase = createClient();
+    return ensureProfile(supabase, session.userId, session.email);
   },
 
   async getProfileByUsername(username) {

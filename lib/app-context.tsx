@@ -29,26 +29,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<Profile | null>(null);
 
   const refresh = useCallback(async () => {
-    try {
-      const store = getStore();
-      const next = await store.getSession();
-      setSession(next);
-      if (next) {
-        setMe(await store.getProfile(next.userId));
-      } else {
-        setMe(null);
-      }
-    } catch {
-      // 一時的な取得失敗でログイン状態を消さない
+    const store = getStore();
+    const next = await store.getSession();
+
+    if (!next) {
+      setSession(null);
+      setMe(null);
+      return;
     }
+
+    setSession(next);
+    const profile = await store.ensureMyProfile(next);
+    setMe(profile);
   }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    refresh().finally(() => {
-      if (mounted) setReady(true);
-    });
+    refresh()
+      .catch(() => {
+        // 初期化失敗でも ready は立てる。session は消さない。
+      })
+      .finally(() => {
+        if (mounted) setReady(true);
+      });
 
     if (storeMode() !== "supabase") {
       return () => {
@@ -61,7 +65,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, authSession) => {
       if (!mounted) return;
-
       if (event === "INITIAL_SESSION") return;
 
       if (event === "SIGNED_OUT") {
@@ -72,12 +75,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (!authSession?.user) return;
 
-      setSession({
+      const next: Session = {
         userId: authSession.user.id,
         email: authSession.user.email ?? "",
-      });
+      };
+      setSession(next);
       void getStore()
-        .getProfile(authSession.user.id)
+        .ensureMyProfile(next)
         .then((profile) => {
           if (mounted) setMe(profile);
         });

@@ -26,7 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1">
           {ready ? children : <div className="px-4 py-20 text-center text-sm text-neutral-400">読み込み中...</div>}
         </main>
-        {hideChrome ? null : <BottomNav />}
+        {hideChrome || !ready ? null : <BottomNav />}
       </div>
     </div>
   );

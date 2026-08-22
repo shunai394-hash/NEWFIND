@@ -206,6 +206,31 @@ export const localStore: Store = {
     return load().profiles.find((p) => p.id === id) ?? null;
   },
 
+  async ensureMyProfile(session) {
+    const existing = load().profiles.find((p) => p.id === session.userId);
+    if (existing) return existing;
+    return mutate((state) => {
+      const username = usernameFromEmail(
+        session.email,
+        new Set(state.profiles.map((p) => p.username.toLowerCase())),
+      );
+      const profile: Profile = {
+        id: session.userId,
+        username,
+        displayName: username,
+        bio: "",
+        avatarUrl: null,
+        accountType: "personal",
+        companyName: null,
+        companyWebsite: null,
+        companyDescription: null,
+        createdAt: new Date().toISOString(),
+      };
+      state.profiles.push(profile);
+      return { ...profile };
+    });
+  },
+
   async getProfileByUsername(username) {
     return (
       load().profiles.find(

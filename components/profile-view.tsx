@@ -9,7 +9,7 @@ import { getStore } from "@/lib/store";
 import type { FollowCounts, PostView, Profile } from "@/lib/types";
 
 export function ProfileView({ username }: { username: string }) {
-  const { session, me, refresh } = useApp();
+  const { ready, session, me, refresh } = useApp();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<PostView[]>([]);
   const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
@@ -60,6 +60,7 @@ export function ProfileView({ username }: { username: string }) {
   const mine = me?.id === profile.id;
 
   async function onFollow() {
+    if (!ready) return;
     if (!session) {
       window.location.href = `/login?next=/u/${username}`;
       return;

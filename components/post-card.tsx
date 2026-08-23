@@ -26,10 +26,12 @@ export function PostCard({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [muted, setMuted] = useState(true);
+  const [mediaFailed, setMediaFailed] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     setPost(initial);
+    setMediaFailed(false);
   }, [initial]);
 
   useEffect(() => {
@@ -127,8 +129,12 @@ export function PostCard({
         ) : null}
       </header>
 
-      <div className="relative bg-neutral-100">
-        {post.mediaType === "video" ? (
+      <div className="relative bg-neutral-200">
+        {mediaFailed ? (
+          <div className="flex aspect-[4/5] w-full items-center justify-center text-sm text-neutral-500">
+            画像を表示できません
+          </div>
+        ) : post.mediaType === "video" ? (
           <>
             <video
               ref={videoRef}
@@ -143,14 +149,16 @@ export function PostCard({
                 if (video.paused) void video.play();
                 else video.pause();
               }}
+              onError={() => setMediaFailed(true)}
             />
             <button
               type="button"
               onClick={() => setMuted((v) => !v)}
-              className="absolute bottom-3 right-3 rounded-full bg-black/50 p-2 text-white"
+              className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-2 text-white"
               aria-label={muted ? "unmute" : "mute"}
             >
               {muted ? <MuteIcon className="h-4 w-4" /> : <VolumeIcon className="h-4 w-4" />}
+              <span className="text-[11px] font-medium">{muted ? "音声オフ" : "音声オン"}</span>
             </button>
           </>
         ) : (
@@ -159,6 +167,7 @@ export function PostCard({
             src={post.mediaUrl}
             alt=""
             className="mx-auto max-h-[520px] w-full object-cover"
+            onError={() => setMediaFailed(true)}
           />
         )}
       </div>

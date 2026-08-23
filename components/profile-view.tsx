@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/avatar";
+import { FollowListSheet } from "@/components/follow-list-sheet";
 import { MediaThumb } from "@/components/media-thumb";
 import { useApp } from "@/lib/app-context";
+import { displayUrl, socialLinkEntries } from "@/lib/social-links";
 import { getStore } from "@/lib/store";
 import { normalizeUsername, usernamesMatch } from "@/lib/username";
 import type { FollowCounts, PostView, Profile } from "@/lib/types";
 
 type ViewState = "loading" | "success" | "not_found" | "error";
+type FollowSheetMode = "followers" | "following" | null;
 
 export function ProfileView({ username }: { username: string }) {
   const { ready, session, me, refresh } = useApp();
@@ -18,6 +21,7 @@ export function ProfileView({ username }: { username: string }) {
   const [posts, setPosts] = useState<PostView[]>([]);
   const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
   const [following, setFollowing] = useState(false);
+  const [followSheet, setFollowSheet] = useState<FollowSheetMode>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +106,38 @@ export function ProfileView({ username }: { username: string }) {
     };
   }, [ready, username, session?.userId, me?.id, me?.username]);
 
+  // Keep own profile SNS/avatar in sync after settings save without a full remount race.
+  useEffect(() => {
+    if (!me) return;
+    setProfile((prev) => {
+      if (!prev || prev.id !== me.id) return prev;
+      if (
+        prev.instagramUrl === me.instagramUrl &&
+        prev.xUrl === me.xUrl &&
+        prev.tiktokUrl === me.tiktokUrl &&
+        prev.youtubeUrl === me.youtubeUrl &&
+        prev.websiteUrl === me.websiteUrl &&
+        prev.avatarUrl === me.avatarUrl &&
+        prev.bio === me.bio &&
+        prev.displayName === me.displayName
+      ) {
+        return prev;
+      }
+      return me;
+    });
+  }, [
+    me,
+    me?.id,
+    me?.instagramUrl,
+    me?.xUrl,
+    me?.tiktokUrl,
+    me?.youtubeUrl,
+    me?.websiteUrl,
+    me?.avatarUrl,
+    me?.bio,
+    me?.displayName,
+  ]);
+
   if (state === "loading") {
     return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;
   }
@@ -113,6 +149,13 @@ export function ProfileView({ username }: { username: string }) {
   }
 
   const mine = me?.id === profile.id;
+  const socials = socialLinkEntries({
+    instagramUrl: profile.instagramUrl,
+    xUrl: profile.xUrl,
+    tiktokUrl: profile.tiktokUrl,
+    youtubeUrl: profile.youtubeUrl,
+    websiteUrl: profile.websiteUrl,
+  });
 
   async function onFollow() {
     if (!ready) return;
@@ -126,6 +169,11 @@ export function ProfileView({ username }: { username: string }) {
     await refresh();
   }
 
+  async function refreshCounts() {
+    if (!profile) return;
+    setCounts(await getStore().getFollowCounts(profile.id));
+  }
+
   return (
     <div>
       <div className="bg-white px-4 py-5">
@@ -133,8 +181,16 @@ export function ProfileView({ username }: { username: string }) {
           <Avatar profile={profile} size={78} />
           <div className="flex flex-1 justify-around text-center text-sm">
             <Stat label="投稿" value={posts.length} />
-            <Stat label="フォロワー" value={counts.followers} />
-            <Stat label="フォロー" value={counts.following} />
+            <Stat
+              label="フォロワー"
+              value={counts.followers}
+              onClick={() => setFollowSheet("followers")}
+            />
+            <Stat
+              label="フォロー"
+              value={counts.following}
+              onClick={() => setFollowSheet("following")}
+            />
           </div>
         </div>
         <div className="mt-4">
@@ -154,8 +210,24 @@ export function ProfileView({ username }: { username: string }) {
               rel="noopener noreferrer"
               className="mt-1 inline-block text-sm text-sky-600"
             >
-              {profile.companyWebsite.replace(/^https?:\/\//, "")}
+              {displayUrl(profile.companyWebsite)}
             </a>
+          ) : null}
+          {socials.length > 0 ? (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {socials.map((item) => (
+                <li key={item.platform}>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-sky-700"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
           ) : null}
         </div>
         <div className="mt-4">
@@ -187,14 +259,48 @@ export function ProfileView({ username }: { username: string }) {
           </Link>
         ))}
       </div>
+
+      {followSheet ? (
+        <FollowListSheet
+          userId={profile.id}
+          mode={followSheet}
+          expectedCount={
+            followSheet === "followers" ? counts.followers : counts.following
+          }
+          onClose={() => setFollowSheet(null)}
+          onCountsChanged={() => void refreshCounts()}
+        />
+      ) : null}
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  onClick?: () => void;
+}) {
+  const formatted = value.toLocaleString("ja-JP");
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={`${formatted} ${label}の一覧を開く`}
+        className="min-w-[4.5rem] cursor-pointer rounded-md px-1 py-0.5 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+      >
+        <p className="font-semibold">{formatted}</p>
+        <p className="text-xs text-neutral-400 underline-offset-2 group-hover:underline">{label}</p>
+      </button>
+    );
+  }
   return (
-    <div>
-      <p className="font-semibold">{value}</p>
+    <div className="min-w-[4.5rem] px-1">
+      <p className="font-semibold">{formatted}</p>
       <p className="text-xs text-neutral-400">{label}</p>
     </div>
   );

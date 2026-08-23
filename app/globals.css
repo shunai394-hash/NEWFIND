@@ -21,6 +21,12 @@
     min-height: 100%;
   }
 
+  /* Safe-area via CSS env() only — do not inject --safe-area-* on <html> from JS
+     (that causes hydration attribute mismatches in WebView). */
+  html {
+    padding: 0;
+  }
+
   body {
     background: #e5e5e5;
     color: var(--foreground);

@@ -1,4 +1,9 @@
+import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
 import { mediaTypeFromFile } from "@/lib/media";
+import {
+  EMPTY_SOCIAL_LINKS,
+  type SocialLinks,
+} from "@/lib/social-links";
 import { createClient } from "@/lib/supabase/client";
 import type { Store } from "@/lib/store/types";
 
@@ -21,10 +26,12 @@ import type {
   CategoryId,
   CommentView,
   CreatePostInput,
+  FollowListEntry,
   Post,
   PostView,
   Profile,
   Session,
+  UpdateProfileInput,
 } from "@/lib/types";
 
 type ProfileRow = {
@@ -37,6 +44,11 @@ type ProfileRow = {
   company_name: string | null;
   company_website: string | null;
   company_description: string | null;
+  instagram_url?: string | null;
+  x_url?: string | null;
+  tiktok_url?: string | null;
+  youtube_url?: string | null;
+  website_url?: string | null;
   created_at: string;
 };
 
@@ -57,7 +69,9 @@ type PostRow = {
   created_at: string;
 };
 
-function mapProfile(row: ProfileRow): Profile {
+let socialColumnsReady: boolean | null = null;
+
+function mapProfile(row: ProfileRow, social?: SocialLinks | null): Profile {
   return {
     id: row.id,
     username: row.username,
@@ -68,8 +82,100 @@ function mapProfile(row: ProfileRow): Profile {
     companyName: row.company_name,
     companyWebsite: row.company_website,
     companyDescription: row.company_description,
+    instagramUrl: row.instagram_url ?? social?.instagramUrl ?? null,
+    xUrl: row.x_url ?? social?.xUrl ?? null,
+    tiktokUrl: row.tiktok_url ?? social?.tiktokUrl ?? null,
+    youtubeUrl: row.youtube_url ?? social?.youtubeUrl ?? null,
+    websiteUrl: row.website_url ?? social?.websiteUrl ?? null,
     createdAt: row.created_at,
   };
+}
+
+function socialPath(userId: string) {
+  return `profile-meta/${userId}.json`;
+}
+
+async function detectSocialColumns(
+  supabase: ReturnType<typeof createClient>,
+): Promise<boolean> {
+  if (socialColumnsReady !== null) return socialColumnsReady;
+  // Probe the column directly so an empty profiles table still reports ready
+  // after migration 003 (select("*").limit(1) with no rows used to false-negative).
+  const { error } = await supabase.from("profiles").select("instagram_url").limit(1);
+  if (error) {
+    const msg = `${error.message} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
+    const missingColumn =
+      error.code === "42703" ||
+      msg.includes("instagram_url") ||
+      msg.includes("does not exist") ||
+      msg.includes("schema cache");
+    socialColumnsReady = !missingColumn;
+    return socialColumnsReady;
+  }
+  socialColumnsReady = true;
+  return true;
+}
+
+async function loadSocialFallback(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<SocialLinks> {
+  const { data } = supabase.storage.from("media").getPublicUrl(socialPath(userId));
+  try {
+    const res = await fetch(`${data.publicUrl}?t=${Date.now()}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return { ...EMPTY_SOCIAL_LINKS };
+    const json = (await res.json()) as Partial<SocialLinks>;
+    return {
+      instagramUrl: json.instagramUrl ?? null,
+      xUrl: json.xUrl ?? null,
+      tiktokUrl: json.tiktokUrl ?? null,
+      youtubeUrl: json.youtubeUrl ?? null,
+      websiteUrl: json.websiteUrl ?? null,
+    };
+  } catch {
+    return { ...EMPTY_SOCIAL_LINKS };
+  }
+}
+
+async function saveSocialFallback(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  links: SocialLinks,
+) {
+  const body = new Blob([JSON.stringify(links)], { type: "application/json" });
+  const { error } = await supabase.storage
+    .from("media")
+    .upload(socialPath(userId), body, {
+      upsert: true,
+      contentType: "application/json",
+      cacheControl: "60",
+    });
+  if (error) throw new Error(error.message);
+}
+
+async function hydrateProfile(
+  supabase: ReturnType<typeof createClient>,
+  row: ProfileRow,
+): Promise<Profile> {
+  const hasCols = await detectSocialColumns(supabase);
+  const mapped = mapProfile(row);
+  if (hasCols) {
+    const hasDbSocial = Boolean(
+      mapped.instagramUrl ||
+        mapped.xUrl ||
+        mapped.tiktokUrl ||
+        mapped.youtubeUrl ||
+        mapped.websiteUrl,
+    );
+    if (hasDbSocial) return mapped;
+    // Migration just applied: keep reading older Storage fallback until DB is filled.
+    const social = await loadSocialFallback(supabase, row.id);
+    return mapProfile(row, social);
+  }
+  const social = await loadSocialFallback(supabase, row.id);
+  return mapProfile(row, social);
 }
 
 function mapPost(row: PostRow): Post {
@@ -103,7 +209,7 @@ async function ensureProfile(
       status: (existing as { status?: number }).status ?? null,
     });
   }
-  if (existing.data) return mapProfile(existing.data as ProfileRow);
+  if (existing.data) return hydrateProfile(supabase, existing.data as ProfileRow);
 
   const base = email.split("@")[0].toLowerCase().replace(/[^a-z0-9._]/g, "").slice(0, 16) || "user";
   let username = base;
@@ -135,10 +241,28 @@ async function ensureProfile(
         status: (retry as { status?: number }).status ?? null,
       });
     }
-    if (retry.data) return mapProfile(retry.data as ProfileRow);
+    if (retry.data) return hydrateProfile(supabase, retry.data as ProfileRow);
     throw new Error(inserted.error.message);
   }
-  return mapProfile(inserted.data as ProfileRow);
+  return hydrateProfile(supabase, inserted.data as ProfileRow);
+}
+
+async function selectByIds<T>(
+  supabase: ReturnType<typeof createClient>,
+  table: string,
+  columns: string,
+  ids: string[],
+  idColumn = "post_id",
+): Promise<T[]> {
+  if (ids.length === 0) return [];
+  const rows: T[] = [];
+  for (let i = 0; i < ids.length; i += 40) {
+    const slice = ids.slice(i, i + 40);
+    const { data, error } = await supabase.from(table).select(columns).in(idColumn, slice);
+    if (error) throw new Error(`${table}: ${error.message}`);
+    rows.push(...((data ?? []) as T[]));
+  }
+  return rows;
 }
 
 async function hydratePosts(
@@ -150,48 +274,78 @@ async function hydratePosts(
   const ids = posts.map((p) => p.id);
   const authorIds = [...new Set(posts.map((p) => p.authorId))];
 
-  const [profilesRes, likesRes, wantsRes, savesRes, commentsRes, sharesRes, followsRes] =
-    await Promise.all([
-      supabase.from("profiles").select("*").in("id", authorIds),
-      supabase.from("likes").select("user_id, post_id").in("post_id", ids),
-      supabase.from("wants").select("user_id, post_id").in("post_id", ids),
-      supabase.from("saves").select("user_id, post_id").in("post_id", ids),
-      supabase.from("comments").select("id, post_id").in("post_id", ids),
-      supabase.from("shares").select("id, post_id").in("post_id", ids),
-      viewerId
-        ? supabase
-            .from("follows")
-            .select("followee_id")
-            .eq("follower_id", viewerId)
-            .in("followee_id", authorIds)
-        : Promise.resolve({ data: [] as Array<{ followee_id: string }> }),
-    ]);
+  const [profilesRows, likes, wants, saves, comments, shares] = await Promise.all([
+    selectByIds<ProfileRow>(supabase, "profiles", "*", authorIds, "id"),
+    selectByIds<{ user_id: string; post_id: string }>(supabase, "likes", "user_id, post_id", ids),
+    selectByIds<{ user_id: string; post_id: string }>(supabase, "wants", "user_id, post_id", ids),
+    selectByIds<{ user_id: string; post_id: string }>(supabase, "saves", "user_id, post_id", ids),
+    selectByIds<{ id: string; post_id: string }>(supabase, "comments", "id, post_id", ids),
+    selectByIds<{ id: string; post_id: string }>(supabase, "shares", "id, post_id", ids),
+  ]);
 
-  const profiles = new Map(
-    ((profilesRes.data ?? []) as ProfileRow[]).map((row) => [row.id, mapProfile(row)]),
-  );
-  const following = new Set(
-    ((followsRes.data ?? []) as Array<{ followee_id: string }>).map((r) => r.followee_id),
-  );
+  let following = new Set<string>();
+  if (viewerId && authorIds.length > 0) {
+    const followRows: Array<{ followee_id: string }> = [];
+    for (let i = 0; i < authorIds.length; i += 40) {
+      const slice = authorIds.slice(i, i + 40);
+      const { data, error } = await supabase
+        .from("follows")
+        .select("followee_id")
+        .eq("follower_id", viewerId)
+        .in("followee_id", slice);
+      if (error) throw new Error(error.message);
+      followRows.push(...((data ?? []) as Array<{ followee_id: string }>));
+    }
+    following = new Set(followRows.map((r) => r.followee_id));
+  }
+
+  const profiles = new Map(profilesRows.map((row) => [row.id, mapProfile(row)]));
+
+  const likesByPost = new Map<string, Array<{ user_id: string; post_id: string }>>();
+  for (const row of likes) {
+    const list = likesByPost.get(row.post_id) ?? [];
+    list.push(row);
+    likesByPost.set(row.post_id, list);
+  }
+  const wantsByPost = new Map<string, Array<{ user_id: string; post_id: string }>>();
+  for (const row of wants) {
+    const list = wantsByPost.get(row.post_id) ?? [];
+    list.push(row);
+    wantsByPost.set(row.post_id, list);
+  }
+  const savesByPost = new Map<string, Array<{ user_id: string; post_id: string }>>();
+  for (const row of saves) {
+    const list = savesByPost.get(row.post_id) ?? [];
+    list.push(row);
+    savesByPost.set(row.post_id, list);
+  }
+  const commentCount = new Map<string, number>();
+  for (const row of comments) {
+    commentCount.set(row.post_id, (commentCount.get(row.post_id) ?? 0) + 1);
+  }
+  const shareCount = new Map<string, number>();
+  for (const row of shares) {
+    shareCount.set(row.post_id, (shareCount.get(row.post_id) ?? 0) + 1);
+  }
 
   return posts.flatMap((post) => {
     const author = profiles.get(post.authorId);
     if (!author) return [];
-    const likes = (likesRes.data ?? []).filter((r) => r.post_id === post.id);
-    const wants = (wantsRes.data ?? []).filter((r) => r.post_id === post.id);
-    const saves = (savesRes.data ?? []).filter((r) => r.post_id === post.id);
+    const postLikes = likesByPost.get(post.id) ?? [];
+    const postWants = wantsByPost.get(post.id) ?? [];
+    const postSaves = savesByPost.get(post.id) ?? [];
     return [
       {
         ...post,
         author,
-        likeCount: likes.length,
-        wantCount: wants.length,
-        commentCount: (commentsRes.data ?? []).filter((r) => r.post_id === post.id).length,
-        saveCount: saves.length,
-        shareCount: (sharesRes.data ?? []).filter((r) => r.post_id === post.id).length,
-        liked: viewerId ? likes.some((r) => r.user_id === viewerId) : false,
-        wanted: viewerId ? wants.some((r) => r.user_id === viewerId) : false,
-        saved: viewerId ? saves.some((r) => r.user_id === viewerId) : false,
+        likeCount: postLikes.length,
+        wantCount: postWants.length,
+        commentCount: commentCount.get(post.id) ?? 0,
+        saveCount: postSaves.length,
+        shareCount: shareCount.get(post.id) ?? 0,
+        liked: viewerId ? postLikes.some((r) => r.user_id === viewerId) : false,
+        wanted: viewerId ? postWants.some((r) => r.user_id === viewerId) : false,
+        saved: viewerId ? postSaves.some((r) => r.user_id === viewerId) : false,
         followingAuthor: following.has(post.authorId),
       },
     ];
@@ -199,13 +353,7 @@ async function hydratePosts(
 }
 
 function score(view: PostView) {
-  return (
-    Date.parse(view.createdAt) / 60000 +
-    view.likeCount * 8 +
-    view.wantCount * 12 +
-    view.saveCount * 6 +
-    view.commentCount * 4
-  );
+  return engagementScore(view);
 }
 
 export const supabaseStore: Store = {
@@ -281,7 +429,7 @@ export const supabaseStore: Store = {
       logSupabaseError("getProfile", error, { status });
       throw new Error(error.message);
     }
-    return data ? mapProfile(data as ProfileRow) : null;
+    return data ? hydrateProfile(supabase, data as ProfileRow) : null;
   },
 
   async ensureMyProfile(session) {
@@ -300,18 +448,18 @@ export const supabaseStore: Store = {
       });
       throw new Error(exact.error.message);
     }
-    if (exact.data) return mapProfile(exact.data as ProfileRow);
+    if (exact.data) return hydrateProfile(supabase, exact.data as ProfileRow);
 
     const lowered = key.toLowerCase();
     if (lowered !== key) {
       const again = await supabase.from("profiles").select("*").eq("username", lowered).maybeSingle();
       if (again.error) throw new Error(again.error.message);
-      if (again.data) return mapProfile(again.data as ProfileRow);
+      if (again.data) return hydrateProfile(supabase, again.data as ProfileRow);
     }
     return null;
   },
 
-  async updateProfile(id, patch) {
+  async updateProfile(id, patch: UpdateProfileInput) {
     const supabase = createClient();
     const payload: Record<string, unknown> = {};
     if (patch.username !== undefined) payload.username = patch.username;
@@ -324,6 +472,30 @@ export const supabaseStore: Store = {
     if (patch.companyDescription !== undefined) {
       payload.company_description = patch.companyDescription;
     }
+
+    const socialPatch: SocialLinks = {
+      instagramUrl: patch.instagramUrl === undefined ? null : patch.instagramUrl,
+      xUrl: patch.xUrl === undefined ? null : patch.xUrl,
+      tiktokUrl: patch.tiktokUrl === undefined ? null : patch.tiktokUrl,
+      youtubeUrl: patch.youtubeUrl === undefined ? null : patch.youtubeUrl,
+      websiteUrl: patch.websiteUrl === undefined ? null : patch.websiteUrl,
+    };
+    const hasSocialPatch =
+      patch.instagramUrl !== undefined ||
+      patch.xUrl !== undefined ||
+      patch.tiktokUrl !== undefined ||
+      patch.youtubeUrl !== undefined ||
+      patch.websiteUrl !== undefined;
+
+    const hasCols = await detectSocialColumns(supabase);
+    if (hasCols && hasSocialPatch) {
+      if (patch.instagramUrl !== undefined) payload.instagram_url = patch.instagramUrl;
+      if (patch.xUrl !== undefined) payload.x_url = patch.xUrl;
+      if (patch.tiktokUrl !== undefined) payload.tiktok_url = patch.tiktokUrl;
+      if (patch.youtubeUrl !== undefined) payload.youtube_url = patch.youtubeUrl;
+      if (patch.websiteUrl !== undefined) payload.website_url = patch.websiteUrl;
+    }
+
     const { data, error } = await supabase
       .from("profiles")
       .update(payload)
@@ -331,12 +503,24 @@ export const supabaseStore: Store = {
       .select("*")
       .single();
     if (error) throw new Error(error.message);
-    return mapProfile(data as ProfileRow);
+
+    // Storage JSON is legacy-only: required when columns are missing; best-effort mirror otherwise.
+    if (hasSocialPatch && !hasCols) {
+      await saveSocialFallback(supabase, id, socialPatch);
+    } else if (hasSocialPatch && hasCols) {
+      await saveSocialFallback(supabase, id, socialPatch).catch(() => undefined);
+    }
+
+    return hydrateProfile(supabase, data as ProfileRow);
   },
 
   async getFeed(kind, viewerId) {
     const supabase = createClient();
-    let query = supabase.from("posts").select("*").order("created_at", { ascending: false });
+    let query = supabase
+      .from("posts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(120);
 
     if (kind === "following") {
       if (!viewerId) return [];
@@ -350,10 +534,13 @@ export const supabaseStore: Store = {
     }
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) {
+      logSupabaseError("getFeed", error);
+      throw new Error(error.message);
+    }
     const posts = ((data ?? []) as PostRow[]).map(mapPost);
     const views = await hydratePosts(supabase, posts, viewerId);
-    return kind === "foryou" ? views.sort((a, b) => score(b) - score(a)) : views;
+    return kind === "foryou" ? rankForYouFeed(views) : views;
   },
 
   async getPost(id, viewerId) {
@@ -564,14 +751,13 @@ export const supabaseStore: Store = {
       viewerId,
     );
     return {
-      users: ((usersRes.data ?? []) as ProfileRow[]).map(mapProfile),
+      users: ((usersRes.data ?? []) as ProfileRow[]).map((row) => mapProfile(row)),
       posts,
     };
   },
 
   async trending(viewerId) {
-    const views = await this.getFeed("foryou", viewerId);
-    return views.sort((a, b) => score(b) - score(a));
+    return this.getFeed("foryou", viewerId);
   },
 
   async newFinds(viewerId) {
@@ -608,7 +794,108 @@ export const supabaseStore: Store = {
       following: following.count ?? 0,
     };
   },
+
+  async listFollowers(userId, viewerId) {
+    const supabase = createClient();
+    const followerIds = await listFollowColumnIds(supabase, "follower_id", "followee_id", userId);
+    return hydrateFollowList(supabase, followerIds, viewerId);
+  },
+
+  async listFollowing(userId, viewerId) {
+    const supabase = createClient();
+    const followeeIds = await listFollowColumnIds(supabase, "followee_id", "follower_id", userId);
+    return hydrateFollowList(supabase, followeeIds, viewerId);
+  },
 };
+
+async function listFollowColumnIds(
+  supabase: ReturnType<typeof createClient>,
+  selectColumn: "follower_id" | "followee_id",
+  filterColumn: "follower_id" | "followee_id",
+  userId: string,
+): Promise<string[]> {
+  // Stable order + page size under PostgREST max-rows so counts match full lists.
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  const page = 500;
+  for (let from = 0; ; from += page) {
+    const { data, error } = await supabase
+      .from("follows")
+      .select(selectColumn)
+      .eq(filterColumn, userId)
+      .order(selectColumn, { ascending: true })
+      .range(from, from + page - 1);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as Array<Record<string, string>>;
+    for (const row of rows) {
+      const id = row[selectColumn];
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      ids.push(id);
+    }
+    if (rows.length < page) break;
+  }
+  return ids;
+}
+
+function stubFollowProfile(id: string): Profile {
+  return {
+    id,
+    username: `user_${id.replace(/-/g, "").slice(0, 10)}`,
+    displayName: "ユーザー",
+    bio: "",
+    avatarUrl: null,
+    accountType: "personal",
+    companyName: null,
+    companyWebsite: null,
+    companyDescription: null,
+    instagramUrl: null,
+    xUrl: null,
+    tiktokUrl: null,
+    youtubeUrl: null,
+    websiteUrl: null,
+    createdAt: new Date(0).toISOString(),
+  };
+}
+
+async function hydrateFollowList(
+  supabase: ReturnType<typeof createClient>,
+  userIds: string[],
+  viewerId: string | null,
+): Promise<FollowListEntry[]> {
+  if (userIds.length === 0) return [];
+  const profilesRows = await selectByIds<ProfileRow>(supabase, "profiles", "*", userIds, "id");
+  const profiles = new Map(profilesRows.map((row) => [row.id, mapProfile(row)]));
+
+  let followingSet = new Set<string>();
+  if (viewerId) {
+    const rows: Array<{ followee_id: string }> = [];
+    for (let i = 0; i < userIds.length; i += 40) {
+      const slice = userIds.slice(i, i + 40);
+      const { data, error } = await supabase
+        .from("follows")
+        .select("followee_id")
+        .eq("follower_id", viewerId)
+        .in("followee_id", slice);
+      if (error) throw new Error(error.message);
+      rows.push(...((data ?? []) as Array<{ followee_id: string }>));
+    }
+    followingSet = new Set(rows.map((r) => r.followee_id));
+  }
+
+  // Preserve one entry per follow edge so list length matches getFollowCounts.
+  const entries: FollowListEntry[] = [];
+  for (const id of userIds) {
+    const profile = profiles.get(id) ?? stubFollowProfile(id);
+    entries.push({
+      profile,
+      following: followingSet.has(id),
+    });
+  }
+  return entries.sort((a, b) =>
+    a.profile.displayName.localeCompare(b.profile.displayName, "ja"),
+  );
+}
 
 async function toggleJoin(
   table: "likes" | "wants" | "saves",

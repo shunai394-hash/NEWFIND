@@ -1,4 +1,13 @@
 import type { AccountType, CategoryId, Comment, Post, Profile } from "@/lib/types";
+import {
+  JP_DEMO_VIDEO_CLIPS,
+  type JpDemoVideoTheme,
+} from "@/lib/seed-jp-videos.generated";
+import {
+  assertJpImageUniqueness,
+  JP_IMAGES_BY_CATEGORY,
+  type JpImageAsset,
+} from "@/lib/seed-jp-images";
 
 /** Japan youth demo rows — separate ID space from overseas nfdemo_*. */
 export const DEMO_JP_USERNAME_PREFIX = "nfdemo_jp_";
@@ -54,7 +63,7 @@ function pickCount(rng: () => number, min: number, max: number) {
   return min + Math.floor(rng() * (max - min + 1));
 }
 
-type Interest = "fashion" | "beauty" | "food" | "lifestyle";
+type Interest = CategoryId;
 
 type ProfileDef = {
   n: number;
@@ -69,69 +78,266 @@ type ProfileDef = {
   companyDescription?: string;
 };
 
-const AV = {
-  a: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&h=200&q=80",
-  b: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&h=200&q=80",
-  c: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&h=200&q=80",
-  d: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&h=200&q=80",
-  e: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=200&h=200&q=80",
-  f: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=200&h=200&q=80",
-  g: "https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=crop&w=200&h=200&q=80",
-  h: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&h=200&q=80",
-  i: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=200&h=200&q=80",
-  j: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=200&h=200&q=80",
-};
+function av(id: string) {
+  return `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=200&h=200&q=80`;
+}
 
-const JP_PROFILES: ProfileDef[] = [
-  { n: 1, slug: "mio", displayName: "みお", bio: "淡色とカーディガンが好き。通学コーデ多め。", avatarUrl: AV.a, accountType: "personal", interest: "fashion" },
-  { n: 2, slug: "hanae", displayName: "はなえ", bio: "プチプラコスメとポーチの中身メモ。", avatarUrl: AV.b, accountType: "personal", interest: "beauty" },
-  { n: 3, slug: "yuna", displayName: "ゆな", bio: "渋谷と下北のカフェ巡り。", avatarUrl: AV.c, accountType: "personal", interest: "food" },
-  { n: 4, slug: "saki", displayName: "さき", bio: "部屋とネイルと休日の記録。", avatarUrl: AV.d, accountType: "personal", interest: "lifestyle" },
-  { n: 5, slug: "rin", displayName: "りん", bio: "韓国っぽコーデをゆるく研究中。", avatarUrl: AV.e, accountType: "personal", interest: "fashion" },
-  { n: 6, slug: "aoi", displayName: "あおい", bio: "学校でも浮かないナチュラルメイク。", avatarUrl: AV.f, accountType: "personal", interest: "beauty" },
-  { n: 7, slug: "miku", displayName: "みく", bio: "アサイーボウルとクロッフルが好き。", avatarUrl: AV.g, accountType: "personal", interest: "food" },
-  { n: 8, slug: "nana", displayName: "なな", bio: "バッグの中身とスマホケース収集。", avatarUrl: AV.h, accountType: "personal", interest: "lifestyle" },
-  { n: 9, slug: "kaho", displayName: "かほ", bio: "ガーリー寄りのデートコーデ。", avatarUrl: AV.a, accountType: "personal", interest: "fashion" },
-  { n: 10, slug: "eri", displayName: "えり", bio: "涙袋と束感まつ毛が最近の宿題。", avatarUrl: AV.b, accountType: "personal", interest: "beauty" },
-  { n: 11, slug: "honoka", displayName: "ほのか", bio: "韓国カフェと新作スイーツ。", avatarUrl: AV.j, accountType: "personal", interest: "food" },
-  { n: 12, slug: "yui", displayName: "ゆい", bio: "推し活グッズと休日の写真。", avatarUrl: AV.d, accountType: "personal", interest: "lifestyle" },
-  { n: 13, slug: "mei", displayName: "めい", bio: "平成レトロとプリーツが好き。", avatarUrl: AV.i, accountType: "personal", interest: "fashion" },
-  { n: 14, slug: "sara", displayName: "さら", bio: "ドラッグストア購入品をよく撮る。", avatarUrl: AV.e, accountType: "personal", interest: "beauty" },
-  { n: 15, slug: "ichika", displayName: "いちか", bio: "コンビニ新商品とランチ記録。", avatarUrl: AV.g, accountType: "personal", interest: "food" },
-  { n: 16, slug: "fuka", displayName: "ふうか", bio: "デスク周りと香水の匂いメモ。", avatarUrl: AV.h, accountType: "personal", interest: "lifestyle" },
-  { n: 17, slug: "akari", displayName: "あかり", bio: "Y2K寄りのストリートも着ます。", avatarUrl: AV.a, accountType: "personal", interest: "fashion" },
-  { n: 18, slug: "moe", displayName: "もえ", bio: "リップとグロスの沼。", avatarUrl: AV.f, accountType: "personal", interest: "beauty" },
-  { n: 19, slug: "hinata", displayName: "ひなた", bio: "東京カフェの席選びが趣味。", avatarUrl: AV.c, accountType: "personal", interest: "food" },
-  { n: 20, slug: "kotone", displayName: "ことね", bio: "ネイルと旅行の写真多め。", avatarUrl: AV.d, accountType: "personal", interest: "lifestyle" },
-  { n: 21, slug: "reina", displayName: "れいな", bio: "きれいめカジュアルの大学生コーデ。", avatarUrl: AV.i, accountType: "personal", interest: "fashion" },
-  { n: 22, slug: "misa", displayName: "みさ", bio: "韓国メイクを薄めに落とすのが好き。", avatarUrl: AV.b, accountType: "personal", interest: "beauty" },
-  { n: 23, slug: "an", displayName: "あん", bio: "映えスイーツより味優先、でも写真は撮る。", avatarUrl: AV.j, accountType: "personal", interest: "food" },
-  { n: 24, slug: "suzuka", displayName: "すずか", bio: "部屋紹介と休日の朝。", avatarUrl: AV.e, accountType: "personal", interest: "lifestyle" },
-  { n: 25, slug: "maho", displayName: "まほ", bio: "古着とデニムでバランスを取る。", avatarUrl: AV.g, accountType: "personal", interest: "fashion" },
-  { n: 26, slug: "chika", displayName: "ちか", bio: "平成っぽメイクをたまにやりたくなる。", avatarUrl: AV.h, accountType: "personal", interest: "beauty" },
-  { n: 27, slug: "nagi", displayName: "なぎ", bio: "ドリンクの新作を先に飲む係。", avatarUrl: AV.a, accountType: "personal", interest: "food" },
-  { n: 28, slug: "toha", displayName: "とは", bio: "ライブ参戦コーデの記録。", avatarUrl: AV.f, accountType: "personal", interest: "fashion" },
-  { n: 29, slug: "emiri", displayName: "えみり", bio: "ワンホン系の淡色が最近のマイブーム。", avatarUrl: AV.c, accountType: "personal", interest: "fashion" },
-  { n: 30, slug: "risa", displayName: "りさ", bio: "パケ買いしがちなコスメ棚。", avatarUrl: AV.d, accountType: "personal", interest: "beauty" },
-  { n: 31, slug: "kokona", displayName: "ここな", bio: "通学コーデは動きやすさ優先。", avatarUrl: AV.i, accountType: "personal", interest: "fashion" },
-  { n: 32, slug: "yume", displayName: "ゆめ", bio: "今日のメイクを短く残す。", avatarUrl: AV.b, accountType: "personal", interest: "beauty" },
-  { n: 33, slug: "airi", displayName: "あいり", bio: "カフェの席と光の入り方を見る。", avatarUrl: AV.j, accountType: "personal", interest: "food" },
-  { n: 34, slug: "noa", displayName: "のあ", bio: "きれいめ寄りの休日コーデ。", avatarUrl: AV.e, accountType: "personal", interest: "fashion" },
-  { n: 35, slug: "himari", displayName: "ひまり", bio: "ポーチの中身を季節で入れ替える。", avatarUrl: AV.h, accountType: "personal", interest: "lifestyle" },
-  { n: 36, slug: "closetnote", displayName: "CLOSET NOTE", bio: "デイリーに着たい服のメモ帳。", avatarUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "fashion", companyName: "CLOSET NOTE", companyWebsite: "https://www.gu-global.com/jp/", companyDescription: "若年層向けのコーディネート紹介アカウント。" },
-  { n: 37, slug: "palecloset", displayName: "pale closet", bio: "淡色とガーリーのセレクト。", avatarUrl: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "fashion", companyName: "pale closet", companyWebsite: "https://grl.jp/", companyDescription: "デモ用のファッションセレクト。" },
-  { n: 38, slug: "streetmini", displayName: "STREET MINI", bio: "ミニスカートとスニーカーの組み合わせ。", avatarUrl: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "fashion", companyName: "STREET MINI", companyWebsite: "https://wego.jp/", companyDescription: "カジュアル寄りのショップアカウント。" },
-  { n: 39, slug: "retropop", displayName: "RETRO POP", bio: "平成レトロとY2Kの間。", avatarUrl: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "fashion", companyName: "RETRO POP", companyWebsite: "https://www.palcloset.jp/", companyDescription: "レトロ寄りのデモショップ。" },
-  { n: 40, slug: "nicedaily", displayName: "NICE daily", bio: "通学とデートで着回せる服。", avatarUrl: "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "fashion", companyName: "NICE daily", companyWebsite: "https://www.niceclaup.jp/", companyDescription: "デイリーウェアの紹介。" },
-  { n: 41, slug: "pouchlab", displayName: "POUCH LAB", bio: "プチプラコスメの試し記録。", avatarUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "beauty", companyName: "POUCH LAB", companyWebsite: "https://www.canmake.com/", companyDescription: "コスメ紹介のデモアカウント。" },
-  { n: 42, slug: "lipnote", displayName: "LIP NOTE", bio: "リップとグロスの色見本。", avatarUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "beauty", companyName: "LIP NOTE", companyWebsite: "https://www.cezanne.co.jp/", companyDescription: "リップ中心のデモショップ。" },
-  { n: 43, slug: "krbeauty", displayName: "KR BEAUTY", bio: "韓国コスメのパッケージが好き。", avatarUrl: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "beauty", companyName: "KR BEAUTY", companyWebsite: "https://www.etude.com/", companyDescription: "韓国コスメ紹介のデモアカウント。" },
-  { n: 44, slug: "basehour", displayName: "BASE HOUR", bio: "ベースメイクと学校メイク。", avatarUrl: "https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "beauty", companyName: "BASE HOUR", companyWebsite: "https://www.shiseido.co.jp/maquillage/", companyDescription: "ベースメイクのデモ紹介。" },
-  { n: 45, slug: "cafewalk", displayName: "CAFE WALK", bio: "東京と韓国カフェの席写真。", avatarUrl: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "food", companyName: "CAFE WALK", companyWebsite: "https://www.starbucks.co.jp/", companyDescription: "カフェ巡りのデモアカウント。" },
-  { n: 46, slug: "sweetdesk", displayName: "SWEET DESK", bio: "新作スイーツとドリンク。", avatarUrl: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "food", companyName: "SWEET DESK", companyWebsite: "https://www.starbucks.co.jp/", companyDescription: "スイーツ紹介のデモアカウント。" },
-  { n: 47, slug: "roomnote", displayName: "ROOM NOTE", bio: "部屋とデスク周りの小さな更新。", avatarUrl: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "lifestyle", companyName: "ROOM NOTE", companyWebsite: "https://www.muji.com/jp/", companyDescription: "インテリア寄りのデモアカウント。" },
-  { n: 48, slug: "nailtrip", displayName: "NAIL TRIP", bio: "ネイルと旅行の写真帳。", avatarUrl: "https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=200&h=200&q=80", accountType: "business", interest: "lifestyle", companyName: "NAIL TRIP", companyWebsite: "https://www.muji.com/jp/", companyDescription: "ネイルと休日のデモアカウント。" },
+/** One unique avatar per personal profile (no reuse across people). */
+const UNIQUE_AVATARS = [
+  "1534528741775-53994a69daeb",
+  "1529626455594-4ff0802cfb7e",
+  "1517841905240-472988babdf9",
+  "1524504388940-b1c1722653e1",
+  "1544005313-94ddf0286df2",
+  "1487412720507-e7ab37603c6f",
+  "1438761681033-6461ffad8d80",
+  "1494790108377-be9c29b29330",
+  "1531123897727-8f129e1688ce",
+  "1521119989659-a83eee488004",
+  "1580489944761-15a19d654956",
+  "1573496359142-b8d87734a5a2",
+  "1548142813-c348350df52b",
+  "1506794778202-cad84cf45f1d",
+  "1507003211169-0a1dd7228f2d",
+  "1500648767791-00dcc994a43e",
+  "1472099645785-5658abf4ff4e",
+  "1539571696357-5a69c17a67c6",
+  "1519345182560-3f2917c472ef",
+  "1488426862026-3ee34a7d66df",
+  "1492562080023-ab3db95bfbce",
+  "1508214751196-bcfd4ea38f4d",
+  "1546961329-3bef8717a6c8",
+  "1552374196-c4e7ffc6e126",
+  "1567532939604-dbd2efcecb47",
+  "1573497019940-1c28c88b4f3e",
+  "1586297135537-94bc9ba3bb30",
+  "1594744803329-e29bb65cea55",
+  "1607746882041-4e44314c54d4",
+  "1619895862022-09114b5d9c96",
+  "1622253692010-333f2da6031d",
+  "1633332755192-727a05c4013d",
+  "1639149888902-fcbbb6776433",
+  "1525130413817-d45c1d127c42",
+  "1544716272-e513ae4b9a3a",
+  "1551836022-d5d88e9218df",
+  "1554151228-14d9def656e4",
+  "1560250097-0b93528c311a",
+  "1570295999919-56ceb5ecca61",
+  "1573497019236-17f669bae5b2",
+  "1598550886615-5f694adc2464",
+  "1603415526960-f7e0328c63b2",
+  "1607990283143-e4f94371674e",
+  "1499996861825-3031699edb00",
+  "1463453091185-61582044d556",
+  "1519085360753-af0119f7cbe7",
+  "1487412947146-5bad2030bbda",
+  "1492106087820-71f1a00d2b11",
+  "1505944270255-72b8c68c50c5",
+  "1515377905703-c4788e51af15",
+  "1522337660859-02fbefca4702",
+  "1535632066927-ab7c9ab60908",
+  "1540555700478-4be289fbecef",
+  "1556228578-0d85b1a4d571",
+  "1563170351-be82bc888aa4",
+  "1570172619644-dfd03ed5d881",
+  "1596704017254-9b121068ec31",
+  "1616683693504-3ea7e9ba6ced",
 ];
+
+const PERSONAL: Array<Omit<ProfileDef, "n" | "avatarUrl" | "accountType"> & { interest: Interest }> = [
+  { slug: "mei", displayName: "めい", bio: "大学生。淡色と韓国っぽコーデが好き。", interest: "fashion" },
+  { slug: "yuna", displayName: "ゆな", bio: "通学コーデとスニーカー集め。", interest: "fashion" },
+  { slug: "rina", displayName: "りな", bio: "きれいめカジュアル研究中。", interest: "fashion" },
+  { slug: "akari", displayName: "あかり", bio: "ストリート寄りの休日コーデ。", interest: "fashion" },
+  { slug: "mio", displayName: "みお", bio: "デートコーデとバッグ記録。", interest: "fashion" },
+  { slug: "hina", displayName: "ひな", bio: "オフィスカジュアルの練習中。", interest: "fashion" },
+  { slug: "sakura", displayName: "さくら", bio: "ワンピースと帽子が好き。", interest: "fashion" },
+  { slug: "ayaka", displayName: "あやか", bio: "デニムとトップスの組み合わせ。", interest: "fashion" },
+  { slug: "nana", displayName: "なな", bio: "夏コーデとアクセサリー。", interest: "fashion" },
+  { slug: "reina", displayName: "れいな", bio: "大学生のカジュアル記録。", interest: "fashion" },
+  { slug: "koharu", displayName: "こはる", bio: "10代後半のガーリーコーデ。", interest: "fashion" },
+  { slug: "sora", displayName: "そら", bio: "韓国系ファッションをゆるく。", interest: "fashion" },
+  { slug: "momo", displayName: "もも", bio: "バッグとスニーカー沼。", interest: "fashion" },
+  { slug: "ichika", displayName: "いちか", bio: "きれいめ寄りの休日服。", interest: "fashion" },
+  { slug: "himari", displayName: "ひまり", bio: "帽子とワンピの季節感。", interest: "fashion" },
+  { slug: "aoi", displayName: "あおい", bio: "リップとチークの色見本。", interest: "beauty" },
+  { slug: "emi", displayName: "えみ", bio: "プチプラコスメ購入品メモ。", interest: "beauty" },
+  { slug: "risa", displayName: "りさ", bio: "韓国コスメとスキンケア。", interest: "beauty" },
+  { slug: "mika", displayName: "みか", bio: "アイシャドウとマスカラ。", interest: "beauty" },
+  { slug: "yui", displayName: "ゆい", bio: "ファンデーションと下地。", interest: "beauty" },
+  { slug: "saki", displayName: "さき", bio: "ネイルとヘアケア。", interest: "beauty" },
+  { slug: "honoka", displayName: "ほのか", bio: "日焼け止めと美容液。", interest: "beauty" },
+  { slug: "kotone", displayName: "ことね", bio: "香水とポーチの中身。", interest: "beauty" },
+  { slug: "noa", displayName: "のあ", bio: "デパコス系もたまに試す。", interest: "beauty" },
+  { slug: "fuka", displayName: "ふうか", bio: "アイライナー細引き派。", interest: "beauty" },
+  { slug: "chika", displayName: "ちか", bio: "GRWMと今日のメイク。", interest: "beauty" },
+  { slug: "misa", displayName: "みさ", bio: "ティントリップ多め。", interest: "beauty" },
+  { slug: "yume", displayName: "ゆめ", bio: "チークの位置研究。", interest: "beauty" },
+  { slug: "airi", displayName: "あいり", bio: "カフェとコンビニスイーツ。", interest: "food" },
+  { slug: "an", displayName: "あん", bio: "東京カフェ巡り。", interest: "food" },
+  { slug: "nagi", displayName: "なぎ", bio: "抹茶と韓国フード。", interest: "food" },
+  { slug: "miku", displayName: "みく", bio: "ランチとスイーツ記録。", interest: "food" },
+  { slug: "hinata", displayName: "ひなた", bio: "新大久保ランチ多め。", interest: "food" },
+  { slug: "suzuka", displayName: "すずか", bio: "部屋と休日の朝。", interest: "lifestyle" },
+  { slug: "toha", displayName: "とは", bio: "推し活とバッグの中身。", interest: "lifestyle" },
+  { slug: "kokona", displayName: "ここな", bio: "大学生活と購入品。", interest: "lifestyle" },
+  { slug: "maho", displayName: "まほ", bio: "旅行と休日スナップ。", interest: "travel" },
+  { slug: "eri", displayName: "えり", bio: "週末の小さな旅。", interest: "travel" },
+  { slug: "kaho", displayName: "かほ", bio: "ガジェットとイヤホン。", interest: "tech" },
+  { slug: "sara", displayName: "さら", bio: "デスク周りの小さな更新。", interest: "home" },
+  { slug: "moe", displayName: "もえ", bio: "雑貨と気になったもの。", interest: "other" },
+  { slug: "asuka", displayName: "あすか", bio: "オフィスカジュアル挑戦中。", interest: "fashion" },
+  { slug: "riko", displayName: "りこ", bio: "アクセと帽子の組み合わせ。", interest: "fashion" },
+  { slug: "nanami", displayName: "ななみ", bio: "韓国メイク薄め版。", interest: "beauty" },
+  { slug: "yuina", displayName: "ゆいな", bio: "ヘアケアとネイル。", interest: "beauty" },
+  { slug: "miyu", displayName: "みゆ", bio: "カフェの席と光。", interest: "food" },
+  { slug: "ruka", displayName: "るか", bio: "購入品と休日。", interest: "lifestyle" },
+  { slug: "shiori", displayName: "しおり", bio: "旅行の荷物は最小。", interest: "travel" },
+  { slug: "haruka", displayName: "はるか", bio: "スマホケースとガジェット。", interest: "tech" },
+  { slug: "ayane", displayName: "あやね", bio: "部屋の角だけ整える係。", interest: "home" },
+  { slug: "ninon", displayName: "にのん", bio: "今日の服を短く残す。", interest: "fashion" },
+  { slug: "remi", displayName: "れみ", bio: "リップとグロスの沼。", interest: "beauty" },
+  { slug: "kanon", displayName: "かのん", bio: "スイーツよりドリンク派。", interest: "food" },
+  { slug: "tsumugi", displayName: "つむぎ", bio: "推し色の小物集め。", interest: "lifestyle" },
+  { slug: "io", displayName: "いお", bio: "夏コーデとサンダル。", interest: "fashion" },
+  { slug: "riho", displayName: "りほ", bio: "スキンケアの順番メモ。", interest: "beauty" },
+  { slug: "ume", displayName: "うめ", bio: "抹茶ラテ好き。", interest: "food" },
+  { slug: "kota", displayName: "こた", bio: "カメラと旅行。", interest: "travel" },
+];
+
+const BUSINESS: Array<Omit<ProfileDef, "n" | "accountType"> & { avatarUrl: string }> = [
+  {
+    slug: "closetnote",
+    displayName: "CLOSET NOTE",
+    bio: "デイリーに着たい服のメモ帳。",
+    avatarUrl: av("1441986300917-64674bd600d8"),
+    interest: "fashion",
+    companyName: "CLOSET NOTE",
+    companyWebsite: "https://www.gu-global.com/jp/",
+    companyDescription: "若年層向けコーディネート紹介。",
+  },
+  {
+    slug: "palecloset",
+    displayName: "pale closet",
+    bio: "淡色とガーリーのセレクト。",
+    avatarUrl: av("1489987707025-afc232f7ea0f"),
+    interest: "fashion",
+    companyName: "pale closet",
+    companyWebsite: "https://grl.jp/",
+    companyDescription: "ファッションセレクトのデモアカウント。",
+  },
+  {
+    slug: "streetmini",
+    displayName: "STREET MINI",
+    bio: "スニーカーとカジュアル。",
+    avatarUrl: av("1515886657613-9f3515b0c78f"),
+    interest: "fashion",
+    companyName: "STREET MINI",
+    companyWebsite: "https://wego.jp/",
+    companyDescription: "カジュアル寄りのショップアカウント。",
+  },
+  {
+    slug: "pouchlab",
+    displayName: "POUCH LAB",
+    bio: "プチプラコスメの試し記録。",
+    avatarUrl: av("1596462502278-27bfdc403348"),
+    interest: "beauty",
+    companyName: "POUCH LAB",
+    companyWebsite: "https://www.canmake.com/",
+    companyDescription: "コスメ紹介のデモアカウント。",
+  },
+  {
+    slug: "lipnote",
+    displayName: "LIP NOTE",
+    bio: "リップとグロスの色見本。",
+    avatarUrl: av("1522335789203-aabd1fc54bc9"),
+    interest: "beauty",
+    companyName: "LIP NOTE",
+    companyWebsite: "https://www.cezanne.co.jp/",
+    companyDescription: "リップ中心のデモショップ。",
+  },
+  {
+    slug: "krbeauty",
+    displayName: "KR BEAUTY",
+    bio: "韓国コスメのパッケージが好き。",
+    avatarUrl: av("1571781926291-c477ebfd024b"),
+    interest: "beauty",
+    companyName: "KR BEAUTY",
+    companyWebsite: "https://www.etude.com/",
+    companyDescription: "韓国コスメ紹介。",
+  },
+  {
+    slug: "cafewalk",
+    displayName: "CAFE WALK",
+    bio: "東京カフェの席写真。",
+    avatarUrl: av("1495474472287-4d71bcdd2085"),
+    interest: "food",
+    companyName: "CAFE WALK",
+    companyWebsite: "https://www.starbucks.co.jp/",
+    companyDescription: "カフェ巡りのデモアカウント。",
+  },
+  {
+    slug: "roomnote",
+    displayName: "ROOM NOTE",
+    bio: "部屋とデスク周りの更新。",
+    avatarUrl: av("1505691938895-1758d7feb511"),
+    interest: "home",
+    companyName: "ROOM NOTE",
+    companyWebsite: "https://www.muji.com/jp/",
+    companyDescription: "インテリア寄りのデモアカウント。",
+  },
+  {
+    slug: "tripmemo",
+    displayName: "TRIP MEMO",
+    bio: "週末の小さな旅行メモ。",
+    avatarUrl: av("1469854523086-cc02fe5d8800"),
+    interest: "travel",
+    companyName: "TRIP MEMO",
+    companyWebsite: "https://www.jalan.net/",
+    companyDescription: "旅行系のデモアカウント。",
+  },
+  {
+    slug: "techdesk",
+    displayName: "TECH DESK",
+    bio: "スマホまわりの小さな道具。",
+    avatarUrl: av("1517336714731-489689fd1ca8"),
+    interest: "tech",
+    companyName: "TECH DESK",
+    companyWebsite: "https://www.apple.com/jp/",
+    companyDescription: "ガジェット紹介のデモアカウント。",
+  },
+];
+
+function buildProfileDefs(): ProfileDef[] {
+  const personalAvatars = UNIQUE_AVATARS.filter(
+    (id) => !BUSINESS.some((b) => b.avatarUrl.includes(id)),
+  );
+  if (personalAvatars.length < PERSONAL.length) {
+    throw new Error(`Need ${PERSONAL.length} unique avatars, have ${personalAvatars.length}`);
+  }
+  const personal: ProfileDef[] = PERSONAL.map((p, i) => ({
+    n: i + 1,
+    slug: p.slug,
+    displayName: p.displayName,
+    bio: p.bio,
+    avatarUrl: av(personalAvatars[i]!),
+    accountType: "personal",
+    interest: p.interest,
+  }));
+  const business: ProfileDef[] = BUSINESS.map((b, i) => ({
+    ...b,
+    n: personal.length + i + 1,
+    accountType: "business",
+  }));
+  const all = [...personal, ...business];
+  const avatarSet = new Set(all.map((p) => p.avatarUrl));
+  if (avatarSet.size !== all.length) {
+    throw new Error("Duplicate avatarUrl among JP profiles");
+  }
+  return all;
+}
+
+const JP_PROFILES = buildProfileDefs();
 
 const FASHION_BRANDS = [
   { name: "ZARA", url: "https://www.zara.com/jp/" },
@@ -148,7 +354,6 @@ const FASHION_BRANDS = [
   { name: "EMODA", url: "https://www.emoda.jp/" },
   { name: "MURUA", url: "https://murua.jp/" },
   { name: "SNIDEL", url: "https://snidel.com/" },
-  { name: "titty&Co.", url: "https://www.tittyandco.jp/" },
   { name: "NICE CLAUP", url: "https://www.niceclaup.jp/" },
   { name: "しまむら", url: "https://www.shimamura.co.jp/" },
 ];
@@ -161,17 +366,16 @@ const BEAUTY_BRANDS = [
   { name: "dasique", url: "https://dasique.com/" },
   { name: "peripera", url: "https://www.periperacosmetics.com/" },
   { name: "ETUDE", url: "https://www.etude.com/" },
-  { name: "fwee", url: "https://fwee.co.kr/" },
   { name: "rom&nd", url: "https://www.romand.co.kr/" },
-  { name: "milktouch", url: "https://milktouch.co.kr/" },
+  { name: "fwee", url: "https://fwee.co.kr/" },
   { name: "VDL", url: "https://www.vdlcosmetic.com/" },
-  { name: "minum", url: "https://www.oliveyoung.co.kr/" },
 ];
 
 const FOOD_LINKS = [
   { url: "https://www.starbucks.co.jp/" },
   { url: "https://www.family.co.jp/" },
   { url: "https://www.goncharoff.co.jp/" },
+  { url: "https://www.doutor.co.jp/" },
 ];
 
 const LIFE_LINKS = [
@@ -179,158 +383,76 @@ const LIFE_LINKS = [
   { url: "https://www.ikea.com/jp/ja/" },
 ];
 
+const TRAVEL_LINKS = [
+  { url: "https://www.jalan.net/" },
+  { url: "https://www.jreast.co.jp/" },
+];
+
+const TECH_LINKS = [
+  { url: "https://www.apple.com/jp/" },
+  { url: "https://www.sony.jp/" },
+];
+
+const HOME_LINKS = [
+  { url: "https://www.muji.com/jp/" },
+  { url: "https://www.nitori-net.jp/" },
+];
+
 const FASHION_THEMES = [
-  "韓国っぽコーデ", "淡色コーデ", "ワンホン系", "ガーリー", "平成レトロ", "Y2K", "ストリート",
-  "古着", "きれいめ", "カジュアル", "通学コーデ", "大学生コーデ", "デートコーデ", "夏コーデ",
-  "秋先取り", "ライブ参戦コーデ", "推し活コーデ", "ミニスカート", "デニム", "カーゴパンツ",
-  "プリーツスカート", "シアートップス", "カーディガン", "ワンピース", "バッグ", "スニーカー",
-  "アクセサリー", "ドラマ衣装っぽいワンピ", "モデルっぽい休日コーデ", "芸能人風きれいめコーデ",
+  "大学生コーデ",
+  "韓国系ファッション",
+  "ストリート",
+  "きれいめ",
+  "カジュアル",
+  "オフィスカジュアル",
+  "デートコーデ",
+  "夏コーデ",
+  "バッグ",
+  "スニーカー",
+  "アクセサリー",
+  "帽子",
+  "ワンピース",
+  "トップス",
+  "デニム",
+  "通学コーデ",
+  "淡色コーデ",
+  "ガーリー",
 ];
 
 const BEAUTY_THEMES = [
-  "学校メイク", "ナチュラルメイク", "涙袋", "束感まつ毛", "リップ", "グロス", "チーク",
-  "アイライナー", "ベースメイク", "韓国メイク", "平成っぽメイク", "パケ買い", "ポーチの中身",
-  "今日のメイク", "購入品紹介", "ドラッグストア購入品", "プチプラコスメ",
-];
-
-const FOOD_THEMES = [
-  "東京カフェ", "韓国カフェ", "新作スイーツ", "アサイーボウル", "クロッフル", "ドリンク",
-  "コンビニ新商品", "カフェ巡り", "映えスイーツ", "ランチ",
-];
-
-const LIFE_THEMES = [
-  "バッグの中身", "ポーチの中身", "部屋紹介", "デスク周り", "ネイル", "香水",
-  "スマホケース", "推し活グッズ", "旅行", "休日",
-];
-
-const FASHION_IMAGES = [
-  "1521572163474-6864f9cf17ab", "1489987707025-afc232f7ea0f", "1490481651871-ab68de25d43d",
-  "1515886657613-9f3515b0c78f", "1525507119028-ed4c629a60a3", "1469334031218-e382a71b716b",
-  "1487222477890-8d468c566260", "1519741497674-611481863552", "1434389677669-e08b4cac3107",
-  "1475180098004-ca77a66827be", "1483985988106-5a444bfd0855", "1495121605193-b116b5b9c5fe",
-  "1503342217505-b0a15ec3261c", "1512436991641-6745cdb1723f", "1523359346246-1d8d70969b4a",
-  "1551488831-00a57f5a6b32", "1562157873-818bc0726f68", "1576566588028-4147f3842f27",
-  "1583292650898-7d22cd27ca6f", "1594633312681-425c7b97ccd1", "1603252109360-909baaf261fd",
-  "1617137968427-85924c800a22", "1624204386084-9da776632fc7", "1520975954732-35ac2460fc65",
-  "1509631175647-303152414ceb", "1515378791036-0648a3ef77b2", "1544717305-2782549b5136",
-  "1558618666-fcd25c85f82e", "1567401893414-76b7b1e5a7a5", "1578932750294-f5075ed6fc59",
-  "1581044777550-4cfa60707c03", "1595776613215-fe04b78de7d0", "1601762603332-ae97e2890687",
-  "1621184455862-c533ba4eabce", "1541099649032-18d8914e8a0c", "1516826957135-700dedea998c",
-  "1532453288672-3a27e9be9ed6", "1560243563-062bfc001d68", "1571945153237-4929e783af4a",
-  "1558766611-2d538c509768", "1558171813-4c8840216053", "1549298916-b547d66f3a4a",
-];
-
-const BEAUTY_IMAGES = [
-  "1556228720-195a672e8a03", "1522335789203-aabd1fc54bc9", "1596462502278-27bfdc403348",
-  "1611930022073-b7a4ba5fcccd", "1571781926291-c477ebfd024b", "1512496015851-a90fb479ba36",
-  "1515688594390-b649df4936b7", "1522337660859-02fbefca4702", "1586495777744-4413f21062fa",
-  "1598440947619-2c35fc72c884", "1608248543803-ba4f8c27ae75", "1616394584738-fc6e612e71b9",
-  "1620916566398-39f1143ab7be", "1515377905703-c4788e51af15", "1487412947146-5bad2030bbda",
-  "1492106087820-71f1a00d2b11", "1505944270255-72b8c68c50c5", "1522337094846-8a818192de1f",
-  "1535632066927-ab7c9ab60908", "1540555700478-4be289fbecef", "1556228578-0d85b1a4d571",
-  "1563170351-be82bc888aa4", "1570172619644-dfd03ed5d881", "1583241800698-e8ab01830cc3",
-  "1596704017254-9b121068ec31", "1604654894610-df63bc536371", "1616683693504-3ea7e9ba6ced",
-  "1621605815971-fbc98d665033", "1487412720507-e7ab37603c6f",
-];
-
-const FOOD_IMAGES = [
-  "1495474472287-4d71bcdd2085", "1504674900247-0877df9cc836", "1512621776951-a57141f2eefd",
-  "1476224203421-9ac39bcb3327", "1467003909585-2f8a72700288", "1497534447292-69de707efe17",
-  "1505253758473-96b7015fcd40", "1511920170031-afbad08254a3", "1509042239860-f550ce710b93",
-  "1514432324607-a09d9b4aefb4", "1551024506-0bccd828d307", "1563805042-7684c019e1cb",
-  "1481391319762-47dff72990b5", "1497051073900-47d073d36f1f", "1525351484163-7529414344d8",
-  "1541167760496-1628856ab772", "1565299624946-b28f40a0ae38", "1578985545062-69928b1d9587",
-  "1432139555190-62d44779e296", "1484723091739-6aeb341a6d8c", "1499636134819-e0eb8aa2b809",
-  "1506086679734-ee8bf6a6d1ad",
-];
-
-const LIFE_IMAGES = [
-  "1485955900006-10f4d324d411", "1456735190827-d1262f71b8a1", "1441986300917-64674bd600d8",
-  "1500530855697-b586d89ba3ee", "1478146896981-b80fe463b330", "1505691938895-1758d7feb511",
-  "1493663284031-b7e3aefcae8e", "1555041469-a586c61ea9bc", "1616628182501-df0b0d2e0d2b",
-  "1484480974691-166ee2e27e3b", "1604654894610-df63bc536371", "1515378791036-0648a3ef77b2",
-  "1500534314209-a25ddb2bd429", "1469854523086-cc02fe5d8800", "1507525428034-b723cf961d3e",
-  "1476514525535-07fb3b4ae5f1", "1488646953014-85cb44e25828", "1453928582365-b6ad33cbcf64",
-  "1513364776144-60967b0f800f", "1523275335684-37898b6baf30",
-];
-
-/** Publicly playable sample MP4s (Google sample bucket). Not image URLs. */
-const VIDEO_CLIPS = [
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4",
-];
-
-const VIDEO_THEMES = [
-  "コーデ紹介",
-  "今日の服",
-  "購入品紹介",
-  "コスメ紹介",
-  "メイク動画",
+  "リップ",
+  "ファンデーション",
+  "アイシャドウ",
+  "チーク",
+  "マスカラ",
+  "アイライナー",
+  "スキンケア",
+  "美容液",
+  "日焼け止め",
+  "香水",
   "ネイル",
-  "バッグの中身",
-  "カフェ",
-  "スイーツ",
-  "推し活",
-  "旅行",
-  "ルックブック",
-  "GRWM",
-] as const;
+  "ヘアケア",
+  "韓国コスメ",
+  "プチプラコスメ",
+  "デパコス系",
+];
 
-function videoCaption(i: number, theme: (typeof VIDEO_THEMES)[number], category: CategoryId) {
-  const lines: Record<(typeof VIDEO_THEMES)[number], string[]> = {
+const FOOD_THEMES = ["カフェ", "スイーツ", "コンビニスイーツ", "抹茶", "韓国フード", "ランチ", "東京カフェ"];
+const LIFE_THEMES = ["部屋", "バッグの中身", "購入品", "休日", "推し活", "大学生活"];
+const TRAVEL_THEMES = ["旅行", "週末トリップ", "駅からの景色"];
+const TECH_THEMES = ["ガジェット", "イヤホン", "スマホまわり"];
+const HOME_THEMES = ["部屋", "デスク周り", "収納"];
+const OTHER_THEMES = ["気になったもの", "今日のひとコマ"];
+
+function videoCaption(theme: JpDemoVideoTheme, i: number) {
+  const lines: Record<JpDemoVideoTheme, string[]> = {
     コーデ紹介: [
-      "今日のコーデ、動画の方が雰囲気伝わる気がする。\n動きながら撮ってみた。",
+      "今日のコーデ、動画の方が雰囲気伝わる。\n動きながら撮ってみた。",
       "ルックブック風に回してみた。\n色のグラデがわかりやすいはず。",
     ],
     今日の服: [
       "今日の服、短めに撮った。\n朝はこれで十分だった。",
       "通学コーデを歩いてみた。\n靴の音まで残ってる。",
-    ],
-    購入品紹介: [
-      "購入品紹介、中身開けながら。\nパケ見たい人向け。",
-      "届いたものだけ動画で残す。\n写真より早い。",
-    ],
-    コスメ紹介: [
-      "コスメ紹介、テクスチャが見えるように撮った。\n塗り比べは次の動画で。",
-      "リップの発色だけ先に動画。\n写真だと透け感が弱い。",
-    ],
-    メイク動画: [
-      "GRWM風に、ベースからざっくり。\n学校メイク寄り。",
-      "涙袋だけ丁寧に塗るところ。\n短めのメイク動画。",
-    ],
-    ネイル: [
-      "ネイル、角度を変えながら。\nラメの入り方が好き。",
-      "短いネイルの質感。\nライブ前でも引っかからない。",
-    ],
-    バッグの中身: [
-      "バッグの中身、出してみた。\nポーチが主役。",
-      "中身チェック動画。\n余計なものが減った。",
-    ],
-    カフェ: [
-      "カフェの席、店内を少しだけ回した。\n写真より空気感が出る。",
-      "ドリンク来るまでの待ち時間動画。\n光がきれいだった。",
-    ],
-    スイーツ: [
-      "スイーツ、切るところまで。\n食感は動画の方が伝わる。",
-      "クロッフルの断面。\n熱いうちに撮った。",
-    ],
-    推し活: [
-      "推し色の小物を並べただけ。\n参戦前の儀式。",
-      "グッズ紹介を短く。\n本人コーデではなく雰囲気寄せ。",
-    ],
-    旅行: [
-      "旅先の朝、窓からの光。\n短めの旅行メモ。",
-      "駅から宿までの歩き。\n荷物は最小。",
     ],
     ルックブック: [
       "ルックブック風に3パターン。\n淡色多め。",
@@ -340,148 +462,335 @@ function videoCaption(i: number, theme: (typeof VIDEO_THEMES)[number], category:
       "GRWM、朝のざっくり版。\nベースとリップだけ気合入れた。",
       "出かける前のGRWM。\nメイク薄め。",
     ],
+    メイク: [
+      "メイク動画、ベースからざっくり。\n学校メイク寄り。",
+      "涙袋だけ丁寧に塗るところ。\n短めのメイク動画。",
+    ],
+    コスメ購入品: [
+      "コスメ購入品、開けながら。\nパケ見たい人向け。",
+      "届いたものだけ動画で残す。\n写真より早い。",
+    ],
+    ネイル: [
+      "ネイル、角度を変えながら。\nラメの入り方が好き。",
+      "短いネイルの質感。\n引っかからないのが大事。",
+    ],
+    バッグの中身: [
+      "バッグの中身、出してみた。\nポーチが主役。",
+      "中身チェック動画。\n余計なものが減った。",
+    ],
+    カフェ: [
+      "カフェの席、店内を少しだけ回した。\n写真より空気感が出る。",
+      "ドリンク来るまでの待ち時間。\n光がきれいだった。",
+    ],
+    スイーツ: [
+      "スイーツ、切るところまで。\n食感は動画の方が伝わる。",
+      "断面を先に撮った。\n熱いうちに残す。",
+    ],
+    推し活: [
+      "推し色の小物を並べただけ。\n参戦前の儀式。",
+      "グッズ紹介を短く。\n雰囲気寄せの記録。",
+    ],
+    旅行: [
+      "旅先の朝、窓からの光。\n短めの旅行メモ。",
+      "駅から宿までの歩き。\n荷物は最小。",
+    ],
   };
   const pool = lines[theme];
-  const base = pool[i % pool.length]!;
-  if (category === "fashion" && theme === "コーデ紹介") return base;
-  return base;
+  return pool[i % pool.length]!;
 }
 
-function shouldBeVideo(i: number) {
-  // ~40 of 360 posts (~11%): every 9th post starting at 3
-  return i % 9 === 3;
-}
-
-function imageUrl(id: string, sig?: number) {
-  const base = `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&q=80`;
-  return sig === undefined ? base : `${base}&sig=${sig}`;
-}
-
-function uniqueImage(used: Set<string>, pool: string[], i: number) {
-  for (const id of pool) {
-    if (!used.has(id)) {
-      used.add(id);
-      return imageUrl(id);
+function takeUniqueImage(
+  used: Set<string>,
+  pool: readonly JpImageAsset[],
+  category: CategoryId,
+): JpImageAsset {
+  for (const asset of pool) {
+    if (!used.has(asset.url)) {
+      used.add(asset.url);
+      return asset;
     }
   }
-  return imageUrl(pool[i % pool.length]!, i);
+  throw new Error(
+    `JP seed image pool exhausted for ${category} (need more unique URLs in seed-jp-images.ts)`,
+  );
 }
 
-function fashionCaption(i: number, theme: string, brand: string) {
-  const marks = ["🩷", "🤍", "✨", "🫧", "🎀"];
-  const mark = marks[i % marks.length]!;
+function fashionCaption(i: number, theme: string, brand: string, note: string) {
   const lines = [
-    `最近この系統ばっかり着てる${mark}\n${theme}に寄せると、写真がまとめやすい。`,
-    `${theme}、今日は${brand}で揃えてみた。\n主張しすぎないのがちょうどいい。`,
-    `夏の${theme}。\n動きやすさ優先だけど、写真映えもしたい。`,
-    `${theme}に合わせてみた。\n${brand}の形が、思ったより大人っぽい。`,
-    `通学はこれで十分。\n${theme}寄りの淡色にして、靴だけ少しだけ主張。`,
-    `デートの日の${theme}。\nスカート丈とバッグの大きさだけ悩んだ。`,
-    `ライブ参戦コーデは軽さが命。\n${theme}でも歩ける靴にした。`,
-    `推し色をワンポイントにした${theme}。\n本人コーデではなく、雰囲気だけ寄せてる。`,
-    `韓国アイドルっぽいコーデにした日。\n${brand}のトップスが薄くて重ねやすい。`,
-    `今っぽいガーリーに振った。\n${theme}は小物を減らすとまとまる。`,
-    `ドラマ衣装っぽいワンピを休日に。\n${brand}で似た形を探した。`,
-    `モデルっぽい休日コーデを意識しただけ。\n肩まわりがすっきりしてるのが好き。`,
-    `芸能人風きれいめコーデ、雰囲気だけ。\n${theme}は色数を減らすとそれっぽくなる。`,
-    `${brand}の${theme}。\n自分の中ではリピ候補。`,
-    `秋先取りでカーディガンを一枚足した。\n${theme}のまま夕方まで寒くない。`,
-    `GUと${brand}で組み合わせ。\n${theme}でも毎日着られる。`,
-    `古着のデニムに${brand}のトップス。\n${theme}寄りだけどカジュアル。`,
+    `${theme}。${note}。\n${brand}を合わせてみた。`,
+    `${note}。\n大学生の${theme}として毎日使える。`,
+    `${theme}に${brand}。\n${note}がちょうどいい。`,
+    `通学コーデの記録。\n${note}`,
+    `デートの日の${theme}。\n${note}`,
+    `${brand}入りの${theme}。\n${note}`,
+    `GUと${brand}で組み合わせ。\n${note}`,
+    `${note}。\n色数を減らすとまとまる。`,
+    `オフィスカジュアル練習。\n${note}`,
+    `${theme}寄りだけどカジュアル。\n${note}`,
   ];
   return lines[i % lines.length]!;
 }
 
-function beautyCaption(i: number, theme: string, brand: string) {
+function beautyCaption(i: number, theme: string, brand: string, note: string) {
   const lines = [
-    `学校でも浮かないナチュラルメイク。\nこのライナー、細く描けるのが好き。`,
-    `${theme}、今日は${brand}で。\nパケがかわいくて手に取りやすい。`,
-    `涙袋だけ丁寧に塗った日。\n${brand}の質感が、写真でも消えにくい。`,
-    `束感まつ毛を薄めに作った。\n${theme}はやりすぎない方が自分に合う。`,
-    `リップこの色ばっかり。\n${brand}は塗り直しが楽。`,
-    `ポーチの中身、今月はこれ。\n${theme}用に小さめを選んだ。`,
-    `ドラッグストアで見かけて試した。\n${brand}、プチプラなのに伸びがいい。`,
-    `韓国メイクをかなり薄く落とした版。\nチークの位置だけ真似してる。`,
-    `平成っぽメイクを夜だけ。\n${theme}は休日の方が気が楽。`,
-    `今日のメイクはベース重視。\n${brand}の下地が、午後までヨレにくい。`,
-    `購入品紹介。色は店頭で見て決めた。\n根拠のないランキングは信じない。`,
-    `グロス多めの日。\n${theme}と相性いい気がする。`,
-    `CANMAKEと${brand}を混ぜてみた。\n${theme}にはこれがしっくり。`,
-    `今日のメイク、涙袋とチークだけ気合入れた。\n${brand}の発色がちょうどいい。`,
+    `${theme}、今日は${brand}で。\n${note}`,
+    `学校でも浮かないナチュラル寄り。\n${note}`,
+    `${brand}の${theme}。\n${note}`,
+    `ポーチの中身、今月はこれ。\n${note}`,
+    `ドラッグストアで見かけて試した。\n${note}`,
+    `韓国コスメを薄く落とした版。\n${note}`,
+    `購入品紹介。\n${note}`,
+    `今日のメイクは${theme}重視。\n${note}`,
   ];
   return lines[i % lines.length]!;
 }
 
-function foodCaption(i: number, theme: string) {
-  const places = ["渋谷", "原宿", "下北沢", "中目黒", "吉祥寺", "新大久保", "表参道", "池袋"];
-  const place = places[i % places.length]!;
+function foodCaption(i: number, theme: string, note: string, place?: string) {
+  const where = place ?? ["渋谷", "原宿", "下北沢", "中目黒", "吉祥寺", "新大久保", "表参道", "池袋"][i % 8]!;
   const lines = [
-    `${place}で見つけたカフェ。\n店内かわいすぎて写真撮りすぎた。`,
-    `${theme}、今日は${place}。\n席の光がちょうどよかった。`,
-    `クロッフルとラテ。\n甘さ控えめで、写真は先に撮った。`,
-    `アサイーボウルの日。\n${place}の朝は並ばずに入れた。`,
-    `韓国カフェっぽい内装が好きで寄った。\nドリンクの色がきれい。`,
-    `コンビニ新商品、夜に食べた。\n${theme}枠として残しておく。`,
-    `ランチは麺よりパン。\n${place}の窓際が空いてた。`,
-    `映えスイーツより、食感で選んだ。\n結果として写真も残った。`,
-    `${place}の新作スイーツ。\n友達と半分こした。`,
-    `カフェ巡り3軒目。\n${theme}としてはここが一番落ち着いた。`,
+    `${where}で見つけた${theme}。\n${note}`,
+    `${theme}、今日は${where}。\n${note}`,
+    `${note}。\n${where}の席が空いてて助かった。`,
+    `${theme}の記録。\n${note}`,
+    `${where}の${theme}。\n${note}`,
   ];
   return lines[i % lines.length]!;
 }
 
-function lifeCaption(i: number, theme: string) {
+function simpleCaption(i: number, theme: string, note: string, place?: string) {
+  const placeLine = place ? `\n場所は${place}。` : "";
   const lines = [
-    `${theme}、今月の配置。\n小さいものを手前に置くと撮りやすい。`,
-    `バッグの中身を入れ替えた。\nポーチが一つ減って軽い。`,
-    `部屋の角だけ整えた。\n${theme}は光が入る時間に撮る。`,
-    `デスク周りからケーブルを減らした。\nそれだけで写真がすっきりする。`,
-    `ネイルは短め。\nライブの日でも引っかかりにくい。`,
-    `香水は衣類に軽く。\n${theme}の写真と一緒に残す。`,
-    `スマホケースを透明に戻した。\n推し活グッズは中にしまいがち。`,
-    `休日の朝、部屋着のまま窓際。\n${theme}としてはこれで十分。`,
-    `旅行の荷物は最小。\n写真用の一枚だけ気合を入れた。`,
-    `ポーチの中身チェック。\n${theme}は季節ごとに入れ替える。`,
+    `${theme}の記録。\n${note}${placeLine}`,
+    `${note}。\n${theme}として残しておく。${placeLine}`,
+    `休日の${theme}。\n${note}${placeLine}`,
+    `${theme}を更新。\n${note}${placeLine}`,
   ];
   return lines[i % lines.length]!;
 }
 
-const COMMENT_POOL = [
-  "色味ちょうどいい",
-  "これ学校でも使えそう",
-  "リンク先見ます",
-  "淡色でまとまってる",
-  "バッグ気になる",
-  "メイク薄めなの好き",
-  "カフェどこですか",
-  "保存した",
-  "スカート丈かわいい",
-  "リップの色味知りたい",
-  "部屋の光きれい",
-  "参戦コーデ参考になる",
-  "プチプラ感出てていい",
-  "次これ試してみる",
-  "写真の角度好き",
-];
+const COMMENT_BY_CATEGORY: Record<CategoryId, string[]> = {
+  fashion: [
+    "このコーデ好き",
+    "バッグかわいい",
+    "色合わせ参考になる",
+    "淡色でまとまってる",
+    "スカート丈かわいい",
+    "これ学校でも使えそう",
+    "靴気になる",
+    "プチプラ感出てていい",
+    "レイヤード上手い",
+    "GUっぽさ出てていい",
+    "休日コーデにしたい",
+    "シルエットきれい",
+    "足元のバランス好き",
+    "韓国っぽくていい",
+    "オフィスカジュに寄せられそう",
+    "アクセの選び方参考になる",
+    "ワンピ可愛い",
+    "デニム合わせ上手い",
+    "色味落ち着いてて好き",
+    "明日これ真似してみる",
+  ],
+  beauty: [
+    "メイク薄めなの好き",
+    "リップの色味知りたい",
+    "肌のトーンきれい",
+    "次これ試してみる",
+    "ナチュラルで好き",
+    "ポーチ中身見たい",
+    "色味ちょうどいい",
+    "涙袋の入れ方上手い",
+    "ベースきれい",
+    "チークの位置参考になる",
+    "学校メイクに良さそう",
+    "パケかわいい",
+    "韓国コスメっぽい雰囲気",
+    "眉毛の形好き",
+    "グロスのツヤきれい",
+    "スキンケア気になる",
+    "ネイル色いい",
+    "ヘアケアも知りたい",
+  ],
+  food: [
+    "美味しそう",
+    "これは食べたい",
+    "お店どこですか？",
+    "ここ気になる",
+    "雰囲気いいですね",
+    "今度行ってみたい",
+    "カフェどこですか",
+    "見た目きれい",
+    "ラテアート上手い",
+    "断面きれい",
+    "抹茶っぽくていい",
+    "新大久保行きたい",
+    "ランチ候補にします",
+    "席の光がいい",
+    "スープの色きれい",
+    "パン焼きたて感ある",
+    "スイーツ保存した",
+    "また行きたい雰囲気",
+  ],
+  travel: [
+    "ここ行ったことあります",
+    "景色きれい",
+    "次の旅行候補にしたい",
+    "写真の角度好き",
+    "空気感が出てる",
+    "また行きたい",
+    "朝の光いい",
+    "神社の雰囲気好き",
+    "海きれい",
+    "山の空気感じる",
+    "京都っぽくていい",
+    "大阪行きたい",
+    "夜景きれい",
+    "荷物少なそうで参考",
+    "週末トリップ候補",
+    "駅からの景色好き",
+  ],
+  home: [
+    "部屋の光きれい",
+    "インテリア参考になる",
+    "物選びセンスいい",
+    "落ち着く空間",
+    "収納の仕方気になる",
+    "デスク周りきれい",
+    "無印っぽくていい",
+    "角の整え方上手い",
+    "照明の色味好き",
+    "小物の置き方参考",
+    "朝の部屋いい",
+    "すっきりしてて好き",
+  ],
+  lifestyle: [
+    "雰囲気好き",
+    "保存した",
+    "参考になる",
+    "いい感じ",
+    "また見に来ます",
+    "休日感ある",
+    "推し活っぽくていい",
+    "バッグの中身気になる",
+    "購入品メモ助かる",
+    "大学生活の感じ好き",
+    "日常の切り取り上手い",
+    "色味まとまってる",
+    "ゆるくていい",
+    "また投稿見たい",
+  ],
+  tech: [
+    "リンク先見ます",
+    "これ気になってた",
+    "レビュー助かる",
+    "使い心地どうですか",
+    "次これ試してみる",
+    "イヤホン候補にします",
+    "デスク周り参考",
+    "ケースかわいい",
+    "ガジェット感いい",
+    "スマホまわり整理したい",
+    "実機レビュー助かる",
+    "値段感どうでした？",
+  ],
+  sports: [
+    "いい感じ",
+    "参考になる",
+    "また見に来ます",
+    "雰囲気好き",
+    "動きやすそう",
+    "ウェア気になる",
+  ],
+  other: [
+    "いい感じ",
+    "保存した",
+    "雰囲気好き",
+    "参考になる",
+    "また見に来ます",
+    "気になるものリスト入り",
+    "今日のひとコマ好き",
+    "切り取り上手い",
+  ],
+};
+
+function socialLinksForDemo(n: number, slug: string, companyWebsite: string | null | undefined) {
+  const pattern = n % 6;
+  const handle = slug.replace(/_/g, "");
+  if (pattern === 0) {
+    return {
+      instagramUrl: `https://www.instagram.com/${handle}/`,
+      xUrl: null as string | null,
+      tiktokUrl: null as string | null,
+      youtubeUrl: null as string | null,
+      websiteUrl: null as string | null,
+    };
+  }
+  if (pattern === 1) {
+    return {
+      instagramUrl: `https://www.instagram.com/${handle}/`,
+      xUrl: `https://x.com/${handle}`,
+      tiktokUrl: null as string | null,
+      youtubeUrl: null as string | null,
+      websiteUrl: null as string | null,
+    };
+  }
+  if (pattern === 2) {
+    return {
+      instagramUrl: `https://www.instagram.com/${handle}/`,
+      xUrl: null as string | null,
+      tiktokUrl: `https://www.tiktok.com/@${handle}`,
+      youtubeUrl: null as string | null,
+      websiteUrl: null as string | null,
+    };
+  }
+  if (pattern === 3) {
+    return {
+      instagramUrl: null as string | null,
+      xUrl: null as string | null,
+      tiktokUrl: null as string | null,
+      youtubeUrl: null as string | null,
+      websiteUrl: companyWebsite ?? `https://example.com/${handle}`,
+    };
+  }
+  if (pattern === 4) {
+    return {
+      instagramUrl: `https://www.instagram.com/${handle}/`,
+      xUrl: `https://x.com/${handle}`,
+      tiktokUrl: `https://www.tiktok.com/@${handle}`,
+      youtubeUrl: null as string | null,
+      websiteUrl: companyWebsite ?? null,
+    };
+  }
+  return {
+    instagramUrl: null as string | null,
+    xUrl: null as string | null,
+    tiktokUrl: null as string | null,
+    youtubeUrl: null as string | null,
+    websiteUrl: null as string | null,
+  };
+}
 
 function buildVisibleProfiles(): Profile[] {
-  return JP_PROFILES.map((def) => ({
-    id: demoJpProfileId(def.n),
-    username: `${DEMO_JP_USERNAME_PREFIX}${def.slug}`,
-    displayName: def.displayName,
-    bio: def.bio,
-    avatarUrl: def.avatarUrl,
-    accountType: def.accountType,
-    companyName: def.companyName ?? null,
-    companyWebsite: def.companyWebsite ?? null,
-    companyDescription: def.companyDescription ?? null,
-    createdAt: `2026-06-${String(10 + (def.n % 18)).padStart(2, "0")}T09:00:00.000Z`,
-  }));
+  return JP_PROFILES.map((def) => {
+    const social = socialLinksForDemo(def.n, def.slug, def.companyWebsite);
+    return {
+      id: demoJpProfileId(def.n),
+      username: `${DEMO_JP_USERNAME_PREFIX}${def.slug}`,
+      displayName: def.displayName,
+      bio: def.bio,
+      avatarUrl: def.avatarUrl,
+      accountType: def.accountType,
+      companyName: def.companyName ?? null,
+      companyWebsite: def.companyWebsite ?? null,
+      companyDescription: def.companyDescription ?? null,
+      ...social,
+      createdAt: `2026-07-${String(1 + (def.n % 28)).padStart(2, "0")}T09:00:00.000Z`,
+    };
+  });
 }
 
-/** Extra auth/profile rows so popular posts can reach 500+ unique likes. */
 function buildReactors(): Profile[] {
-  return Array.from({ length: 800 }, (_, i) => {
+  return Array.from({ length: 2200 }, (_, i) => {
     const n = i + 1;
     return {
       id: demoJpReactorId(n),
@@ -493,23 +802,122 @@ function buildReactors(): Profile[] {
       companyName: null,
       companyWebsite: null,
       companyDescription: null,
+      instagramUrl: null,
+      xUrl: null,
+      tiktokUrl: null,
+      youtubeUrl: null,
+      websiteUrl: null,
       createdAt: "2026-06-01T08:00:00.000Z",
     };
   });
 }
 
+function pickCategory(def: ProfileDef, roll: number): CategoryId {
+  if (def.interest === "fashion") {
+    if (roll < 0.8) return "fashion";
+    if (roll < 0.9) return "beauty";
+    return "lifestyle";
+  }
+  if (def.interest === "beauty") {
+    if (roll < 0.8) return "beauty";
+    if (roll < 0.9) return "fashion";
+    return "lifestyle";
+  }
+  if (def.interest === "food") {
+    if (roll < 0.75) return "food";
+    if (roll < 0.88) return "lifestyle";
+    return "fashion";
+  }
+  if (def.interest === "lifestyle") {
+    if (roll < 0.55) return "lifestyle";
+    if (roll < 0.75) return "fashion";
+    if (roll < 0.88) return "beauty";
+    return "food";
+  }
+  if (def.interest === "travel") return roll < 0.7 ? "travel" : "lifestyle";
+  if (def.interest === "tech") return roll < 0.7 ? "tech" : "other";
+  if (def.interest === "home") return roll < 0.7 ? "home" : "lifestyle";
+  return roll < 0.6 ? "other" : "lifestyle";
+}
+
+function buildCategoryPlan(total: number, rng: () => number): CategoryId[] {
+  // Balanced mix so fashion/beauty do not dominate the JP feed.
+  const quotas: Array<[CategoryId, number]> = [
+    ["fashion", 80],
+    ["beauty", 70],
+    ["food", 80],
+    ["lifestyle", 85],
+    ["travel", 55],
+    ["home", 40],
+    ["tech", 35],
+    ["other", 35],
+  ];
+  const sum = quotas.reduce((acc, [, n]) => acc + n, 0);
+  if (sum !== total) {
+    throw new Error(`JP category plan sum ${sum} !== total ${total}`);
+  }
+  const plan: CategoryId[] = [];
+  for (const [cat, n] of quotas) {
+    for (let i = 0; i < n; i += 1) plan.push(cat);
+  }
+  // shuffle
+  for (let i = plan.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = plan[i]!;
+    plan[i] = plan[j]!;
+    plan[j] = tmp;
+  }
+  return plan;
+}
+
+function pickAuthorForCategory(
+  authors: Profile[],
+  defs: ProfileDef[],
+  category: CategoryId,
+  authorCounts: Map<string, number>,
+  i: number,
+) {
+  const preferred = authors.filter((a) => {
+    const def = defs.find((d) => demoJpProfileId(d.n) === a.id);
+    return def?.interest === category;
+  });
+  const pool = preferred.length > 0 ? preferred : authors;
+  const sorted = [...pool].sort((a, b) => {
+    const ca = authorCounts.get(a.id) ?? 0;
+    const cb = authorCounts.get(b.id) ?? 0;
+    if (ca !== cb) return ca - cb;
+    return (a.id + i).localeCompare(b.id + String(i));
+  });
+  return sorted[0]!;
+}
+
+function clipsForTheme(theme: JpDemoVideoTheme) {
+  const exact = JP_DEMO_VIDEO_CLIPS.filter((c) => c.theme === theme);
+  return exact.length > 0 ? exact : JP_DEMO_VIDEO_CLIPS;
+}
+
+function shouldBeVideo(i: number, total: number, videoCount: number) {
+  return Math.floor(((i - 1) * videoCount) / total) !== Math.floor((i * videoCount) / total);
+}
+
 function buildPosts(profiles: Profile[]): Post[] {
+  assertJpImageUniqueness();
   const rng = mulberry32(20260823);
   const used = new Set<string>();
+  const usedVideo = new Set<string>();
   const posts: Post[] = [];
   const authors = profiles.filter((p) => JP_PROFILES.some((d) => demoJpProfileId(d.n) === p.id));
-  const total = 360;
+  const total = 480;
+  const videoCount = 50;
+  const authorCounts = new Map<string, number>();
+  const categoryPlan = buildCategoryPlan(total, rng);
 
   for (let i = 1; i <= total; i += 1) {
-    const author = authors[(i - 1) % authors.length]!;
+    const category = categoryPlan[i - 1]!;
+    const author = pickAuthorForCategory(authors, JP_PROFILES, category, authorCounts, i);
+    authorCounts.set(author.id, (authorCounts.get(author.id) ?? 0) + 1);
     const def = JP_PROFILES.find((d) => demoJpProfileId(d.n) === author.id)!;
-    const roll = rng();
-    let category: CategoryId;
+
     let theme: string;
     let caption: string;
     let productUrl: string | null = null;
@@ -517,83 +925,111 @@ function buildPosts(profiles: Profile[]): Post[] {
     let mediaUrl: string;
     let mediaType: "photo" | "video" = "photo";
     let thumbnailUrl: string | null = null;
-    const asVideo = shouldBeVideo(i);
 
-    const forceFashion = def.interest === "fashion" || (def.accountType === "personal" && roll < 0.34);
-    const forceBeauty = !forceFashion && (def.interest === "beauty" || roll < 0.58);
-    const forceFood = !forceFashion && !forceBeauty && (def.interest === "food" || roll < 0.78);
+    const poolKey =
+      category === "sports" ? "other" : (category as keyof typeof JP_IMAGES_BY_CATEGORY);
+    const pool = JP_IMAGES_BY_CATEGORY[poolKey] ?? JP_IMAGES_BY_CATEGORY.other;
+    const image = takeUniqueImage(used, pool, category);
 
-    if (forceFashion) {
-      category = "fashion";
-      theme = FASHION_THEMES[(i + def.n) % FASHION_THEMES.length]!;
+    if (category === "fashion") {
+      theme = image.theme || FASHION_THEMES[(i + def.n) % FASHION_THEMES.length]!;
       const brand = FASHION_BRANDS[(i + def.n) % FASHION_BRANDS.length]!;
-      caption = fashionCaption(i + def.n * 3, theme, brand.name);
-      mediaUrl = uniqueImage(used, FASHION_IMAGES, i);
-      if (i % 10 < 7) {
+      caption = fashionCaption(i + def.n * 3, theme, brand.name, image.note);
+      mediaUrl = image.url;
+      if (i % 10 < 8) {
         productUrl = brand.url;
         productLabel = "商品を見る";
       }
-    } else if (forceBeauty) {
-      category = "beauty";
-      theme = BEAUTY_THEMES[(i + def.n) % BEAUTY_THEMES.length]!;
+    } else if (category === "beauty") {
+      theme = image.theme || BEAUTY_THEMES[(i + def.n) % BEAUTY_THEMES.length]!;
       const brand = BEAUTY_BRANDS[(i + def.n) % BEAUTY_BRANDS.length]!;
-      caption = beautyCaption(i + def.n * 3, theme, brand.name);
-      mediaUrl = uniqueImage(used, BEAUTY_IMAGES, i);
-      if (i % 10 < 7) {
+      caption = beautyCaption(i + def.n * 3, theme, brand.name, image.note);
+      mediaUrl = image.url;
+      if (i % 10 < 8) {
         productUrl = brand.url;
         productLabel = "商品を見る";
       }
-    } else if (forceFood) {
-      category = "food";
-      theme = FOOD_THEMES[(i + def.n) % FOOD_THEMES.length]!;
-      caption = foodCaption(i + def.n * 3, theme);
-      mediaUrl = uniqueImage(used, FOOD_IMAGES, i);
+    } else if (category === "food") {
+      theme = image.theme || FOOD_THEMES[(i + def.n) % FOOD_THEMES.length]!;
+      caption = foodCaption(i + def.n * 3, theme, image.note, image.place);
+      mediaUrl = image.url;
       if (i % 10 < 6) {
         productUrl = FOOD_LINKS[i % FOOD_LINKS.length]!.url;
         productLabel = "店舗を見る";
       }
-    } else {
-      category = "lifestyle";
-      theme = LIFE_THEMES[(i + def.n) % LIFE_THEMES.length]!;
-      caption = lifeCaption(i + def.n * 3, theme);
-      mediaUrl = uniqueImage(used, LIFE_IMAGES, i);
-      if (i % 10 < 6) {
+    } else if (category === "lifestyle") {
+      theme = image.theme || LIFE_THEMES[(i + def.n) % LIFE_THEMES.length]!;
+      caption = simpleCaption(i + def.n * 3, theme, image.note, image.place);
+      mediaUrl = image.url;
+      if (i % 10 < 5) {
         productUrl = LIFE_LINKS[i % LIFE_LINKS.length]!.url;
         productLabel = "商品を見る";
       }
+    } else if (category === "travel") {
+      theme = image.theme || TRAVEL_THEMES[(i + def.n) % TRAVEL_THEMES.length]!;
+      caption = simpleCaption(i + def.n * 3, theme, image.note, image.place);
+      mediaUrl = image.url;
+      if (i % 10 < 5) {
+        productUrl = TRAVEL_LINKS[i % TRAVEL_LINKS.length]!.url;
+        productLabel = "詳細を見る";
+      }
+    } else if (category === "tech") {
+      theme = image.theme || TECH_THEMES[(i + def.n) % TECH_THEMES.length]!;
+      caption = simpleCaption(i + def.n * 3, theme, image.note);
+      mediaUrl = image.url;
+      if (i % 10 < 5) {
+        productUrl = TECH_LINKS[i % TECH_LINKS.length]!.url;
+        productLabel = "商品を見る";
+      }
+    } else if (category === "home") {
+      theme = image.theme || HOME_THEMES[(i + def.n) % HOME_THEMES.length]!;
+      caption = simpleCaption(i + def.n * 3, theme, image.note);
+      mediaUrl = image.url;
+      if (i % 10 < 5) {
+        productUrl = HOME_LINKS[i % HOME_LINKS.length]!.url;
+        productLabel = "商品を見る";
+      }
+    } else {
+      theme = image.theme || OTHER_THEMES[(i + def.n) % OTHER_THEMES.length]!;
+      caption = simpleCaption(i + def.n * 3, theme, image.note);
+      mediaUrl = image.url;
     }
 
-    if (asVideo) {
-      const videoTheme = VIDEO_THEMES[(i + def.n) % VIDEO_THEMES.length]!;
-      // Prefer theme-category alignment for a natural mix
-      const alignedTheme =
+    if (shouldBeVideo(i, total, videoCount)) {
+      const videoThemePool: JpDemoVideoTheme[] =
         category === "fashion"
-          ? (["コーデ紹介", "今日の服", "ルックブック", "購入品紹介", "推し活"] as const)[
-              (i + def.n) % 5
-            ]!
+          ? ["コーデ紹介", "今日の服", "ルックブック", "推し活"]
           : category === "beauty"
-            ? (["メイク動画", "コスメ紹介", "GRWM", "ネイル", "購入品紹介"] as const)[
-                (i + def.n) % 5
-              ]!
+            ? ["メイク", "GRWM", "コスメ購入品", "ネイル"]
             : category === "food"
-              ? (["カフェ", "スイーツ"] as const)[(i + def.n) % 2]!
-              : (["バッグの中身", "旅行", "推し活", "ネイル"] as const)[(i + def.n) % 4]!;
-      caption = videoCaption(i + def.n, alignedTheme ?? videoTheme, category);
+              ? ["カフェ", "スイーツ"]
+              : category === "travel"
+                ? ["旅行"]
+                : ["バッグの中身", "推し活", "旅行", "ネイル"];
+      const videoTheme = videoThemePool[(i + def.n) % videoThemePool.length]!;
+      const clips = clipsForTheme(videoTheme);
+      // Prefer unused video URLs so clips are not hammered.
+      let clip = clips.find((c) => !usedVideo.has(c.url)) ?? clips[(i + def.n) % clips.length]!;
+      usedVideo.add(clip.url);
+      caption = videoCaption(clip.theme, i + def.n);
       thumbnailUrl = mediaUrl;
-      mediaUrl = VIDEO_CLIPS[(i + def.n) % VIDEO_CLIPS.length]!;
+      mediaUrl = clip.url;
       mediaType = "video";
+      if (!clip.hasAudio) {
+        throw new Error(`JP demo video missing audio flag: ${clip.url}`);
+      }
     }
 
-    const isSponsored = i % 8 === 0;
-    const isBrandbridge = i % 14 === 0 || (author.accountType === "business" && i % 9 === 0);
+    const isSponsored = i % 11 === 0;
+    const isBrandbridge = i % 16 === 0 || (author.accountType === "business" && i % 10 === 0);
     if (isBrandbridge) {
       productUrl = "https://www.brandbridge.jp";
       productLabel = "商品を見る";
     }
 
-    const day = 1 + ((i * 5) % 28);
-    const hour = 9 + (i % 11);
-    const minute = (i * 11) % 60;
+    const createdAt = new Date(
+      Date.parse("2026-08-28T18:00:00.000Z") + i * 2 * 60 * 1000,
+    ).toISOString();
 
     posts.push({
       id: demoJpPostId(i),
@@ -609,44 +1045,147 @@ function buildPosts(profiles: Profile[]): Post[] {
       source: isBrandbridge ? "brandbridge" : "user",
       sourceRef: isBrandbridge ? `bb-jp-${String(i).padStart(3, "0")}` : null,
       sourceUrl: isBrandbridge ? "https://www.brandbridge.jp" : null,
-      createdAt: `2026-08-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00.000Z`,
+      createdAt,
     });
   }
 
   return posts;
 }
 
-function buildFollows(visible: Profile[]): Array<{ followerId: string; followeeId: string }> {
+type FollowTier = "normal" | "rising" | "popular";
+
+function followTierFor(def: ProfileDef): FollowTier {
+  if (def.accountType === "business") {
+    // Brand accounts skew rising/popular.
+    return def.n % 3 === 0 ? "popular" : "rising";
+  }
+  // Early personal accounts act as slightly better-known creators.
+  if (def.n <= 4) return "popular";
+  if (def.n <= 18) return "rising";
+  if (def.n <= 36) return def.n % 4 === 0 ? "rising" : "normal";
+  return "normal";
+}
+
+function targetFollowerCount(rng: () => number, tier: FollowTier) {
+  if (tier === "popular") return pickCount(rng, 500, 2000);
+  if (tier === "rising") return pickCount(rng, 100, 500);
+  return pickCount(rng, 8, 80);
+}
+
+function targetFollowingCount(
+  rng: () => number,
+  tier: FollowTier,
+  followers: number,
+) {
+  if (tier === "popular") {
+    const max = Math.min(800, Math.max(120, Math.floor(followers * 0.55) + 80));
+    return pickCount(rng, 100, max);
+  }
+  if (tier === "rising") {
+    const max = Math.min(300, Math.max(80, Math.floor(followers * 0.85) + 40));
+    return pickCount(rng, 50, max);
+  }
+  return pickCount(rng, 10, 100);
+}
+
+function shuffleInPlace<T>(items: T[], rng: () => number) {
+  for (let i = items.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = items[i]!;
+    items[i] = items[j]!;
+    items[j] = tmp;
+  }
+  return items;
+}
+
+function buildFollows(
+  visible: Profile[],
+  reactors: Profile[],
+): Array<{ followerId: string; followeeId: string }> {
+  const rng = mulberry32(271828);
   const follows: Array<{ followerId: string; followeeId: string }> = [];
   const seen = new Set<string>();
-  const byInterest = new Map<Interest, Profile[]>();
-  for (const def of JP_PROFILES) {
-    const profile = visible.find((p) => p.id === demoJpProfileId(def.n));
-    if (!profile) continue;
-    const list = byInterest.get(def.interest) ?? [];
-    list.push(profile);
-    byInterest.set(def.interest, list);
+
+  function add(followerId: string, followeeId: string) {
+    if (followerId === followeeId) return false;
+    const key = `${followerId}:${followeeId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    follows.push({ followerId, followeeId });
+    return true;
   }
 
-  for (const def of JP_PROFILES) {
-    const me = visible.find((p) => p.id === demoJpProfileId(def.n))!;
-    const same = (byInterest.get(def.interest) ?? []).filter((p) => p.id !== me.id);
-    const others = visible.filter((p) => p.id !== me.id && !same.some((s) => s.id === p.id));
-    const targets = [...same.slice(0, 8), ...others.slice(0, 3)];
-    for (const t of targets) {
-      const key = `${me.id}:${t.id}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      follows.push({ followerId: me.id, followeeId: t.id });
+  const plans = visible.map((profile) => {
+    const def = JP_PROFILES.find((d) => demoJpProfileId(d.n) === profile.id)!;
+    const tier = followTierFor(def);
+    const followers = targetFollowerCount(rng, tier);
+    const following = targetFollowingCount(rng, tier, followers);
+    return { profile, def, tier, followers, following };
+  });
+
+  // 1) Outgoing follows (following count) — visibles + reactors as followees.
+  for (const plan of plans) {
+    const candidates = shuffleInPlace(
+      [
+        ...visible.filter((p) => p.id !== plan.profile.id),
+        ...reactors,
+      ],
+      rng,
+    );
+    let added = 0;
+    for (const candidate of candidates) {
+      if (added >= plan.following) break;
+      if (add(plan.profile.id, candidate.id)) added += 1;
     }
   }
+
+  // 2) Incoming follows (follower count) — top up mostly from reactors.
+  for (const plan of plans) {
+    const current = follows.reduce(
+      (acc, row) => (row.followeeId === plan.profile.id ? acc + 1 : acc),
+      0,
+    );
+    const need = plan.followers - current;
+    if (need <= 0) continue;
+
+    const candidates = shuffleInPlace(
+      [
+        ...reactors,
+        ...visible.filter((p) => p.id !== plan.profile.id),
+      ],
+      rng,
+    );
+    let added = 0;
+    for (const candidate of candidates) {
+      if (added >= need) break;
+      if (add(candidate.id, plan.profile.id)) added += 1;
+    }
+  }
+
   return follows;
 }
 
-function tierFor(post: Post, index: number) {
-  const hot = post.category === "fashion" || post.category === "beauty";
-  if (hot && index % 17 === 0) return "mega";
-  if (hot && index % 7 === 0) return "hot";
+type ReactionTier = "low" | "mid" | "hot" | "mega";
+
+function reactionTierFor(
+  post: Post,
+  index: number,
+  authorTier: FollowTier,
+): ReactionTier {
+  const hotCat = post.category === "fashion" || post.category === "beauty" || post.category === "food";
+  // Popular authors skew warmer, but not every post is mega/hot.
+  if (authorTier === "popular") {
+    if (index % 13 === 0) return "mega";
+    if (index % 5 === 0 || (hotCat && index % 4 === 0)) return "hot";
+    return "mid";
+  }
+  if (authorTier === "rising") {
+    if (hotCat && index % 23 === 0) return "mega";
+    if (index % 7 === 0 || (hotCat && index % 6 === 0)) return "hot";
+    if (index % 4 === 0) return "mid";
+    return "low";
+  }
+  if (hotCat && index % 29 === 0) return "hot";
   if (index % 5 === 0) return "mid";
   return "low";
 }
@@ -659,51 +1198,94 @@ function buildReactions(visible: Profile[], reactors: Profile[], posts: Post[]) 
   const saves: Array<{ userId: string; postId: string }> = [];
   const comments: Comment[] = [];
   let commentN = 1;
+  const authorTier = new Map<string, FollowTier>();
+  for (const profile of visible) {
+    const def = JP_PROFILES.find((d) => demoJpProfileId(d.n) === profile.id);
+    if (def) authorTier.set(profile.id, followTierFor(def));
+  }
 
-  for (let i = 0; i < posts.length; i += 1) {
-    const post = posts[i]!;
-    const tier = tierFor(post, i + 1);
+  for (const [index, post] of posts.entries()) {
+    const aTier = authorTier.get(post.authorId) ?? "normal";
+    const tier = reactionTierFor(post, index + 1, aTier);
     const likeTarget =
       tier === "mega"
-        ? pickCount(rng, 500, Math.min(750, pool.length - 1))
+        ? pickCount(rng, 300, 1000)
         : tier === "hot"
-          ? pickCount(rng, 150, 420)
+          ? pickCount(rng, 80, 300)
           : tier === "mid"
-            ? pickCount(rng, 30, 140)
-            : pickCount(rng, 5, 48);
-    const wantTarget = Math.max(1, Math.floor(likeTarget * (tier === "mega" ? 0.35 : 0.22)));
-    const saveTarget = Math.max(1, Math.floor(likeTarget * (tier === "mega" ? 0.28 : 0.18)));
+            ? pickCount(rng, 20, 100)
+            : pickCount(rng, 3, 30);
+    // Popular posts get more saves/wants; normal posts stay sparse.
+    const wantTarget =
+      tier === "mega"
+        ? Math.floor(likeTarget * 0.22)
+        : tier === "hot"
+          ? Math.floor(likeTarget * 0.18)
+          : tier === "mid"
+            ? Math.floor(likeTarget * 0.12)
+            : pickCount(rng, 0, Math.max(1, Math.floor(likeTarget * 0.08)));
+    const saveTarget =
+      tier === "mega"
+        ? Math.floor(likeTarget * 0.2)
+        : tier === "hot"
+          ? Math.floor(likeTarget * 0.15)
+          : tier === "mid"
+            ? Math.floor(likeTarget * 0.1)
+            : pickCount(rng, 0, Math.max(1, Math.floor(likeTarget * 0.07)));
     const commentTarget =
       tier === "mega"
-        ? pickCount(rng, 12, 22)
+        ? pickCount(rng, 4, 10)
         : tier === "hot"
-          ? pickCount(rng, 6, 12)
+          ? pickCount(rng, 2, 8)
           : tier === "mid"
-            ? pickCount(rng, 2, 6)
-            : pickCount(rng, 0, 2);
+            ? pickCount(rng, 0, 3)
+            : rng() < 0.55
+              ? 0
+              : pickCount(rng, 0, 2);
 
-    const shuffled = [...pool];
-    for (let s = shuffled.length - 1; s > 0; s -= 1) {
-      const j = Math.floor(rng() * (s + 1));
-      [shuffled[s], shuffled[j]] = [shuffled[j]!, shuffled[s]!];
-    }
-
+    const shuffled = shuffleInPlace(
+      pool.filter((p) => p.id !== post.authorId),
+      rng,
+    );
+    const liked = new Set<string>();
     for (let n = 0; n < likeTarget && n < shuffled.length; n += 1) {
-      likes.push({ userId: shuffled[n]!.id, postId: post.id });
+      const userId = shuffled[n]!.id;
+      if (liked.has(userId)) continue;
+      liked.add(userId);
+      likes.push({ userId, postId: post.id });
     }
+    const wanted = new Set<string>();
     for (let n = 0; n < wantTarget && n < shuffled.length; n += 1) {
-      wants.push({ userId: shuffled[(n + 3) % shuffled.length]!.id, postId: post.id });
+      const userId = shuffled[(n + 11) % shuffled.length]!.id;
+      if (wanted.has(userId) || userId === post.authorId) continue;
+      wanted.add(userId);
+      wants.push({ userId, postId: post.id });
     }
+    const saved = new Set<string>();
     for (let n = 0; n < saveTarget && n < shuffled.length; n += 1) {
-      saves.push({ userId: shuffled[(n + 7) % shuffled.length]!.id, postId: post.id });
+      const userId = shuffled[(n + 29) % shuffled.length]!.id;
+      if (saved.has(userId) || userId === post.authorId) continue;
+      saved.add(userId);
+      saves.push({ userId, postId: post.id });
     }
-    for (let n = 0; n < commentTarget; n += 1) {
-      const user = shuffled[(n + 11) % shuffled.length]!;
+
+    const commentLines =
+      COMMENT_BY_CATEGORY[post.category] ?? COMMENT_BY_CATEGORY.other;
+    const usedBodies = new Set<string>();
+    for (let n = 0; n < commentTarget && n < shuffled.length; n += 1) {
+      const user = shuffled[(n + 47) % shuffled.length]!;
+      // Prefer unused lines on the same post to avoid identical spam.
+      let body = commentLines[(commentN * 7 + n * 3 + index) % commentLines.length]!;
+      if (usedBodies.has(body)) {
+        const alt = commentLines.find((line) => !usedBodies.has(line));
+        if (alt) body = alt;
+      }
+      usedBodies.add(body);
       comments.push({
         id: demoJpCommentId(commentN),
         userId: user.id,
         postId: post.id,
-        body: COMMENT_POOL[(commentN + n) % COMMENT_POOL.length]!,
+        body,
         createdAt: post.createdAt,
       });
       commentN += 1;
@@ -718,7 +1300,7 @@ export const SEED_JP_REACTORS: Profile[] = buildReactors();
 export const SEED_JP_AUTH_PROFILES: Profile[] = [...SEED_JP_PROFILES, ...SEED_JP_REACTORS];
 export const SEED_JP_POSTS: Post[] = buildPosts(SEED_JP_PROFILES);
 const jpReactions = buildReactions(SEED_JP_PROFILES, SEED_JP_REACTORS, SEED_JP_POSTS);
-export const SEED_JP_FOLLOWS = buildFollows(SEED_JP_PROFILES);
+export const SEED_JP_FOLLOWS = buildFollows(SEED_JP_PROFILES, SEED_JP_REACTORS);
 export const SEED_JP_LIKES = jpReactions.likes;
 export const SEED_JP_WANTS = jpReactions.wants;
 export const SEED_JP_SAVES = jpReactions.saves;
@@ -730,6 +1312,42 @@ export function jpSeedStats() {
     return acc;
   }, {});
   const videos = SEED_JP_POSTS.filter((p) => p.mediaType === "video");
+  const photos = SEED_JP_POSTS.filter((p) => p.mediaType === "photo");
+  const photoUrls = photos.map((p) => p.mediaUrl);
+  const thumbUrls = videos.map((p) => p.thumbnailUrl).filter(Boolean) as string[];
+  const allStillUrls = [...photoUrls, ...thumbUrls];
+  const audioVideos = videos.filter((p) =>
+    JP_DEMO_VIDEO_CLIPS.some((c) => c.url === p.mediaUrl && c.hasAudio),
+  );
+  const authorIds = new Set(SEED_JP_POSTS.map((p) => p.authorId));
+  const followerCounts: number[] = [];
+  const followingCounts: number[] = [];
+  for (const profile of SEED_JP_PROFILES) {
+    followerCounts.push(
+      SEED_JP_FOLLOWS.filter((f) => f.followeeId === profile.id).length,
+    );
+    followingCounts.push(
+      SEED_JP_FOLLOWS.filter((f) => f.followerId === profile.id).length,
+    );
+  }
+  followerCounts.sort((a, b) => a - b);
+  followingCounts.sort((a, b) => a - b);
+  const likeByPost = SEED_JP_POSTS.map(
+    (post) => SEED_JP_LIKES.filter((l) => l.postId === post.id).length,
+  ).sort((a, b) => a - b);
+  const avg = (xs: number[]) =>
+    xs.length === 0 ? 0 : Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10;
+  const snsUsers = SEED_JP_PROFILES.filter(
+    (p) => p.instagramUrl || p.xUrl || p.tiktokUrl || p.youtubeUrl || p.websiteUrl,
+  ).length;
+  const selfFollows = SEED_JP_FOLLOWS.filter((f) => f.followerId === f.followeeId).length;
+  const followKeys = new Set(SEED_JP_FOLLOWS.map((f) => `${f.followerId}:${f.followeeId}`));
+  const selfLikes = SEED_JP_LIKES.filter((l) => {
+    const post = SEED_JP_POSTS.find((p) => p.id === l.postId);
+    return post && post.authorId === l.userId;
+  }).length;
+  const uniqueCommentBodies = new Set(SEED_JP_COMMENTS.map((c) => c.body)).size;
+  const postsWithComments = new Set(SEED_JP_COMMENTS.map((c) => c.postId)).size;
   return {
     profiles: SEED_JP_PROFILES.length,
     reactors: SEED_JP_REACTORS.length,
@@ -739,11 +1357,44 @@ export function jpSeedStats() {
     wants: SEED_JP_WANTS.length,
     saves: SEED_JP_SAVES.length,
     comments: SEED_JP_COMMENTS.length,
+    uniqueCommentBodies,
+    postsWithComments,
+    snsUsers,
+    selfFollows,
+    duplicateFollows: SEED_JP_FOLLOWS.length - followKeys.size,
+    selfLikes,
     productUrl: SEED_JP_POSTS.filter((p) => p.productUrl).length,
     sponsored: SEED_JP_POSTS.filter((p) => p.isSponsored).length,
     brandbridge: SEED_JP_POSTS.filter((p) => p.source === "brandbridge").length,
     videos: videos.length,
     videoWithThumb: videos.filter((p) => Boolean(p.thumbnailUrl)).length,
+    audioVideos: audioVideos.length,
+    uniquePhotoUrls: new Set(photoUrls).size,
+    uniqueStillUrls: new Set(allStillUrls).size,
+    stillUrlReuse: allStillUrls.length - new Set(allStillUrls).size,
+    uniqueVideoUrls: new Set(videos.map((p) => p.mediaUrl)).size,
+    fashion: categories.fashion ?? 0,
+    beauty: categories.beauty ?? 0,
+    food: categories.food ?? 0,
+    distinctAuthors: authorIds.size,
     categories,
+    followFollowers: {
+      min: followerCounts[0] ?? 0,
+      p50: followerCounts[Math.floor(followerCounts.length / 2)] ?? 0,
+      max: followerCounts[followerCounts.length - 1] ?? 0,
+      avg: avg(followerCounts),
+    },
+    followFollowing: {
+      min: followingCounts[0] ?? 0,
+      p50: followingCounts[Math.floor(followingCounts.length / 2)] ?? 0,
+      max: followingCounts[followingCounts.length - 1] ?? 0,
+      avg: avg(followingCounts),
+    },
+    likesPerPost: {
+      min: likeByPost[0] ?? 0,
+      p50: likeByPost[Math.floor(likeByPost.length / 2)] ?? 0,
+      max: likeByPost[likeByPost.length - 1] ?? 0,
+      avg: avg(likeByPost),
+    },
   };
 }

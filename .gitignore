@@ -20,6 +20,17 @@
 # production
 /build
 
+# Capacitor (keep android/ ios/ source; ignore local build outputs)
+/android/app/build/
+/android/.gradle/
+/android/captures/
+/android/local.properties
+/ios/App/Pods/
+/ios/App/build/
+/ios/DerivedData/
+*.keystore
+*.jks
+
 # misc
 .DS_Store
 *.pem

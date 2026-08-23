@@ -26,6 +26,11 @@ export type Profile = {
   companyName: string | null;
   companyWebsite: string | null;
   companyDescription: string | null;
+  instagramUrl: string | null;
+  xUrl: string | null;
+  tiktokUrl: string | null;
+  youtubeUrl: string | null;
+  websiteUrl: string | null;
   createdAt: string;
 };
 
@@ -81,6 +86,11 @@ export type FollowCounts = {
   following: number;
 };
 
+export type FollowListEntry = {
+  profile: Profile;
+  following: boolean;
+};
+
 export type SearchResult = {
   users: Profile[];
   posts: PostView[];
@@ -109,4 +119,9 @@ export type UpdateProfileInput = {
   companyName?: string | null;
   companyWebsite?: string | null;
   companyDescription?: string | null;
+  instagramUrl?: string | null;
+  xUrl?: string | null;
+  tiktokUrl?: string | null;
+  youtubeUrl?: string | null;
+  websiteUrl?: string | null;
 };

@@ -13,11 +13,23 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     getStore()
       .getFeed(kind, session?.userId ?? null)
-      .then(setPosts)
-      .finally(() => setLoading(false));
+      .then((rows) => {
+        if (!cancelled) setPosts(rows);
+      })
+      .catch((err) => {
+        console.error("[FeedView] getFeed failed", err);
+        if (!cancelled) setPosts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [kind, session?.userId]);
 
   return (

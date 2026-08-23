@@ -4,8 +4,15 @@
  * Dry-run (default):
  *   npm run seed:demo
  *
- * Apply overseas + Japan demo (upsert only):
+ * Apply Japan demo only (nfdemo_jp_*; overseas untouched) — preferred:
  *   npm run seed:demo:apply
+ *   npx tsx scripts/seed-demo.ts --jp-only --apply
+ *
+ * Apply overseas + Japan demo (upsert only):
+ *   npm run seed:demo:apply:all
+ *
+ * Apply overseas demo only (nfdemo_* except jp; Japan untouched):
+ *   npm run seed:demo:apply:overseas
  *
  * Purge overseas demo only (a0000000 / nfdemo_* except jp):
  *   npx tsx scripts/seed-demo.ts --purge-demo-only --apply
@@ -63,6 +70,8 @@ import type { Comment, Post, Profile } from "../lib/types";
 
 type Flags = {
   apply: boolean;
+  overseasOnly: boolean;
+  jpOnly: boolean;
   purgeOverseas: boolean;
   purgeJp: boolean;
 };
@@ -115,6 +124,8 @@ function keyKind(value: string) {
 function parseFlags(argv: string[]): Flags {
   return {
     apply: argv.includes("--apply"),
+    overseasOnly: argv.includes("--overseas-only"),
+    jpOnly: argv.includes("--jp-only"),
     purgeOverseas: argv.includes("--purge-demo-only"),
     purgeJp: argv.includes("--purge-jp-only"),
   };
@@ -226,33 +237,35 @@ function throwIfError(scope: string, error: { message?: string } | null) {
 
 async function ensureAuthUsers(admin: SupabaseClient, profiles: Profile[], seedTag: string) {
   const password = process.env.SEED_DEMO_PASSWORD || "NewfindDemo!seed";
-  await chunked(profiles, 12, async (slice) => {
-    await Promise.all(
-      slice.map(async (profile) => {
-        const email = demoEmail(profile.username);
-        const { error } = await admin.auth.admin.createUser({
-          id: profile.id,
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: {
-            display_name: profile.displayName,
-            seed: seedTag,
-          },
-        });
-        if (!error) return;
-        const message = error.message.toLowerCase();
-        if (
-          message.includes("already") ||
-          message.includes("registered") ||
-          message.includes("exists") ||
-          message.includes("duplicate")
-        ) {
-          return;
-        }
-        throw new Error(`auth.createUser ${profile.username}: ${error.message}`);
-      }),
-    );
+
+  await chunked(profiles, 10, async (slice) => {
+    for (const profile of slice) {
+      const email = demoEmail(profile.username);
+      const existing = await admin.auth.admin.getUserById(profile.id);
+      if (existing.data.user) continue;
+
+      const { error } = await admin.auth.admin.createUser({
+        id: profile.id,
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          display_name: profile.displayName,
+          seed: seedTag,
+        },
+      });
+      if (!error) continue;
+      const message = error.message.toLowerCase();
+      if (
+        message.includes("already") ||
+        message.includes("registered") ||
+        message.includes("exists") ||
+        message.includes("duplicate")
+      ) {
+        continue;
+      }
+      throw new Error(`auth.createUser ${profile.username}: ${error.message}`);
+    }
   });
 }
 
@@ -267,6 +280,11 @@ function profileRows(profiles: Profile[]) {
     company_name: p.companyName,
     company_website: p.companyWebsite,
     company_description: p.companyDescription,
+    instagram_url: p.instagramUrl,
+    x_url: p.xUrl,
+    tiktok_url: p.tiktokUrl,
+    youtube_url: p.youtubeUrl,
+    website_url: p.websiteUrl,
     created_at: p.createdAt,
   }));
 }
@@ -355,7 +373,7 @@ async function upsertBundle(
   });
 }
 
-async function upsertDemo(admin: SupabaseClient) {
+async function upsertOverseasDemo(admin: SupabaseClient) {
   await upsertBundle(admin, {
     label: "overseas-demo",
     profiles: SEED_PROFILES,
@@ -366,6 +384,47 @@ async function upsertDemo(admin: SupabaseClient) {
     saves: SEED_SAVES,
     comments: SEED_COMMENTS,
     seedTag: "nfdemo",
+  });
+}
+
+async function upsertJpDemo(admin: SupabaseClient) {
+  const postIds = SEED_JP_POSTS.map((p) => p.id);
+  const profileIds = SEED_JP_AUTH_PROFILES.map((p) => p.id);
+
+  // Clear JP graph rows first so remapped usernames / engagement do not collide.
+  await chunked(postIds, 80, async (slice) => {
+    for (const table of ["likes", "wants", "saves"] as const) {
+      throwIfError(
+        `jp.${table}.clear`,
+        (await admin.from(table).delete().in("post_id", slice)).error,
+      );
+    }
+    throwIfError(
+      "jp.comments.clear",
+      (await admin.from("comments").delete().in("post_id", slice)).error,
+    );
+  });
+
+  await chunked(profileIds, 80, async (slice) => {
+    throwIfError(
+      "jp.follows.follower.clear",
+      (await admin.from("follows").delete().in("follower_id", slice)).error,
+    );
+    throwIfError(
+      "jp.follows.followee.clear",
+      (await admin.from("follows").delete().in("followee_id", slice)).error,
+    );
+  });
+
+  await chunked(postIds, 80, async (slice) => {
+    throwIfError("jp.posts.clear", (await admin.from("posts").delete().in("id", slice)).error);
+  });
+
+  await chunked(profileIds, 80, async (slice) => {
+    throwIfError(
+      "jp.profiles.clear",
+      (await admin.from("profiles").delete().in("id", slice)).error,
+    );
   });
 
   await upsertBundle(admin, {
@@ -379,6 +438,11 @@ async function upsertDemo(admin: SupabaseClient) {
     comments: SEED_JP_COMMENTS,
     seedTag: "nfdemo_jp",
   });
+}
+
+async function upsertDemo(admin: SupabaseClient) {
+  await upsertOverseasDemo(admin);
+  await upsertJpDemo(admin);
 }
 
 async function purgeOverseasOnly(admin: SupabaseClient) {
@@ -505,7 +569,11 @@ function printPlan(flags: Flags) {
         ? "purge-jp-only"
         : flags.purgeOverseas
           ? "purge-overseas-only"
-          : "upsert overseas + japan demo"
+          : flags.overseasOnly
+            ? "upsert overseas demo only"
+            : flags.jpOnly
+              ? "upsert japan demo only"
+              : "upsert overseas + japan demo"
     }`,
   );
   console.log(`  email       : *@${DEMO_EMAIL_DOMAIN}`);
@@ -532,14 +600,25 @@ function printPlan(flags: Flags) {
   console.log(`  brandbridge : ${jp.brandbridge}`);
   console.log(`  videos      : ${jp.videos}`);
   console.log(`  video+thumb : ${jp.videoWithThumb}`);
+  console.log(`  audioVideos : ${jp.audioVideos}`);
+  console.log(`  fashion     : ${jp.fashion}`);
+  console.log(`  beauty      : ${jp.beauty}`);
+  console.log(`  food        : ${jp.food}`);
+  console.log(`  authors     : ${jp.distinctAuthors}`);
   console.log(`  categories  : ${JSON.stringify(jp.categories)}`);
-  console.log(`  sample users: ${SEED_JP_PROFILES.slice(0, 5).map((p) => p.username).join(", ")}`);
+  console.log(`  sample users: ${SEED_JP_PROFILES.slice(0, 8).map((p) => p.username).join(", ")}`);
 }
 
 async function main() {
   const flags = parseFlags(process.argv.slice(2));
   if (flags.purgeOverseas && flags.purgeJp) {
     throw new Error("--purge-demo-only と --purge-jp-only は同時指定できません");
+  }
+  if (flags.overseasOnly && flags.jpOnly) {
+    throw new Error("--overseas-only と --jp-only は同時指定できません");
+  }
+  if ((flags.overseasOnly || flags.jpOnly) && (flags.purgeOverseas || flags.purgeJp)) {
+    throw new Error("region-only upsert は purge フラグと同時指定できません");
   }
   assertDemoOnlyPayload();
   printPlan(flags);
@@ -566,6 +645,32 @@ async function main() {
     return;
   }
 
+  if (flags.overseasOnly) {
+    await upsertOverseasDemo(admin);
+    console.log("");
+    console.log("Upserted overseas demo only. Japan demo and real users/posts were not touched.");
+    console.log(`  profiles    : ${SEED_PROFILES.length}`);
+    console.log(`  posts       : ${SEED_POSTS.length}`);
+    console.log(`  videos      : ${SEED_POSTS.filter((p) => p.mediaType === "video").length}`);
+    return;
+  }
+
+  if (flags.jpOnly) {
+    await upsertJpDemo(admin);
+    const jp = jpSeedStats();
+    console.log("");
+    console.log("Upserted Japan demo only. Overseas demo and real users/posts were not touched.");
+    console.log(`  profiles    : ${jp.profiles}`);
+    console.log(`  posts       : ${jp.posts}`);
+    console.log(`  fashion     : ${jp.fashion}`);
+    console.log(`  beauty      : ${jp.beauty}`);
+    console.log(`  food        : ${jp.food}`);
+    console.log(`  videos      : ${jp.videos}`);
+    console.log(`  audioVideos : ${jp.audioVideos}`);
+    console.log(`  productUrl  : ${jp.productUrl}`);
+    return;
+  }
+
   await upsertDemo(admin);
   const jp = jpSeedStats();
   console.log("");
@@ -579,6 +684,7 @@ async function main() {
   console.log(`  brandbridge : ${jp.brandbridge}`);
   console.log(`  videos      : ${jp.videos}`);
   console.log(`  video+thumb : ${jp.videoWithThumb}`);
+  console.log(`  audioVideos : ${jp.audioVideos}`);
 }
 
 main().catch((err) => {

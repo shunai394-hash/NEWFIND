@@ -1,4 +1,5 @@
 import { fileToStoredUrl } from "@/lib/media";
+import { rankForYouFeed, engagementScore } from "@/lib/feed-rank";
 import {
   SEED_COMMENTS,
   SEED_FOLLOWS,
@@ -8,12 +9,23 @@ import {
   SEED_SAVES,
   SEED_WANTS,
 } from "@/lib/seed";
+import {
+  SEED_JP_COMMENTS,
+  SEED_JP_FOLLOWS,
+  SEED_JP_LIKES,
+  SEED_JP_POSTS,
+  SEED_JP_PROFILES,
+  SEED_JP_REACTORS,
+  SEED_JP_SAVES,
+  SEED_JP_WANTS,
+} from "@/lib/seed-jp";
 import type { Store } from "@/lib/store/types";
 import type {
   CategoryId,
   Comment,
   CommentView,
   CreatePostInput,
+  FollowListEntry,
   Post,
   PostView,
   Profile,
@@ -21,7 +33,7 @@ import type {
   UpdateProfileInput,
 } from "@/lib/types";
 
-const KEY = "newfind.local.v1";
+const KEY = "newfind.local.v4";
 
 type LocalUser = {
   id: string;
@@ -46,13 +58,13 @@ function emptyState(): LocalState {
   return {
     users: [],
     session: null,
-    profiles: structuredClone(SEED_PROFILES),
-    posts: structuredClone(SEED_POSTS),
-    follows: structuredClone(SEED_FOLLOWS),
-    likes: structuredClone(SEED_LIKES),
-    wants: structuredClone(SEED_WANTS),
-    saves: structuredClone(SEED_SAVES),
-    comments: structuredClone(SEED_COMMENTS),
+    profiles: structuredClone([...SEED_PROFILES, ...SEED_JP_PROFILES]),
+    posts: structuredClone([...SEED_POSTS, ...SEED_JP_POSTS]),
+    follows: structuredClone([...SEED_FOLLOWS, ...SEED_JP_FOLLOWS]),
+    likes: structuredClone([...SEED_LIKES, ...SEED_JP_LIKES]),
+    wants: structuredClone([...SEED_WANTS, ...SEED_JP_WANTS]),
+    saves: structuredClone([...SEED_SAVES, ...SEED_JP_SAVES]),
+    comments: structuredClone([...SEED_COMMENTS, ...SEED_JP_COMMENTS]),
     shares: [],
   };
 }
@@ -66,12 +78,25 @@ function load(): LocalState {
     return seeded;
   }
   try {
-    return { ...emptyState(), ...JSON.parse(raw) } as LocalState;
+    const parsed = { ...emptyState(), ...JSON.parse(raw) } as LocalState;
+    parsed.profiles = (parsed.profiles ?? []).map(normalizeProfile);
+    return parsed;
   } catch {
     const seeded = emptyState();
     save(seeded);
     return seeded;
   }
+}
+
+function normalizeProfile(profile: Profile): Profile {
+  return {
+    ...profile,
+    instagramUrl: profile.instagramUrl ?? null,
+    xUrl: profile.xUrl ?? null,
+    tiktokUrl: profile.tiktokUrl ?? null,
+    youtubeUrl: profile.youtubeUrl ?? null,
+    websiteUrl: profile.websiteUrl ?? null,
+  };
 }
 
 function save(state: LocalState) {
@@ -135,13 +160,7 @@ function toView(state: LocalState, post: Post, viewerId: string | null): PostVie
 }
 
 function score(view: PostView) {
-  return (
-    Date.parse(view.createdAt) / 60000 +
-    view.likeCount * 8 +
-    view.wantCount * 12 +
-    view.saveCount * 6 +
-    view.commentCount * 4
-  );
+  return engagementScore(view);
 }
 
 export const localStore: Store = {
@@ -183,6 +202,11 @@ export const localStore: Store = {
         companyName: null,
         companyWebsite: null,
         companyDescription: null,
+        instagramUrl: null,
+        xUrl: null,
+        tiktokUrl: null,
+        youtubeUrl: null,
+        websiteUrl: null,
         createdAt: new Date().toISOString(),
       });
       state.session = { userId: id, email };
@@ -224,6 +248,11 @@ export const localStore: Store = {
         companyName: null,
         companyWebsite: null,
         companyDescription: null,
+        instagramUrl: null,
+        xUrl: null,
+        tiktokUrl: null,
+        youtubeUrl: null,
+        websiteUrl: null,
         createdAt: new Date().toISOString(),
       };
       state.profiles.push(profile);
@@ -267,6 +296,15 @@ export const localStore: Store = {
           patch.companyDescription === undefined
             ? profile.companyDescription
             : patch.companyDescription,
+        instagramUrl:
+          patch.instagramUrl === undefined ? profile.instagramUrl : patch.instagramUrl,
+        xUrl: patch.xUrl === undefined ? profile.xUrl : patch.xUrl,
+        tiktokUrl:
+          patch.tiktokUrl === undefined ? profile.tiktokUrl : patch.tiktokUrl,
+        youtubeUrl:
+          patch.youtubeUrl === undefined ? profile.youtubeUrl : patch.youtubeUrl,
+        websiteUrl:
+          patch.websiteUrl === undefined ? profile.websiteUrl : patch.websiteUrl,
       });
       return { ...profile };
     });
@@ -284,7 +322,7 @@ export const localStore: Store = {
     }
     const views = posts.map((p) => toView(state, p, viewerId));
     if (kind === "foryou") {
-      return views.sort((a, b) => score(b) - score(a));
+      return rankForYouFeed(views);
     }
     return views.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   },
@@ -428,9 +466,7 @@ export const localStore: Store = {
 
   async trending(viewerId) {
     const state = load();
-    return state.posts
-      .map((p) => toView(state, p, viewerId))
-      .sort((a, b) => score(b) - score(a));
+    return rankForYouFeed(state.posts.map((p) => toView(state, p, viewerId)));
   },
 
   async newFinds(viewerId) {
@@ -455,7 +491,54 @@ export const localStore: Store = {
       following: state.follows.filter((f) => f.followerId === userId).length,
     };
   },
+
+  async listFollowers(userId, viewerId) {
+    const state = load();
+    const ids = state.follows
+      .filter((f) => f.followeeId === userId)
+      .map((f) => f.followerId);
+    return toFollowList(state, ids, viewerId);
+  },
+
+  async listFollowing(userId, viewerId) {
+    const state = load();
+    const ids = state.follows
+      .filter((f) => f.followerId === userId)
+      .map((f) => f.followeeId);
+    return toFollowList(state, ids, viewerId);
+  },
 };
+
+const JP_REACTOR_BY_ID = new Map(SEED_JP_REACTORS.map((p) => [p.id, p]));
+
+function resolveLocalProfile(state: LocalState, id: string): Profile | null {
+  return (
+    state.profiles.find((p) => p.id === id) ??
+    JP_REACTOR_BY_ID.get(id) ??
+    null
+  );
+}
+
+function toFollowList(
+  state: LocalState,
+  ids: string[],
+  viewerId: string | null,
+): FollowListEntry[] {
+  const entries: FollowListEntry[] = [];
+  for (const id of ids) {
+    const profile = resolveLocalProfile(state, id);
+    if (!profile) continue;
+    entries.push({
+      profile,
+      following: viewerId
+        ? state.follows.some((f) => f.followerId === viewerId && f.followeeId === id)
+        : false,
+    });
+  }
+  return entries.sort((a, b) =>
+    a.profile.displayName.localeCompare(b.profile.displayName, "ja"),
+  );
+}
 
 function togglePair(
   rows: Array<{ userId: string; postId: string }>,

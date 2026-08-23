@@ -270,7 +270,7 @@ const PROFILE_DEFS: ProfileSeed[] = [
     slug: "linenhouse",
     displayName: "LINEN HOUSE",
     bio: "リネンと、午後の光。",
-    avatarUrl: "https://images.unsplash.com/photo-1616628182501-df0b0d2e0d2b?auto=format&fit=crop&w=200&h=200&q=80",
+    avatarUrl: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=200&h=200&q=80",
     accountType: "business",
     companyName: "LINEN HOUSE",
     companyWebsite: "https://www.ikea.com/",
@@ -303,7 +303,7 @@ const PROFILE_DEFS: ProfileSeed[] = [
     slug: "papermoon",
     displayName: "Paper Moon",
     bio: "ノートとペンの組み合わせ。",
-    avatarUrl: "https://images.unsplash.com/photo-1456735190827-d1262f71b8a1?auto=format&fit=crop&w=200&h=200&q=80",
+    avatarUrl: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=200&h=200&q=80",
     accountType: "business",
     companyName: "Paper Moon",
     companyWebsite: "https://www.muji.com/",
@@ -337,7 +337,7 @@ const IMAGES: Record<CategoryId, string[]> = {
     "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1616628182501-df0b0d2e0d2b?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80",
   ],
   tech: [
@@ -348,15 +348,15 @@ const IMAGES: Record<CategoryId, string[]> = {
     "https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?auto=format&fit=crop&w=1200&q=80",
   ],
   sports: [
-    "https://images.unsplash.com/photo-1517649763962-0c623066027b?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1571008887538-b36bb32f4571?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1461896836934-ffe607ba6851?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=80",
   ],
   lifestyle: [
     "https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1456735190827-d1262f71b8a1?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1478146896981-b80fe463b330?auto=format&fit=crop&w=1200&q=80",
@@ -377,8 +377,9 @@ const IMAGES: Record<CategoryId, string[]> = {
 };
 
 const VIDEO = {
-  url: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-  thumb: "https://images.unsplash.com/photo-1517649763962-0c623066027b?auto=format&fit=crop&w=1200&q=80",
+  // Google gtv sample bucket now returns 403; use a stable public MP4.
+  url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+  thumb: "https://images.unsplash.com/photo-1571008887538-b36bb32f4571?auto=format&fit=crop&w=1200&q=80",
 };
 
 const CAPTIONS: Record<CategoryId, string[]> = {
@@ -482,6 +483,11 @@ function buildProfiles(): Profile[] {
     companyName: def.companyName ?? null,
     companyWebsite: def.companyWebsite ?? null,
     companyDescription: def.companyDescription ?? null,
+    instagramUrl: null,
+    xUrl: null,
+    tiktokUrl: null,
+    youtubeUrl: null,
+    websiteUrl: null,
     createdAt: `2026-07-${String(10 + (def.n % 18)).padStart(2, "0")}T09:00:00.000Z`,
   }));
 }

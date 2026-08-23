@@ -2,6 +2,7 @@ import type {
   CommentView,
   CreatePostInput,
   FollowCounts,
+  FollowListEntry,
   PostView,
   Profile,
   SearchResult,
@@ -43,4 +44,6 @@ export type Store = {
   newFinds(viewerId: string | null): Promise<PostView[]>;
   byCategory(category: CategoryId, viewerId: string | null): Promise<PostView[]>;
   getFollowCounts(userId: string): Promise<FollowCounts>;
+  listFollowers(userId: string, viewerId: string | null): Promise<FollowListEntry[]>;
+  listFollowing(userId: string, viewerId: string | null): Promise<FollowListEntry[]>;
 };

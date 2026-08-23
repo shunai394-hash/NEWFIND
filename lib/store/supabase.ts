@@ -580,13 +580,13 @@ export const supabaseStore: Store = {
     return hydrateProfile(supabase, data as ProfileRow);
   },
 
-  async getFeed(kind, viewerId) {
+  async getFeed(kind, viewerId, offset = 0, pageLimit = 24) {
     const supabase = createClient();
     let query = supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(24);
+      .range(offset, offset + pageLimit - 1);
 
     if (kind === "following") {
       if (!viewerId) return [];

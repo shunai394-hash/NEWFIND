@@ -25,7 +25,12 @@ export type Store = {
   getProfileByUsername(username: string): Promise<Profile | null>;
   ensureMyProfile(session: Session): Promise<Profile>;
   updateProfile(id: string, patch: UpdateProfileInput): Promise<Profile>;
-  getFeed(kind: "foryou" | "following", viewerId: string | null): Promise<PostView[]>;
+  getFeed(
+    kind: "foryou" | "following",
+    viewerId: string | null,
+    offset?: number,
+    limit?: number,
+  ): Promise<PostView[]>;
   getPost(id: string, viewerId: string | null): Promise<PostView | null>;
   createPost(authorId: string, input: CreatePostInput): Promise<PostView>;
   uploadMedia(file: File): Promise<{ url: string; type: "photo" | "video" }>;

@@ -50,54 +50,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let subscription: { unsubscribe: () => void } | null = null;
 
-    refresh()
-      .catch(() => {
-        // 初期化失敗でも ready は立てる。session は消さない。
-      })
-      .finally(() => {
-        if (mounted) setReady(true);
-      });
+    // Never block the shell on auth — Capacitor WebView can hang on getSession.
+    setReady(true);
 
-    if (storeMode() !== "supabase") {
-      return () => {
-        mounted = false;
-      };
-    }
-
-    const supabase = createSupabaseClient();
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, authSession) => {
-      if (!mounted) return;
-      if (event === "INITIAL_SESSION") return;
-
-      if (event === "SIGNED_OUT") {
-        setSession(null);
-        setMe(null);
-        return;
-      }
-
-      if (!authSession?.user) return;
-
-      const next: Session = {
-        userId: authSession.user.id,
-        email: authSession.user.email ?? "",
-      };
-      setSession(next);
-      void getStore()
-        .ensureMyProfile(next)
-        .then((profile) => {
-          if (mounted) setMe(profile);
-        })
-        .catch((err) => {
-          console.error("[auth] onAuthStateChange ensureMyProfile", err);
-        });
+    void refresh().catch((err) => {
+      console.error("[auth] boot refresh failed", err);
     });
+
+    if (storeMode() === "supabase") {
+      try {
+        const supabase = createSupabaseClient();
+        const {
+          data: { subscription: sub },
+        } = supabase.auth.onAuthStateChange((event, authSession) => {
+          if (!mounted) return;
+          if (event === "INITIAL_SESSION") return;
+
+          if (event === "SIGNED_OUT") {
+            setSession(null);
+            setMe(null);
+            return;
+          }
+
+          if (!authSession?.user) return;
+
+          const next: Session = {
+            userId: authSession.user.id,
+            email: authSession.user.email ?? "",
+          };
+          setSession(next);
+          void getStore()
+            .ensureMyProfile(next)
+            .then((profile) => {
+              if (mounted) setMe(profile);
+            })
+            .catch((err) => {
+              console.error("[auth] onAuthStateChange ensureMyProfile", err);
+            });
+        });
+        subscription = sub;
+      } catch (err) {
+        console.error("[auth] onAuthStateChange setup failed", err);
+      }
+    }
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, [refresh]);
 

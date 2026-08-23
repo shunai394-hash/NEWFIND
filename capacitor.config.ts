@@ -30,10 +30,15 @@ const config: CapacitorConfig = {
       "*.unsplash.com",
       "images.pexels.com",
       "*.pexels.com",
+      "fonts.googleapis.com",
+      "fonts.gstatic.com",
+      "*.vercel.app",
+      "newfind-self.vercel.app",
     ],
   },
   android: {
     allowMixedContent: true,
+    webContentsDebuggingEnabled: true,
   },
   plugins: {
     SplashScreen: {

@@ -15,6 +15,14 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) {
+        console.warn("[FeedView] getFeed timeout");
+        setPosts([]);
+        setLoading(false);
+      }
+    }, 8000);
+
     getStore()
       .getFeed(kind, session?.userId ?? null)
       .then((rows) => {
@@ -25,10 +33,12 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
         if (!cancelled) setPosts([]);
       })
       .finally(() => {
+        window.clearTimeout(timeout);
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
   }, [kind, session?.userId]);
 

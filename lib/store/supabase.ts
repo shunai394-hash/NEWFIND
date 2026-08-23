@@ -265,6 +265,42 @@ async function selectByIds<T>(
   return rows;
 }
 
+async function hydratePostsLight(
+  supabase: ReturnType<typeof createClient>,
+  posts: Post[],
+  viewerId: string | null,
+): Promise<PostView[]> {
+  if (posts.length === 0) return [];
+  const authorIds = [...new Set(posts.map((p) => p.authorId))];
+  const profilesRows = await selectByIds<ProfileRow>(
+    supabase,
+    "profiles",
+    "*",
+    authorIds,
+    "id",
+  );
+  const profiles = new Map(profilesRows.map((row) => [row.id, mapProfile(row)]));
+  return posts.flatMap((post) => {
+    const author = profiles.get(post.authorId);
+    if (!author) return [];
+    return [
+      {
+        ...post,
+        author,
+        likeCount: 0,
+        wantCount: 0,
+        commentCount: 0,
+        saveCount: 0,
+        shareCount: 0,
+        liked: false,
+        wanted: false,
+        saved: false,
+        followingAuthor: false,
+      },
+    ];
+  });
+}
+
 async function hydratePosts(
   supabase: ReturnType<typeof createClient>,
   posts: Post[],
@@ -274,13 +310,26 @@ async function hydratePosts(
   const ids = posts.map((p) => p.id);
   const authorIds = [...new Set(posts.map((p) => p.authorId))];
 
-  const [profilesRows, likes, wants, saves, comments, shares] = await Promise.all([
+  const [
+    profilesRows,
+    likeCounts,
+    wantCounts,
+    saveCounts,
+    commentCounts,
+    shareCounts,
+    viewerLikes,
+    viewerWants,
+    viewerSaves,
+  ] = await Promise.all([
     selectByIds<ProfileRow>(supabase, "profiles", "*", authorIds, "id"),
-    selectByIds<{ user_id: string; post_id: string }>(supabase, "likes", "user_id, post_id", ids),
-    selectByIds<{ user_id: string; post_id: string }>(supabase, "wants", "user_id, post_id", ids),
-    selectByIds<{ user_id: string; post_id: string }>(supabase, "saves", "user_id, post_id", ids),
-    selectByIds<{ id: string; post_id: string }>(supabase, "comments", "id, post_id", ids),
-    selectByIds<{ id: string; post_id: string }>(supabase, "shares", "id, post_id", ids),
+    countByPostIds(supabase, "likes", ids),
+    countByPostIds(supabase, "wants", ids),
+    countByPostIds(supabase, "saves", ids),
+    countByPostIds(supabase, "comments", ids),
+    countByPostIds(supabase, "shares", ids),
+    viewerId ? viewerJoinedPostIds(supabase, "likes", viewerId, ids) : Promise.resolve(new Set<string>()),
+    viewerId ? viewerJoinedPostIds(supabase, "wants", viewerId, ids) : Promise.resolve(new Set<string>()),
+    viewerId ? viewerJoinedPostIds(supabase, "saves", viewerId, ids) : Promise.resolve(new Set<string>()),
   ]);
 
   let following = new Set<string>();
@@ -301,55 +350,73 @@ async function hydratePosts(
 
   const profiles = new Map(profilesRows.map((row) => [row.id, mapProfile(row)]));
 
-  const likesByPost = new Map<string, Array<{ user_id: string; post_id: string }>>();
-  for (const row of likes) {
-    const list = likesByPost.get(row.post_id) ?? [];
-    list.push(row);
-    likesByPost.set(row.post_id, list);
-  }
-  const wantsByPost = new Map<string, Array<{ user_id: string; post_id: string }>>();
-  for (const row of wants) {
-    const list = wantsByPost.get(row.post_id) ?? [];
-    list.push(row);
-    wantsByPost.set(row.post_id, list);
-  }
-  const savesByPost = new Map<string, Array<{ user_id: string; post_id: string }>>();
-  for (const row of saves) {
-    const list = savesByPost.get(row.post_id) ?? [];
-    list.push(row);
-    savesByPost.set(row.post_id, list);
-  }
-  const commentCount = new Map<string, number>();
-  for (const row of comments) {
-    commentCount.set(row.post_id, (commentCount.get(row.post_id) ?? 0) + 1);
-  }
-  const shareCount = new Map<string, number>();
-  for (const row of shares) {
-    shareCount.set(row.post_id, (shareCount.get(row.post_id) ?? 0) + 1);
-  }
-
   return posts.flatMap((post) => {
     const author = profiles.get(post.authorId);
     if (!author) return [];
-    const postLikes = likesByPost.get(post.id) ?? [];
-    const postWants = wantsByPost.get(post.id) ?? [];
-    const postSaves = savesByPost.get(post.id) ?? [];
     return [
       {
         ...post,
         author,
-        likeCount: postLikes.length,
-        wantCount: postWants.length,
-        commentCount: commentCount.get(post.id) ?? 0,
-        saveCount: postSaves.length,
-        shareCount: shareCount.get(post.id) ?? 0,
-        liked: viewerId ? postLikes.some((r) => r.user_id === viewerId) : false,
-        wanted: viewerId ? postWants.some((r) => r.user_id === viewerId) : false,
-        saved: viewerId ? postSaves.some((r) => r.user_id === viewerId) : false,
-        followingAuthor: following.has(post.authorId),
+        likeCount: likeCounts.get(post.id) ?? 0,
+        wantCount: wantCounts.get(post.id) ?? 0,
+        commentCount: commentCounts.get(post.id) ?? 0,
+        saveCount: saveCounts.get(post.id) ?? 0,
+        shareCount: shareCounts.get(post.id) ?? 0,
+        liked: viewerId ? viewerLikes.has(post.id) : false,
+        wanted: viewerId ? viewerWants.has(post.id) : false,
+        saved: viewerId ? viewerSaves.has(post.id) : false,
+        followingAuthor: viewerId ? following.has(post.authorId) : false,
       },
     ];
   });
+}
+
+async function countByPostIds(
+  supabase: ReturnType<typeof createClient>,
+  table: "likes" | "wants" | "saves" | "comments" | "shares",
+  postIds: string[],
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  const concurrency = 8;
+  let cursor = 0;
+  async function worker() {
+    while (cursor < postIds.length) {
+      const index = cursor++;
+      const postId = postIds[index]!;
+      const { count, error } = await supabase
+        .from(table)
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", postId);
+      if (error) throw new Error(`${table}.count: ${error.message}`);
+      map.set(postId, count ?? 0);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, Math.max(postIds.length, 1)) }, () => worker()),
+  );
+  return map;
+}
+
+async function viewerJoinedPostIds(
+  supabase: ReturnType<typeof createClient>,
+  table: "likes" | "wants" | "saves",
+  viewerId: string,
+  postIds: string[],
+): Promise<Set<string>> {
+  const set = new Set<string>();
+  for (let i = 0; i < postIds.length; i += 40) {
+    const slice = postIds.slice(i, i + 40);
+    const { data, error } = await supabase
+      .from(table)
+      .select("post_id")
+      .eq("user_id", viewerId)
+      .in("post_id", slice);
+    if (error) throw new Error(`${table}.viewer: ${error.message}`);
+    for (const row of (data ?? []) as Array<{ post_id: string }>) {
+      set.add(row.post_id);
+    }
+  }
+  return set;
 }
 
 function score(view: PostView) {
@@ -360,17 +427,16 @@ export const supabaseStore: Store = {
   async getSession() {
     try {
       const supabase = createClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      let user = sessionData.session?.user ?? null;
-
-      if (!user) {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) return null;
-        user = data.user ?? null;
-      }
-
+      // WebView / flaky networks: never hang app boot on auth network calls.
+      const sessionData = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<null>((resolve) => {
+          setTimeout(() => resolve(null), 4000);
+        }),
+      ]);
+      if (!sessionData) return null;
+      const user = sessionData.data.session?.user ?? null;
       if (!user) return null;
-
       return { userId: user.id, email: user.email ?? "" };
     } catch {
       return null;
@@ -520,7 +586,7 @@ export const supabaseStore: Store = {
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(120);
+      .limit(24);
 
     if (kind === "following") {
       if (!viewerId) return [];
@@ -539,7 +605,18 @@ export const supabaseStore: Store = {
       throw new Error(error.message);
     }
     const posts = ((data ?? []) as PostRow[]).map(mapPost);
-    const views = await hydratePosts(supabase, posts, viewerId);
+    const light = await hydratePostsLight(supabase, posts, viewerId);
+    let views = light;
+    try {
+      views = await Promise.race([
+        hydratePosts(supabase, posts, viewerId),
+        new Promise<PostView[]>((_, reject) => {
+          setTimeout(() => reject(new Error("hydrate timeout")), 8000);
+        }),
+      ]);
+    } catch (err) {
+      console.warn("[getFeed] using light hydrate", err);
+    }
     return kind === "foryou" ? rankForYouFeed(views) : views;
   },
 

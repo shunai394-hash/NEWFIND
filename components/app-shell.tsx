@@ -3,16 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
-import { useApp } from "@/lib/app-context";
 
 const NAV_HEIGHT_PX = 56;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { ready } = useApp();
   const hideChrome =
     pathname.startsWith("/login") || pathname.startsWith("/auth");
-  const showNav = !hideChrome && ready;
+  const showNav = !hideChrome;
 
   return (
     <div className="min-h-dvh bg-neutral-200">
@@ -45,13 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               : undefined
           }
         >
-          {ready ? (
-            children
-          ) : (
-            <div className="px-4 py-20 text-center text-sm text-neutral-400">
-              読み込み中...
-            </div>
-          )}
+          {children}
         </main>
         {showNav ? <BottomNav /> : null}
       </div>

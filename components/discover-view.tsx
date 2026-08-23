@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { MediaThumb } from "@/components/media-thumb";
 import { useApp } from "@/lib/app-context";
@@ -10,6 +10,8 @@ import { getStore } from "@/lib/store";
 import { CATEGORIES, type CategoryId, type PostView, type Profile } from "@/lib/types";
 
 type Tab = "search" | "trending" | "new" | "category";
+
+const PAGE_SIZE = 24;
 
 export function DiscoverView() {
   const { session } = useApp();
@@ -20,6 +22,12 @@ export function DiscoverView() {
   const [posts, setPosts] = useState<PostView[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  const loadingRef = useRef(false);
+  const dbOffsetRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const title = useMemo(() => {
     if (tab === "search") return "Search";
@@ -28,47 +36,121 @@ export function DiscoverView() {
     return "Category";
   }, [tab]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      setLoading(true);
+  const paginatedTab = tab !== "search";
+
+  const loadPage = useCallback(
+    async (offset: number, replace: boolean) => {
+      if (loadingRef.current) return;
+
+      loadingRef.current = true;
+
+      if (replace) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
       const store = getStore();
+
       try {
         if (tab === "search") {
           const result = await store.search(query, viewerId);
-          if (!cancelled) {
-            setUsers(result.users);
-            setPosts(result.posts);
-          }
+          setUsers(result.users);
+          setPosts(result.posts);
+          setHasMore(false);
+          dbOffsetRef.current = 0;
         } else if (tab === "trending") {
-          const data = await store.trending(viewerId);
-          if (!cancelled) {
+          const page = await store.trending(viewerId, offset, PAGE_SIZE);
+          dbOffsetRef.current = page.nextOffset;
+          if (replace) {
             setUsers([]);
-            setPosts(data);
+            setPosts(page.posts);
+          } else {
+            setPosts((prev) => {
+              const existing = new Set(prev.map((post) => post.id));
+              return [
+                ...prev,
+                ...page.posts.filter((post) => !existing.has(post.id)),
+              ];
+            });
           }
+          setHasMore(page.hasMore);
         } else if (tab === "new") {
-          const data = await store.newFinds(viewerId);
-          if (!cancelled) {
+          const page = await store.newFinds(viewerId, offset, PAGE_SIZE);
+          dbOffsetRef.current = page.nextOffset;
+          if (replace) {
             setUsers([]);
-            setPosts(data);
+            setPosts(page.posts);
+          } else {
+            setPosts((prev) => {
+              const existing = new Set(prev.map((post) => post.id));
+              return [
+                ...prev,
+                ...page.posts.filter((post) => !existing.has(post.id)),
+              ];
+            });
           }
+          setHasMore(page.hasMore);
         } else {
-          const data = await store.byCategory(category, viewerId);
-          if (!cancelled) {
+          const page = await store.byCategory(category, viewerId, offset, PAGE_SIZE);
+          dbOffsetRef.current = page.nextOffset;
+          if (replace) {
             setUsers([]);
-            setPosts(data);
+            setPosts(page.posts);
+          } else {
+            setPosts((prev) => {
+              const existing = new Set(prev.map((post) => post.id));
+              return [
+                ...prev,
+                ...page.posts.filter((post) => !existing.has(post.id)),
+              ];
+            });
           }
+          setHasMore(page.hasMore);
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        loadingRef.current = false;
+        setLoading(false);
+        setLoadingMore(false);
       }
-    }
-    const timer = setTimeout(run, tab === "search" ? 200 : 0);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [tab, query, category, viewerId]);
+    },
+    [tab, query, category, viewerId],
+  );
+
+  useEffect(() => {
+    setPosts([]);
+    setUsers([]);
+    setHasMore(true);
+    dbOffsetRef.current = 0;
+
+    const timer = setTimeout(
+      () => {
+        void loadPage(0, true);
+      },
+      tab === "search" ? 200 : 0,
+    );
+
+    return () => clearTimeout(timer);
+  }, [loadPage]);
+
+  useEffect(() => {
+    const target = sentinelRef.current;
+
+    if (!target || !hasMore || !paginatedTab) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || loadingRef.current) return;
+
+        void loadPage(dbOffsetRef.current, false);
+      },
+      { rootMargin: "800px" },
+    );
+
+    observer.observe(target);
+
+    return () => observer.disconnect();
+  }, [hasMore, loadPage, paginatedTab, posts.length]);
 
   return (
     <div>
@@ -150,16 +232,31 @@ export function DiscoverView() {
             {posts.length === 0 ? (
               <p className="py-10 text-center text-sm text-neutral-400">見つかりませんでした</p>
             ) : (
-              <div className="grid grid-cols-3 gap-1">
-                {posts.map((post) => (
-                  <Link key={post.id} href={`/p/${post.id}`} className="relative aspect-square bg-neutral-100">
-                    <MediaThumb post={post} />
-                    {post.mediaType === "video" ? (
-                      <span className="absolute right-1 top-1 text-[10px] font-bold text-white">▶</span>
+              <>
+                <div className="grid grid-cols-3 gap-1">
+                  {posts.map((post) => (
+                    <Link key={post.id} href={`/p/${post.id}`} className="relative aspect-square bg-neutral-100">
+                      <MediaThumb post={post} />
+                      {post.mediaType === "video" ? (
+                        <span className="absolute right-1 top-1 text-[10px] font-bold text-white">▶</span>
+                      ) : null}
+                    </Link>
+                  ))}
+                </div>
+
+                {paginatedTab ? (
+                  <div ref={sentinelRef} className="min-h-12">
+                    {loadingMore ? (
+                      <p className="py-4 text-center text-sm text-neutral-400">さらに読み込み中...</p>
                     ) : null}
-                  </Link>
-                ))}
-              </div>
+                    {!hasMore ? (
+                      <p className="py-4 text-center text-xs text-neutral-400">
+                        すべての投稿を表示しました
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
             )}
           </section>
         </div>

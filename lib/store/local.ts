@@ -310,21 +310,28 @@ export const localStore: Store = {
     });
   },
 
-  async getFeed(kind, viewerId) {
+  async getFeed(kind, viewerId, offset = 0, limit = 24) {
     const state = load();
     let posts = [...state.posts];
     if (kind === "following") {
-      if (!viewerId) return [];
+      if (!viewerId) {
+        return { posts: [], hasMore: false, nextOffset: 0 };
+      }
       const followees = new Set(
         state.follows.filter((f) => f.followerId === viewerId).map((f) => f.followeeId),
       );
       posts = posts.filter((p) => followees.has(p.authorId));
     }
-    const views = posts.map((p) => toView(state, p, viewerId));
-    if (kind === "foryou") {
-      return rankForYouFeed(views);
-    }
-    return views.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    posts.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    const slice = posts.slice(offset, offset + limit);
+    const views = slice.map((p) => toView(state, p, viewerId));
+    const pagePosts =
+      kind === "foryou" ? rankForYouFeed(views) : views;
+    return {
+      posts: pagePosts,
+      hasMore: slice.length === limit,
+      nextOffset: offset + slice.length,
+    };
   },
 
   async getPost(id, viewerId) {
@@ -464,24 +471,36 @@ export const localStore: Store = {
     return { users, posts };
   },
 
-  async trending(viewerId) {
-    const state = load();
-    return rankForYouFeed(state.posts.map((p) => toView(state, p, viewerId)));
+  async trending(viewerId, offset = 0, limit = 24) {
+    return this.getFeed("foryou", viewerId, offset, limit);
   },
 
-  async newFinds(viewerId) {
+  async newFinds(viewerId, offset = 0, limit = 24) {
     const state = load();
-    return state.posts
-      .map((p) => toView(state, p, viewerId))
-      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    const sorted = [...state.posts].sort(
+      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+    );
+    const slice = sorted.slice(offset, offset + limit);
+    const posts = slice.map((p) => toView(state, p, viewerId));
+    return {
+      posts,
+      hasMore: slice.length === limit,
+      nextOffset: offset + slice.length,
+    };
   },
 
-  async byCategory(category: CategoryId, viewerId) {
+  async byCategory(category: CategoryId, viewerId, offset = 0, limit = 24) {
     const state = load();
-    return state.posts
+    const filtered = state.posts
       .filter((p) => p.category === category)
-      .map((p) => toView(state, p, viewerId))
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    const slice = filtered.slice(offset, offset + limit);
+    const posts = slice.map((p) => toView(state, p, viewerId));
+    return {
+      posts,
+      hasMore: slice.length === limit,
+      nextOffset: offset + slice.length,
+    };
   },
 
   async getFollowCounts(userId) {

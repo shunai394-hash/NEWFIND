@@ -11,6 +11,12 @@ import type {
 } from "@/lib/types";
 import type { CategoryId } from "@/lib/types";
 
+export type FeedPage = {
+  posts: PostView[];
+  hasMore: boolean;
+  nextOffset: number;
+};
+
 export type Store = {
   getSession(): Promise<Session | null>;
   signInEmail(email: string, password: string): Promise<Session>;
@@ -30,7 +36,7 @@ export type Store = {
     viewerId: string | null,
     offset?: number,
     limit?: number,
-  ): Promise<PostView[]>;
+  ): Promise<FeedPage>;
   getPost(id: string, viewerId: string | null): Promise<PostView | null>;
   createPost(authorId: string, input: CreatePostInput): Promise<PostView>;
   uploadMedia(file: File): Promise<{ url: string; type: "photo" | "video" }>;
@@ -45,9 +51,22 @@ export type Store = {
   getSaved(userId: string): Promise<PostView[]>;
   getUserPosts(userId: string, viewerId: string | null): Promise<PostView[]>;
   search(query: string, viewerId: string | null): Promise<SearchResult>;
-  trending(viewerId: string | null): Promise<PostView[]>;
-  newFinds(viewerId: string | null): Promise<PostView[]>;
-  byCategory(category: CategoryId, viewerId: string | null): Promise<PostView[]>;
+  trending(
+    viewerId: string | null,
+    offset?: number,
+    limit?: number,
+  ): Promise<FeedPage>;
+  newFinds(
+    viewerId: string | null,
+    offset?: number,
+    limit?: number,
+  ): Promise<FeedPage>;
+  byCategory(
+    category: CategoryId,
+    viewerId: string | null,
+    offset?: number,
+    limit?: number,
+  ): Promise<FeedPage>;
   getFollowCounts(userId: string): Promise<FollowCounts>;
   listFollowers(userId: string, viewerId: string | null): Promise<FollowListEntry[]>;
   listFollowing(userId: string, viewerId: string | null): Promise<FollowListEntry[]>;

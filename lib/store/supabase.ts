@@ -589,13 +589,17 @@ export const supabaseStore: Store = {
       .range(offset, offset + pageLimit - 1);
 
     if (kind === "following") {
-      if (!viewerId) return [];
+      if (!viewerId) {
+        return { posts: [], hasMore: false, nextOffset: 0 };
+      }
       const { data: follows } = await supabase
         .from("follows")
         .select("followee_id")
         .eq("follower_id", viewerId);
       const ids = (follows ?? []).map((f) => f.followee_id);
-      if (ids.length === 0) return [];
+      if (ids.length === 0) {
+        return { posts: [], hasMore: false, nextOffset: 0 };
+      }
       query = query.in("author_id", ids);
     }
 
@@ -617,7 +621,13 @@ export const supabaseStore: Store = {
     } catch (err) {
       console.warn("[getFeed] using light hydrate", err);
     }
-    return kind === "foryou" ? rankForYouFeed(views) : views;
+    const rawCount = posts.length;
+    const pagePosts = kind === "foryou" ? rankForYouFeed(views) : views;
+    return {
+      posts: pagePosts,
+      hasMore: rawCount === pageLimit,
+      nextOffset: offset + rawCount,
+    };
   },
 
   async getPost(id, viewerId) {
@@ -833,29 +843,43 @@ export const supabaseStore: Store = {
     };
   },
 
-  async trending(viewerId) {
-    return this.getFeed("foryou", viewerId);
+  async trending(viewerId, offset = 0, pageLimit = 24) {
+    return this.getFeed("foryou", viewerId, offset, pageLimit);
   },
 
-  async newFinds(viewerId) {
+  async newFinds(viewerId, offset = 0, pageLimit = 24) {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("posts")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageLimit - 1);
     if (error) throw new Error(error.message);
-    return hydratePosts(supabase, ((data ?? []) as PostRow[]).map(mapPost), viewerId);
+    const rows = ((data ?? []) as PostRow[]).map(mapPost);
+    const posts = await hydratePosts(supabase, rows, viewerId);
+    return {
+      posts,
+      hasMore: rows.length === pageLimit,
+      nextOffset: offset + rows.length,
+    };
   },
 
-  async byCategory(category: CategoryId, viewerId) {
+  async byCategory(category: CategoryId, viewerId, offset = 0, pageLimit = 24) {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("posts")
       .select("*")
       .eq("category", category)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageLimit - 1);
     if (error) throw new Error(error.message);
-    return hydratePosts(supabase, ((data ?? []) as PostRow[]).map(mapPost), viewerId);
+    const rows = ((data ?? []) as PostRow[]).map(mapPost);
+    const posts = await hydratePosts(supabase, rows, viewerId);
+    return {
+      posts,
+      hasMore: rows.length === pageLimit,
+      nextOffset: offset + rows.length,
+    };
   },
 
   async getFollowCounts(userId) {

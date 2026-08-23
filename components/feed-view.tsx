@@ -17,6 +17,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   const [hasMore, setHasMore] = useState(true);
 
   const loadingRef = useRef(false);
+  const dbOffsetRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const loadPage = useCallback(
@@ -32,31 +33,34 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
       }
 
       try {
-        const rows = await getStore().getFeed(
+        const page = await getStore().getFeed(
           kind,
           session?.userId ?? null,
           offset,
           PAGE_SIZE,
         );
 
+        dbOffsetRef.current = page.nextOffset;
+
         if (replace) {
-          setPosts(rows);
+          setPosts(page.posts);
         } else {
           setPosts((prev) => {
             const existing = new Set(prev.map((post) => post.id));
             return [
               ...prev,
-              ...rows.filter((post) => !existing.has(post.id)),
+              ...page.posts.filter((post) => !existing.has(post.id)),
             ];
           });
         }
 
-        setHasMore(rows.length === PAGE_SIZE);
+        setHasMore(page.hasMore);
       } catch (err) {
         console.error("[FeedView] getFeed failed", err);
 
         if (replace) {
           setPosts([]);
+          dbOffsetRef.current = 0;
         }
 
         setHasMore(false);
@@ -72,6 +76,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   useEffect(() => {
     setPosts([]);
     setHasMore(true);
+    dbOffsetRef.current = 0;
     void loadPage(0, true);
   }, [loadPage]);
 
@@ -84,7 +89,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
       (entries) => {
         if (!entries[0]?.isIntersecting || loadingRef.current) return;
 
-        void loadPage(posts.length, false);
+        void loadPage(dbOffsetRef.current, false);
       },
       { rootMargin: "800px" },
     );

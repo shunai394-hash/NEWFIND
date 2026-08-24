@@ -13,6 +13,8 @@
     "seed:demo:apply:overseas": "tsx scripts/seed-demo.ts --overseas-only --apply",
     "seed:demo:verify": "tsx scripts/verify-jp-demo.ts",
     "cap:sync": "npx cap sync",
+    "cap:sync:android:release": "scripts\\cap-sync-android-release.cmd",
+    "android:bundle:release": "npm run cap:sync:android:release && cd android && gradlew.bat bundleRelease",
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios"
   },

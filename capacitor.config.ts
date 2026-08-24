@@ -12,6 +12,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  */
 const serverUrl =
   process.env.CAPACITOR_SERVER_URL?.trim() || "http://localhost:3000";
+const isReleaseBuild = process.env.CAPACITOR_RELEASE === "1";
 
 const config: CapacitorConfig = {
   appId: "app.newfind.social",
@@ -38,7 +39,7 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: true,
-    webContentsDebuggingEnabled: true,
+    webContentsDebuggingEnabled: !isReleaseBuild,
   },
   plugins: {
     SplashScreen: {

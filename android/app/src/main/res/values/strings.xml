@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NEWFIND</string>
+    <string name="title_activity_main">NEWFIND</string>
+    <string name="package_name">app.newfind.social</string>
+    <string name="custom_url_scheme">app.newfind.social</string>
+</resources>

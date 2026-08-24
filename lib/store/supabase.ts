@@ -4,6 +4,10 @@ import {
   EMPTY_SOCIAL_LINKS,
   type SocialLinks,
 } from "@/lib/social-links";
+import {
+  ANDROID_OAUTH_CALLBACK,
+  isAndroidCapacitor,
+} from "@/lib/capacitor/platform";
 import { createClient } from "@/lib/supabase/client";
 import type { Store } from "@/lib/store/types";
 
@@ -472,7 +476,11 @@ export const supabaseStore: Store = {
 
   async signInOAuth(provider, next = "/") {
     const supabase = createClient();
-    const redirectTo = new URL("/auth/callback", window.location.origin);
+    // Android Capacitor: custom scheme so the system browser can return into the app.
+    // Web / iOS keep the same-origin /auth/callback route (server exchangeCodeForSession).
+    const redirectTo = isAndroidCapacitor()
+      ? new URL(ANDROID_OAUTH_CALLBACK)
+      : new URL("/auth/callback", window.location.origin);
     if (next.startsWith("/") && !next.startsWith("//")) {
       redirectTo.searchParams.set("next", next);
     }

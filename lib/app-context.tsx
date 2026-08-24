@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { OAuthReturnListener } from "@/components/oauth-return-listener";
 import { getStore, storeMode } from "@/lib/store";
 import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import type { Profile, Session } from "@/lib/types";
@@ -116,7 +117,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [ready, session, me, refresh, requireAuth],
   );
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      <OAuthReturnListener />
+      {children}
+    </AppContext.Provider>
+  );
 }
 
 export function useApp() {

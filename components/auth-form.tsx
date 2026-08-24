@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -18,6 +18,8 @@ export function AuthForm() {
   const [busy, setBusy] = useState(false);
   const next = safeNextPath(params.get("next"));
   const local = storeMode() === "local";
+  // Temporarily hidden until Apple Developer Program registration/payment is complete.
+  const showAppleSignIn = false;
 
   useEffect(() => {
     if (ready && session && me) {
@@ -74,7 +76,7 @@ export function AuthForm() {
           />
         ) : null}
         <input
-          type="email"
+          type="text" inputMode="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="メールアドレス"
@@ -114,13 +116,15 @@ export function AuthForm() {
         >
           Googleで続ける
         </button>
-        <button
-          type="button"
-          onClick={() => oauth("apple")}
-          className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold"
-        >
-          Appleで続ける
-        </button>
+        {showAppleSignIn ? (
+          <button
+            type="button"
+            onClick={() => oauth("apple")}
+            className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold"
+          >
+            Appleで続ける
+          </button>
+        ) : null}
       </div>
 
       {local ? (
@@ -142,3 +146,4 @@ export function AuthForm() {
     </div>
   );
 }
+

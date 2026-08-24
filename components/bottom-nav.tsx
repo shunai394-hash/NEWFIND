@@ -104,13 +104,7 @@ export function BottomNav() {
     router.push(href);
   }
 
-  function onActivate(
-    event: React.SyntheticEvent,
-    href: string,
-    key: string,
-  ) {
-    event.preventDefault();
-    event.stopPropagation();
+  function onActivate(href: string, key: string) {
     void navigate(href, key);
   }
 
@@ -130,8 +124,7 @@ export function BottomNav() {
                   href={item.href}
                   data-testid={`nav-${item.key}`}
                   aria-current={item.active ? "page" : undefined}
-                  onClick={(event) => onActivate(event, item.href, item.key)}
-                  onTouchEnd={(event) => onActivate(event, item.href, item.key)}
+                  onClick={() => onActivate(item.href, item.key)}
                   className={`flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] select-none ${
                     item.active ? "text-neutral-900" : "text-neutral-400"
                   }`}

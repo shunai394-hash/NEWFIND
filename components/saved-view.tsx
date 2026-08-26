@@ -9,12 +9,12 @@ import type { PostView } from "@/lib/types";
 
 export function SavedView() {
   const router = useRouter();
-  const { ready, session } = useApp();
+  const { ready, sessionResolved, session } = useApp();
   const [posts, setPosts] = useState<PostView[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !sessionResolved) return;
     if (!session) {
       router.replace("/login?next=/saved");
       return;
@@ -31,9 +31,12 @@ export function SavedView() {
     return () => {
       cancelled = true;
     };
-  }, [ready, session, router]);
+  }, [ready, sessionResolved, session, router]);
 
-  if (!ready || !session) return null;
+  if (!ready || !sessionResolved) {
+    return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;
+  }
+  if (!session) return null;
 
   return (
     <div>

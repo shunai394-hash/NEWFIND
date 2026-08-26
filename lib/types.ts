@@ -12,9 +12,26 @@ export const CATEGORIES = [
   "lifestyle",
   "travel",
   "other",
+  "accessories",
+  "fragrance",
+  "japan_brands",
+  "celebrity",
+  "anime_culture",
 ] as const;
 
 export type CategoryId = (typeof CATEGORIES)[number];
+
+export const VISUAL_KINDS = [
+  "model",
+  "product",
+  "street",
+  "lifestyle",
+  "illustration",
+  "anime",
+  "brand",
+] as const;
+
+export type VisualKind = (typeof VISUAL_KINDS)[number];
 
 export type Profile = {
   id: string;
@@ -48,6 +65,10 @@ export type Post = {
   source: PostSource;
   sourceRef: string | null;
   sourceUrl: string | null;
+  japanContext?: string | null;
+  visualKind?: VisualKind | null;
+  featuredPerson?: string | null;
+  featuredCredit?: string | null;
   createdAt: string;
 };
 
@@ -108,6 +129,10 @@ export type CreatePostInput = {
   source?: PostSource;
   sourceRef?: string | null;
   sourceUrl?: string | null;
+  japanContext?: string | null;
+  visualKind?: VisualKind | null;
+  featuredPerson?: string | null;
+  featuredCredit?: string | null;
 };
 
 export type UpdateProfileInput = {

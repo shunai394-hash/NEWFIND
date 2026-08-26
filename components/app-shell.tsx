@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
+import { JapanSoundToggle } from "@/components/japan-sound";
 
 const NAV_HEIGHT_PX = 56;
 
@@ -17,19 +18,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="relative mx-auto flex min-h-dvh w-full max-w-[430px] flex-col overflow-x-hidden bg-[#fafafa] shadow-xl">
         {hideChrome ? null : (
           <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white pt-[env(safe-area-inset-top,0px)]">
-            <div className="flex items-center justify-between px-4 py-3">
-              <Link
-                href="/"
-                className="text-[21px] font-semibold tracking-tight"
-              >
+            <div className="flex items-center justify-between gap-2 px-4 py-3">
+              <Link href="/" className="text-[21px] font-semibold tracking-tight">
                 NEWFIND
               </Link>
-              <Link
-                href="/settings"
-                className="text-xs font-medium text-neutral-500"
-              >
-                設定
-              </Link>
+              <div className="flex items-center gap-2">
+                <JapanSoundToggle />
+                <Link href="/settings" className="text-xs font-medium text-neutral-500">
+                  設定
+                </Link>
+              </div>
             </div>
           </header>
         )}

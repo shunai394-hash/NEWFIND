@@ -35,6 +35,10 @@ const config: CapacitorConfig = {
       "fonts.gstatic.com",
       "*.vercel.app",
       "newfind-self.vercel.app",
+      "newfind.social",
+      "*.newfind.social",
+      "appleid.apple.com",
+      "account.apple.com",
     ],
   },
   android: {

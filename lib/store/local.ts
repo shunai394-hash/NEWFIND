@@ -323,12 +323,20 @@ export const localStore: Store = {
       posts = posts.filter((p) => followees.has(p.authorId));
     }
     posts.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    if (kind === "foryou") {
+      const windowed = posts.slice(0, 96).map((p) => toView(state, p, viewerId));
+      const ranked = rankForYouFeed(windowed);
+      const pagePosts = ranked.slice(offset, offset + limit);
+      return {
+        posts: pagePosts,
+        hasMore: offset + limit < ranked.length,
+        nextOffset: offset + pagePosts.length,
+      };
+    }
     const slice = posts.slice(offset, offset + limit);
     const views = slice.map((p) => toView(state, p, viewerId));
-    const pagePosts =
-      kind === "foryou" ? rankForYouFeed(views) : views;
     return {
-      posts: pagePosts,
+      posts: views,
       hasMore: slice.length === limit,
       nextOffset: offset + slice.length,
     };
@@ -356,6 +364,10 @@ export const localStore: Store = {
         source: input.source ?? "user",
         sourceRef: input.sourceRef || null,
         sourceUrl: input.sourceUrl || null,
+        japanContext: input.japanContext ?? null,
+        visualKind: input.visualKind ?? null,
+        featuredPerson: input.featuredPerson ?? null,
+        featuredCredit: input.featuredCredit ?? null,
         createdAt: new Date().toISOString(),
       };
       state.posts.unshift(post);

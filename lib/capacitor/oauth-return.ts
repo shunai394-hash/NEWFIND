@@ -45,6 +45,32 @@ export async function handleOAuthReturnUrl(rawUrl: string): Promise<boolean> {
     return true;
   }
 
+  const tokenHash = url.searchParams.get("token_hash");
+  if (tokenHash) {
+    if (processedCodes.has(tokenHash) || inFlightCode === tokenHash) {
+      return true;
+    }
+    inFlightCode = tokenHash;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.verifyOtp({
+        type: "magiclink",
+        token_hash: tokenHash,
+      });
+      if (error) {
+        const detail = encodeURIComponent(error.message);
+        window.location.replace(`/login?error=apple&detail=${detail}`);
+        return true;
+      }
+      processedCodes.add(tokenHash);
+      const next = safeNextPath(url.searchParams.get("next"));
+      window.location.replace(next);
+      return true;
+    } finally {
+      if (inFlightCode === tokenHash) inFlightCode = null;
+    }
+  }
+
   const code = url.searchParams.get("code");
   if (!code) return false;
 

@@ -11,6 +11,12 @@ import { ShareSheet } from "@/components/share-sheet";
 import { useApp } from "@/lib/app-context";
 import { categoryLabel } from "@/lib/categories";
 import { timeAgo } from "@/lib/format";
+import {
+  celebrityLine,
+  inferVisualKind,
+  japanContextFor,
+  visualKindLabel,
+} from "@/lib/japan-context";
 import { getStore } from "@/lib/store";
 import type { PostView } from "@/lib/types";
 
@@ -101,6 +107,9 @@ export function PostCard({
     typeof window === "undefined"
       ? `/p/${post.id}`
       : `${window.location.origin}/p/${post.id}`;
+  const japanLine = japanContextFor(post);
+  const worn = celebrityLine(post);
+  const visual = visualKindLabel(inferVisualKind(post));
 
   return (
     <article className="border-b border-neutral-200 bg-white">
@@ -110,7 +119,8 @@ export function PostCard({
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{post.author.username}</p>
             <p className="truncate text-[11px] text-neutral-400">
-              {categoryLabel(post.category)}
+              {japanLine ?? categoryLabel(post.category)}
+              {visual ? ` · ${visual}` : ""}
               {post.isSponsored ? " · 広告" : ""}
               {post.source === "brandbridge" ? " · Official" : ""}
             </p>
@@ -182,6 +192,17 @@ export function PostCard({
       />
 
       <div className="space-y-2 px-3 pb-3">
+        {worn ? (
+          <p className="text-xs font-medium text-neutral-700">
+            {worn.label}
+            <span className="ml-2 font-normal text-neutral-400">出典: {worn.credit}</span>
+          </p>
+        ) : null}
+        {japanLine ? (
+          <p className="text-[11px] font-medium tracking-wide text-neutral-500">
+            {japanLine}
+          </p>
+        ) : null}
         {post.caption ? (
           <p className="text-sm">
             <Link href={`/u/${post.author.username}`} className="font-semibold">

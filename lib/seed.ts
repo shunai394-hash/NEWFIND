@@ -311,7 +311,7 @@ const PROFILE_DEFS: ProfileSeed[] = [
   },
 ];
 
-const IMAGES: Record<CategoryId, string[]> = {
+const IMAGES: Partial<Record<CategoryId, string[]>> = {
   fashion: [
     "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=1200&q=80",
@@ -382,7 +382,7 @@ const VIDEO = {
   thumb: "https://images.unsplash.com/photo-1571008887538-b36bb32f4571?auto=format&fit=crop&w=1200&q=80",
 };
 
-const CAPTIONS: Record<CategoryId, string[]> = {
+const CAPTIONS: Partial<Record<CategoryId, string[]>> = {
   fashion: [
     "洗ったあとの落ち感が好きな白T。毎日これでいい。",
     "薄手のシャツ。畳まずに掛けると形が残る。",
@@ -460,7 +460,7 @@ const COMMENT_BODIES = [
   "写真の角度、参考になります。",
 ];
 
-const PRODUCT_LINKS: Record<CategoryId, { url: string; label: string }> = {
+const PRODUCT_LINKS: Partial<Record<CategoryId, { url: string; label: string }>> = {
   fashion: { url: "https://www.uniqlo.com/", label: "商品を見る" },
   beauty: { url: "https://www.sephora.com/", label: "商品を見る" },
   food: { url: "https://www.starbucks.co.jp/", label: "商品を見る" },
@@ -511,12 +511,12 @@ function buildPosts(profiles: Profile[]): Post[] {
   for (let i = 1; i <= total; i += 1) {
     const author = profiles[(i - 1) % profiles.length]!;
     const category = categories[(i - 1) % categories.length]!;
-    const images = IMAGES[category];
+    const images = IMAGES[category]!;
     const isVideo = i % 37 === 0;
     const hasProduct = i % 3 !== 0;
     const isSponsored = i % 7 === 0;
     const isBrandbridge = author.accountType === "business" && i % 5 === 0;
-    const product = PRODUCT_LINKS[category];
+    const product = PRODUCT_LINKS[category]!;
     const day = 1 + ((i * 3) % 22);
     const hour = 8 + (i % 12);
     const minute = (i * 7) % 60;
@@ -527,7 +527,7 @@ function buildPosts(profiles: Profile[]): Post[] {
       mediaType: isVideo ? "video" : "photo",
       mediaUrl: isVideo ? VIDEO.url : images[(i + Math.floor(rng() * 3)) % images.length]!,
       thumbnailUrl: isVideo ? VIDEO.thumb : null,
-      caption: CAPTIONS[category][(i + author.username.length) % CAPTIONS[category].length]!,
+      caption: CAPTIONS[category]![(i + author.username.length) % CAPTIONS[category]!.length]!,
       category,
       productUrl: hasProduct ? (isBrandbridge ? "https://www.brandbridge.jp" : product.url) : null,
       productLabel: hasProduct ? product.label : null,

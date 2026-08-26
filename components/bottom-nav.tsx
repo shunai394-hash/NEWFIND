@@ -10,6 +10,7 @@ import {
   UserIcon,
 } from "@/components/icons";
 import { useApp } from "@/lib/app-context";
+import { navigateApp } from "@/lib/capacitor/navigate";
 import { getStore } from "@/lib/store";
 import { profilePath } from "@/lib/username";
 
@@ -24,7 +25,7 @@ type NavItem = {
 export function BottomNav() {
   const pathname = usePathname() || "/";
   const router = useRouter();
-  const { session, me, refresh } = useApp();
+  const { session, me, refresh, sessionResolved } = useApp();
   const lastNavAt = useRef(0);
 
   const profileHref = me
@@ -75,43 +76,58 @@ export function BottomNav() {
   ];
 
   async function navigate(href: string, key: string) {
-    const now = Date.now();
-    if (now - lastNavAt.current < 450) return;
-    lastNavAt.current = now;
+    if (lastNavAt.current) return;
+    lastNavAt.current = 1;
+    window.setTimeout(() => {
+      lastNavAt.current = 0;
+    }, 280);
 
     if (key === "profile") {
-      if (me?.username) {
-        const target = profilePath(me.username);
-        if (pathname !== target) router.push(target);
+      let currentSession = session;
+      let currentMe = me;
+      if (!sessionResolved) {
+        currentSession = await refresh();
+        if (currentSession) {
+          try {
+            currentMe = await getStore().ensureMyProfile(currentSession);
+          } catch {
+            currentMe = null;
+          }
+        }
+      }
+      if (currentMe?.username) {
+        const target = profilePath(currentMe.username);
+        if (pathname !== target) navigateApp(router, target);
         return;
       }
-      if (!session) {
-        if (pathname !== "/login") router.push("/login");
+      if (!currentSession) {
+        if (pathname !== "/login") navigateApp(router, "/login");
         return;
       }
       try {
-        const profile = await getStore().ensureMyProfile(session);
+        const profile = await getStore().ensureMyProfile(currentSession);
         await refresh();
         const target = profilePath(profile.username);
-        if (pathname !== target) router.push(target);
+        if (pathname !== target) navigateApp(router, target);
       } catch {
-        if (pathname !== "/settings") router.push("/settings");
+        if (pathname !== "/settings") navigateApp(router, "/settings");
       }
       return;
     }
 
     if (href === pathname) return;
-    router.push(href);
+    navigateApp(router, href);
   }
 
-  function onActivate(href: string, key: string) {
+  function onActivate(event: React.MouseEvent<HTMLAnchorElement>, href: string, key: string) {
+    event.preventDefault();
     void navigate(href, key);
   }
 
   return (
     <nav
       data-testid="bottom-nav"
-      className="pointer-events-auto fixed inset-x-0 bottom-0 z-[100] border-t border-neutral-200 bg-white pb-[env(safe-area-inset-bottom,0px)]"
+      className="pointer-events-auto fixed inset-x-0 bottom-0 z-[200] border-t border-neutral-200 bg-white pb-[env(safe-area-inset-bottom,0px)]"
       style={{ touchAction: "manipulation" }}
     >
       <div className="mx-auto w-full max-w-[430px]">
@@ -124,14 +140,18 @@ export function BottomNav() {
                   href={item.href}
                   data-testid={`nav-${item.key}`}
                   aria-current={item.active ? "page" : undefined}
-                  onClick={() => onActivate(item.href, item.key)}
+                  onClick={(event) => onActivate(event, item.href, item.key)}
                   className={`flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] select-none ${
                     item.active ? "text-neutral-900" : "text-neutral-400"
                   }`}
-                  style={{ WebkitTapHighlightColor: "transparent" }}
+                  style={{
+                    WebkitTapHighlightColor: "transparent",
+                    cursor: "pointer",
+                    touchAction: "manipulation",
+                  }}
                 >
-                  <Icon className="h-6 w-6 shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  <Icon className="h-6 w-6 shrink-0 pointer-events-none" />
+                  <span className="truncate pointer-events-none">{item.label}</span>
                 </a>
               </li>
             );

@@ -5,9 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { MediaThumb } from "@/components/media-thumb";
 import { useApp } from "@/lib/app-context";
-import { CATEGORY_LABELS } from "@/lib/categories";
+import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { getStore } from "@/lib/store";
-import { CATEGORIES, type CategoryId, type PostView, type Profile } from "@/lib/types";
+import { type CategoryId, type PostView, type Profile } from "@/lib/types";
 
 type Tab = "search" | "trending" | "new" | "category";
 
@@ -187,7 +187,7 @@ export function DiscoverView() {
 
       {tab === "category" ? (
         <div className="flex gap-2 overflow-x-auto bg-white px-3 py-3">
-          {CATEGORIES.map((id) => (
+          {POST_CATEGORIES.map((id) => (
             <button
               key={id}
               type="button"

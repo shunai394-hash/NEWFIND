@@ -20,11 +20,33 @@ export function isCapacitorNative(): boolean {
   );
 }
 
-/** Android Capacitor only — used for OAuth deep-link return (iOS not in this change). */
+export function capacitorPlatform(): "ios" | "android" | "web" {
+  try {
+    const platform = getCapacitor()?.getPlatform?.();
+    if (platform === "ios" || platform === "android") return platform;
+  } catch {
+    // ignore
+  }
+  return "web";
+}
+
+/** Android Capacitor only — used for OAuth deep-link return. */
 export function isAndroidCapacitor(): boolean {
   try {
     const cap = getCapacitor();
     if (cap?.isNativePlatform?.() && cap.getPlatform?.() === "android") {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
+
+export function isIosCapacitor(): boolean {
+  try {
+    const cap = getCapacitor();
+    if (cap?.isNativePlatform?.() && cap.getPlatform?.() === "ios") {
       return true;
     }
   } catch {

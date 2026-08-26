@@ -10,7 +10,7 @@ import { profilePath } from "@/lib/username";
 
 export function SettingsForm() {
   const router = useRouter();
-  const { ready, session, me, refresh } = useApp();
+  const { ready, sessionResolved, session, me, refresh } = useApp();
 
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -33,10 +33,10 @@ export function SettingsForm() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (ready && !session) {
+    if (ready && sessionResolved && !session) {
       router.replace("/login?next=/settings");
     }
-  }, [ready, session, router]);
+  }, [ready, sessionResolved, session, router]);
 
   useEffect(() => {
     if (!ready || !session || me) return;
@@ -90,7 +90,9 @@ export function SettingsForm() {
     return () => URL.revokeObjectURL(url);
   }, [avatarFile]);
 
-  if (!ready) return null;
+  if (!ready || !sessionResolved) {
+    return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;
+  }
   if (!session) return null;
   if (!me) {
     return (

@@ -2,30 +2,42 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { startAppleSignIn } from "@/lib/apple/client";
 import { useApp } from "@/lib/app-context";
 import { safeNextPath } from "@/lib/config";
 import { getStore, storeMode } from "@/lib/store";
 
+function oauthErrorLabel(code: string) {
+  if (code === "apple_not_configured") {
+    return "Apple ログインのサーバー設定がまだ完了していません。";
+  }
+  if (code === "apple") return "Apple ログインに失敗しました。";
+  if (code === "oauth") return "ログインに失敗しました。";
+  return code;
+}
+
 export function AuthForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const { ready, session, me, refresh } = useApp();
+  const { ready, sessionResolved, session, me, refresh } = useApp();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [error, setError] = useState(params.get("error") ?? "");
+  const [error, setError] = useState(
+    params.get("detail") ||
+      (params.get("error") ? oauthErrorLabel(params.get("error")!) : ""),
+  );
   const [busy, setBusy] = useState(false);
+  const [appleBusy, setAppleBusy] = useState(false);
   const next = safeNextPath(params.get("next"));
   const local = storeMode() === "local";
-  // Temporarily hidden until Apple Developer Program registration/payment is complete.
-  const showAppleSignIn = false;
 
   useEffect(() => {
-    if (ready && session && me) {
+    if (ready && sessionResolved && session && me) {
       router.replace(next);
     }
-  }, [ready, session, me, next, router]);
+  }, [ready, sessionResolved, session, me, next, router]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -52,19 +64,35 @@ export function AuthForm() {
     }
   }
 
-  async function oauth(provider: "google" | "apple") {
+  async function oauthGoogle() {
     setError("");
     try {
-      await getStore().signInOAuth(provider, next);
+      await getStore().signInOAuth("google", next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "OAuthに失敗しました");
+      setError(err instanceof Error ? err.message : "Google ログインに失敗しました");
+    }
+  }
+
+  async function oauthApple() {
+    setError("");
+    setAppleBusy(true);
+    try {
+      await startAppleSignIn(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Apple ログインに失敗しました");
+      setAppleBusy(false);
     }
   }
 
   return (
     <div className="px-6 py-10">
       <h1 className="text-center text-3xl font-semibold tracking-tight">NEWFIND</h1>
-      <p className="mt-2 text-center text-sm text-neutral-500">商品を発見するSNS</p>
+      <p className="mt-2 text-center text-sm text-neutral-500">
+        Discover what&apos;s happening in Japan.
+      </p>
+      <p className="mt-1 text-center text-xs text-neutral-400">
+        日本で今起きていることを発見する
+      </p>
 
       <form onSubmit={submit} className="mt-8 space-y-3">
         {mode === "signup" ? (
@@ -76,7 +104,8 @@ export function AuthForm() {
           />
         ) : null}
         <input
-          type="text" inputMode="email"
+          type="text"
+          inputMode="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="メールアドレス"
@@ -111,20 +140,19 @@ export function AuthForm() {
       <div className="space-y-2">
         <button
           type="button"
-          onClick={() => oauth("google")}
+          onClick={() => void oauthGoogle()}
           className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold"
         >
           Googleで続ける
         </button>
-        {showAppleSignIn ? (
-          <button
-            type="button"
-            onClick={() => oauth("apple")}
-            className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold"
-          >
-            Appleで続ける
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => void oauthApple()}
+          disabled={appleBusy}
+          className="w-full rounded-lg border border-neutral-200 bg-black py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {appleBusy ? "Apple に接続中..." : "Appleでログイン"}
+        </button>
       </div>
 
       {local ? (
@@ -146,4 +174,3 @@ export function AuthForm() {
     </div>
   );
 }
-

@@ -36,7 +36,13 @@ import type {
   Profile,
   Session,
   UpdateProfileInput,
+  VisualKind,
 } from "@/lib/types";
+import { VISUAL_KINDS } from "@/lib/types";
+
+function isVisualKind(value: string | null | undefined): value is VisualKind {
+  return Boolean(value && (VISUAL_KINDS as readonly string[]).includes(value));
+}
 
 type ProfileRow = {
   id: string;
@@ -70,6 +76,10 @@ type PostRow = {
   source: Post["source"];
   source_ref: string | null;
   source_url: string | null;
+  japan_context?: string | null;
+  visual_kind?: string | null;
+  featured_person?: string | null;
+  featured_credit?: string | null;
   created_at: string;
 };
 
@@ -197,6 +207,10 @@ function mapPost(row: PostRow): Post {
     source: row.source,
     sourceRef: row.source_ref,
     sourceUrl: row.source_url,
+    japanContext: row.japan_context ?? null,
+    visualKind: isVisualKind(row.visual_kind) ? row.visual_kind : null,
+    featuredPerson: row.featured_person ?? null,
+    featuredCredit: row.featured_credit ?? null,
     createdAt: row.created_at,
   };
 }
@@ -431,15 +445,8 @@ export const supabaseStore: Store = {
   async getSession() {
     try {
       const supabase = createClient();
-      // WebView / flaky networks: never hang app boot on auth network calls.
-      const sessionData = await Promise.race([
-        supabase.auth.getSession(),
-        new Promise<null>((resolve) => {
-          setTimeout(() => resolve(null), 4000);
-        }),
-      ]);
-      if (!sessionData) return null;
-      const user = sessionData.data.session?.user ?? null;
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user ?? null;
       if (!user) return null;
       return { userId: user.id, email: user.email ?? "" };
     } catch {
@@ -590,11 +597,14 @@ export const supabaseStore: Store = {
 
   async getFeed(kind, viewerId, offset = 0, pageLimit = 24) {
     const supabase = createClient();
+    const forYouWindow = 96;
+    const fetchLimit = kind === "foryou" ? forYouWindow : pageLimit;
+    const fetchOffset = kind === "foryou" ? 0 : offset;
     let query = supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false })
-      .range(offset, offset + pageLimit - 1);
+      .range(fetchOffset, fetchOffset + fetchLimit - 1);
 
     if (kind === "following") {
       if (!viewerId) {
@@ -629,12 +639,14 @@ export const supabaseStore: Store = {
     } catch (err) {
       console.warn("[getFeed] using light hydrate", err);
     }
-    const rawCount = posts.length;
-    const pagePosts = kind === "foryou" ? rankForYouFeed(views) : views;
+    const ranked = kind === "foryou" ? rankForYouFeed(views) : views;
+    const pagePosts = kind === "foryou" ? ranked.slice(offset, offset + pageLimit) : ranked;
+    const hasMore =
+      kind === "foryou" ? offset + pageLimit < ranked.length : posts.length === pageLimit;
     return {
       posts: pagePosts,
-      hasMore: rawCount === pageLimit,
-      nextOffset: offset + rawCount,
+      hasMore,
+      nextOffset: offset + pagePosts.length,
     };
   },
 
@@ -648,24 +660,35 @@ export const supabaseStore: Store = {
 
   async createPost(authorId, input: CreatePostInput) {
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("posts")
-      .insert({
-        author_id: authorId,
-        media_type: input.mediaType,
-        media_url: input.mediaUrl,
-        thumbnail_url: input.thumbnailUrl ?? null,
-        caption: input.caption,
-        category: input.category,
-        product_url: input.productUrl || null,
-        product_label: input.productLabel || null,
-        is_sponsored: Boolean(input.isSponsored),
-        source: input.source ?? "user",
-        source_ref: input.sourceRef || null,
-        source_url: input.sourceUrl || null,
-      })
-      .select("*")
-      .single();
+    const payload: Record<string, unknown> = {
+      author_id: authorId,
+      media_type: input.mediaType,
+      media_url: input.mediaUrl,
+      thumbnail_url: input.thumbnailUrl ?? null,
+      caption: input.caption,
+      category: input.category,
+      product_url: input.productUrl || null,
+      product_label: input.productLabel || null,
+      is_sponsored: Boolean(input.isSponsored),
+      source: input.source ?? "user",
+      source_ref: input.sourceRef || null,
+      source_url: input.sourceUrl || null,
+    };
+    if (input.japanContext) payload.japan_context = input.japanContext;
+    if (input.visualKind) payload.visual_kind = input.visualKind;
+    if (input.featuredPerson) payload.featured_person = input.featuredPerson;
+    if (input.featuredCredit) payload.featured_credit = input.featuredCredit;
+
+    let { data, error } = await supabase.from("posts").insert(payload).select("*").single();
+    if (error && /japan_context|visual_kind|featured_person|featured_credit|schema cache|42703/i.test(error.message)) {
+      delete payload.japan_context;
+      delete payload.visual_kind;
+      delete payload.featured_person;
+      delete payload.featured_credit;
+      const retry = await supabase.from("posts").insert(payload).select("*").single();
+      data = retry.data;
+      error = retry.error;
+    }
     if (error) throw new Error(error.message);
     const [view] = await hydratePosts(supabase, [mapPost(data as PostRow)], authorId);
     if (!view) throw new Error("投稿の作成に失敗しました");

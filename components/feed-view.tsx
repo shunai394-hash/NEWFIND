@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PostCard } from "@/components/post-card";
 import { useApp } from "@/lib/app-context";
+import { FEED_CHANNELS, type FeedChannelId } from "@/lib/japan-context";
 import { getStore } from "@/lib/store";
 import type { PostView } from "@/lib/types";
 
@@ -11,6 +12,7 @@ const PAGE_SIZE = 24;
 
 export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   const { session } = useApp();
+  const [channel, setChannel] = useState<FeedChannelId>("today");
   const [posts, setPosts] = useState<PostView[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -19,6 +21,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   const loadingRef = useRef(false);
   const dbOffsetRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const selected = FEED_CHANNELS.find((item) => item.id === channel) ?? FEED_CHANNELS[0]!;
 
   const loadPage = useCallback(
     async (offset: number, replace: boolean) => {
@@ -33,12 +36,12 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
       }
 
       try {
-        const page = await getStore().getFeed(
-          kind,
-          session?.userId ?? null,
-          offset,
-          PAGE_SIZE,
-        );
+        const store = getStore();
+        const category = selected.categories?.[0];
+        const page =
+          kind === "foryou" && category
+            ? await store.byCategory(category, session?.userId ?? null, offset, PAGE_SIZE)
+            : await store.getFeed(kind, session?.userId ?? null, offset, PAGE_SIZE);
 
         dbOffsetRef.current = page.nextOffset;
 
@@ -70,7 +73,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
         setLoadingMore(false);
       }
     },
-    [kind, session?.userId],
+    [kind, session, selected.categories],
   );
 
   useEffect(() => {
@@ -101,6 +104,42 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
 
   return (
     <div>
+      {kind === "foryou" ? (
+        <section className="border-b border-neutral-200 bg-white px-4 py-5">
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-neutral-400">
+            DISCOVER JAPAN
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            Discover Japan
+          </h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            今、日本で見つかっているもの。
+          </p>
+          <p className="mt-0.5 text-xs text-neutral-400">
+            Discover what&apos;s happening in Japan.
+          </p>
+        </section>
+      ) : null}
+
+      {kind === "foryou" ? (
+        <div className="flex gap-2 overflow-x-auto border-b border-neutral-200 bg-white px-3 py-2.5 [scrollbar-width:none]">
+          {FEED_CHANNELS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setChannel(item.id)}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-semibold tracking-wide ${
+                channel === item.id
+                  ? "bg-neutral-900 text-white"
+                  : "bg-neutral-100 text-neutral-500"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 border-b border-neutral-200 bg-white text-sm font-semibold">
         <Link
           href="/"
@@ -125,6 +164,12 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
         </Link>
       </div>
 
+      {kind === "foryou" ? (
+        <p className="bg-white px-4 py-2 text-[11px] text-neutral-400">
+          {selected.hint} ・ スクロールするほど新しい発見
+        </p>
+      ) : null}
+
       {loading ? (
         <p className="px-4 py-16 text-center text-sm text-neutral-400">
           読み込み中...
@@ -133,7 +178,9 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
         <p className="px-6 py-16 text-center text-sm text-neutral-500">
           {kind === "following"
             ? "フォロー中の投稿はまだありません。Discoverからアカウントを探してください。"
-            : "投稿はまだありません。"}
+            : channel === "today"
+              ? "投稿はまだありません。日本で見つけたものを投稿してみましょう。"
+              : `${selected.hint}の投稿はまだありません。見つけたら投稿してください。`}
         </p>
       ) : (
         <>

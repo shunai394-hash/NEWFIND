@@ -3,20 +3,32 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
-import { CATEGORY_LABELS } from "@/lib/categories";
+import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { isHttpUrl } from "@/lib/media";
 import { getStore } from "@/lib/store";
-import { CATEGORIES, type CategoryId, type MediaType, type PostSource } from "@/lib/types";
+import { type CategoryId, type MediaType, type PostSource, type VisualKind } from "@/lib/types";
+
+const VISUAL_OPTIONS: Array<{ id: VisualKind | ""; label: string }> = [
+  { id: "", label: "ビジュアル（任意）" },
+  { id: "model", label: "リアルなファッション" },
+  { id: "product", label: "商品" },
+  { id: "street", label: "日本の街・店舗" },
+  { id: "lifestyle", label: "ライフスタイル" },
+  { id: "illustration", label: "イラスト" },
+  { id: "anime", label: "アニメ・カルチャー" },
+  { id: "brand", label: "ブランドビジュアル" },
+];
 
 export function CreateForm() {
   const router = useRouter();
-  const { ready, session, me } = useApp();
+  const { ready, sessionResolved, session, me } = useApp();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [mediaType, setMediaType] = useState<MediaType>("photo");
   const [mediaUrl, setMediaUrl] = useState("");
   const [caption, setCaption] = useState("");
-  const [category, setCategory] = useState<CategoryId>("lifestyle");
+  const [category, setCategory] = useState<CategoryId>("fashion");
+  const [visualKind, setVisualKind] = useState<VisualKind | "">("");
   const [productUrl, setProductUrl] = useState("");
   const [productLabel, setProductLabel] = useState("商品を見る");
   const [isSponsored, setIsSponsored] = useState(false);
@@ -28,10 +40,13 @@ export function CreateForm() {
   const isBusiness = me?.accountType === "business";
 
   useEffect(() => {
-    if (ready && !session) router.replace("/login?next=/create");
-  }, [ready, session, router]);
+    if (ready && sessionResolved && !session) router.replace("/login?next=/create");
+  }, [ready, sessionResolved, session, router]);
 
-  if (!ready || !session) return null;
+  if (!ready || !sessionResolved) {
+    return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;
+  }
+  if (!session) return null;
 
   function onFile(next: File | null) {
     setFile(next);
@@ -81,6 +96,7 @@ export function CreateForm() {
         source: isBusiness ? source : "user",
         sourceRef: isBusiness ? sourceRef.trim() || null : null,
         sourceUrl: isBusiness ? sourceUrl.trim() || null : null,
+        visualKind: visualKind || null,
       });
       router.replace(`/p/${created.id}`);
     } catch (err) {
@@ -92,6 +108,12 @@ export function CreateForm() {
 
   return (
     <form onSubmit={submit} className="space-y-4 px-4 py-4">
+      <div>
+        <h1 className="text-lg font-semibold">日本で見つけたものを投稿</h1>
+        <p className="mt-1 text-xs text-neutral-500">
+          今日見つけた服、買ったコスメ、話題の商品、街、カルチャーなどをシェアできます。
+        </p>
+      </div>
       <label className="block rounded-2xl border border-dashed border-neutral-300 bg-white p-4 text-center">
         <input
           type="file"
@@ -120,7 +142,7 @@ export function CreateForm() {
       <textarea
         value={caption}
         onChange={(e) => setCaption(e.target.value)}
-        placeholder="キャプション"
+        placeholder="今日、日本で見つけたこと"
         rows={3}
         className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
       />
@@ -129,9 +151,20 @@ export function CreateForm() {
         onChange={(e) => setCategory(e.target.value as CategoryId)}
         className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
       >
-        {CATEGORIES.map((id) => (
+        {POST_CATEGORIES.map((id) => (
           <option key={id} value={id}>
             {CATEGORY_LABELS[id]}
+          </option>
+        ))}
+      </select>
+      <select
+        value={visualKind}
+        onChange={(e) => setVisualKind(e.target.value as VisualKind | "")}
+        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
+      >
+        {VISUAL_OPTIONS.map((item) => (
+          <option key={item.id || "none"} value={item.id}>
+            {item.label}
           </option>
         ))}
       </select>

@@ -15,17 +15,19 @@ import type { Profile, Session } from "@/lib/types";
 
 type AppContextValue = {
   ready: boolean;
+  sessionResolved: boolean;
   session: Session | null;
   me: Profile | null;
   mode: "local" | "supabase";
-  refresh: () => Promise<void>;
+  refresh: () => Promise<Session | null>;
   requireAuth: () => boolean;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
+  const [ready] = useState(true);
+  const [sessionResolved, setSessionResolved] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [me, setMe] = useState<Profile | null>(null);
 
@@ -36,7 +38,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!next) {
       setSession(null);
       setMe(null);
-      return;
+      setSessionResolved(true);
+      return null;
     }
 
     setSession(next);
@@ -45,19 +48,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setMe(profile);
     } catch (err) {
       console.error("[auth] ensureMyProfile", err);
-      console.error("[Supabase] ensureMyProfile failed", err);
+    } finally {
+      setSessionResolved(true);
     }
+    return next;
   }, []);
 
   useEffect(() => {
     let mounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
 
-    // Never block the shell on auth — Capacitor WebView can hang on getSession.
-    setReady(true);
-
     void refresh().catch((err) => {
       console.error("[auth] boot refresh failed", err);
+      if (mounted) setSessionResolved(true);
     });
 
     if (storeMode() === "supabase") {
@@ -72,6 +75,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (event === "SIGNED_OUT") {
             setSession(null);
             setMe(null);
+            setSessionResolved(true);
             return;
           }
 
@@ -82,6 +86,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             email: authSession.user.email ?? "",
           };
           setSession(next);
+          setSessionResolved(true);
           void getStore()
             .ensureMyProfile(next)
             .then((profile) => {
@@ -108,13 +113,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       ready,
+      sessionResolved,
       session,
       me,
       mode: storeMode(),
       refresh,
       requireAuth,
     }),
-    [ready, session, me, refresh, requireAuth],
+    [ready, sessionResolved, session, me, refresh, requireAuth],
   );
 
   return (
@@ -130,4 +136,3 @@ export function useApp() {
   if (!ctx) throw new Error("useApp must be used within AppProvider");
   return ctx;
 }
-

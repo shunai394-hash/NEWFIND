@@ -47,10 +47,6 @@ import {
   isDemoUsername,
 } from "../lib/seed";
 import {
-  DEMO_JP_COMMENT_ID_PREFIX,
-  DEMO_JP_POST_ID_PREFIX,
-  DEMO_JP_PROFILE_ID_PREFIX,
-  DEMO_JP_REACTOR_ID_PREFIX,
   DEMO_JP_USERNAME_PREFIX,
   SEED_JP_AUTH_PROFILES,
   SEED_JP_COMMENTS,
@@ -60,6 +56,10 @@ import {
   SEED_JP_PROFILES,
   SEED_JP_SAVES,
   SEED_JP_WANTS,
+  demoJpCommentId,
+  demoJpPostId,
+  demoJpProfileId,
+  demoJpReactorId,
   isDemoJpCommentId,
   isDemoJpPostId,
   isDemoJpProfileId,
@@ -390,9 +390,15 @@ async function upsertOverseasDemo(admin: SupabaseClient) {
 async function upsertJpDemo(admin: SupabaseClient) {
   const postIds = SEED_JP_POSTS.map((p) => p.id);
   const profileIds = SEED_JP_AUTH_PROFILES.map((p) => p.id);
+  // Include legacy reactor IDs so avatar-less leftovers are removed on re-seed.
+  const legacyReactorIds = Array.from({ length: 2200 }, (_, i) => demoJpReactorId(i + 1));
+  const allProfileIds = [...new Set([...profileIds, ...legacyReactorIds])];
+  // Always clear the full JP post ID range so shrinking the seed does not leave orphans
+  // (e.g. old travel/nightscape posts beyond the new post count).
+  const allKnownPostIds = Array.from({ length: 600 }, (_, i) => demoJpPostId(i + 1));
 
   // Clear JP graph rows first so remapped usernames / engagement do not collide.
-  await chunked(postIds, 80, async (slice) => {
+  await chunked(allKnownPostIds, 80, async (slice) => {
     for (const table of ["likes", "wants", "saves"] as const) {
       throwIfError(
         `jp.${table}.clear`,
@@ -405,7 +411,7 @@ async function upsertJpDemo(admin: SupabaseClient) {
     );
   });
 
-  await chunked(profileIds, 80, async (slice) => {
+  await chunked(allProfileIds, 80, async (slice) => {
     throwIfError(
       "jp.follows.follower.clear",
       (await admin.from("follows").delete().in("follower_id", slice)).error,
@@ -416,11 +422,11 @@ async function upsertJpDemo(admin: SupabaseClient) {
     );
   });
 
-  await chunked(postIds, 80, async (slice) => {
+  await chunked(allKnownPostIds, 80, async (slice) => {
     throwIfError("jp.posts.clear", (await admin.from("posts").delete().in("id", slice)).error);
   });
 
-  await chunked(profileIds, 80, async (slice) => {
+  await chunked(allProfileIds, 80, async (slice) => {
     throwIfError(
       "jp.profiles.clear",
       (await admin.from("profiles").delete().in("id", slice)).error,
@@ -438,6 +444,9 @@ async function upsertJpDemo(admin: SupabaseClient) {
     comments: SEED_JP_COMMENTS,
     seedTag: "nfdemo_jp",
   });
+
+  console.log(`  purged orphan JP posts outside new set (${allKnownPostIds.length} id range)`);
+  console.log(`  upserted JP posts: ${postIds.length}`);
 }
 
 async function upsertDemo(admin: SupabaseClient) {
@@ -498,56 +507,63 @@ async function purgeOverseasOnly(admin: SupabaseClient) {
 }
 
 async function purgeJpOnly(admin: SupabaseClient) {
-  throwIfError(
-    "jp.comments.delete",
-    (
-      await admin
-        .from("comments")
-        .delete()
-        .or(
-          `id.like.${DEMO_JP_COMMENT_ID_PREFIX}%,user_id.like.${DEMO_JP_PROFILE_ID_PREFIX}%,user_id.like.${DEMO_JP_REACTOR_ID_PREFIX}%,post_id.like.${DEMO_JP_POST_ID_PREFIX}%`,
-        )
-    ).error,
-  );
-  for (const table of ["likes", "wants", "saves"] as const) {
-    throwIfError(
-      `jp.${table}.delete`,
-      (
-        await admin
-          .from(table)
-          .delete()
-          .or(
-            `user_id.like.${DEMO_JP_PROFILE_ID_PREFIX}%,user_id.like.${DEMO_JP_REACTOR_ID_PREFIX}%,post_id.like.${DEMO_JP_POST_ID_PREFIX}%`,
-          )
-      ).error,
-    );
-  }
-  throwIfError(
-    "jp.follows.delete",
-    (
-      await admin
-        .from("follows")
-        .delete()
-        .or(
-          `follower_id.like.${DEMO_JP_PROFILE_ID_PREFIX}%,followee_id.like.${DEMO_JP_PROFILE_ID_PREFIX}%`,
-        )
-    ).error,
-  );
-  throwIfError(
-    "jp.posts.delete",
-    (await admin.from("posts").delete().like("id", `${DEMO_JP_POST_ID_PREFIX}%`)).error,
-  );
-  throwIfError(
-    "jp.profiles.visible.delete",
-    (await admin.from("profiles").delete().like("id", `${DEMO_JP_PROFILE_ID_PREFIX}%`)).error,
-  );
-  throwIfError(
-    "jp.profiles.reactors.delete",
-    (await admin.from("profiles").delete().like("id", `${DEMO_JP_REACTOR_ID_PREFIX}%`)).error,
-  );
+  // UUID columns cannot use LIKE; delete by known demo ID ranges.
+  const postIds = Array.from({ length: 600 }, (_, i) => demoJpPostId(i + 1));
+  const profileIds = [
+    ...Array.from({ length: 120 }, (_, i) => demoJpProfileId(i + 1)),
+    ...Array.from({ length: 2200 }, (_, i) => demoJpReactorId(i + 1)),
+  ];
+  const commentIds = Array.from({ length: 2000 }, (_, i) => demoJpCommentId(i + 1));
 
-  for (const profile of SEED_JP_AUTH_PROFILES) {
-    if (!isDemoJpProfileId(profile.id) || !isDemoJpUsername(profile.username)) continue;
+  await chunked(commentIds, 80, async (slice) => {
+    throwIfError(
+      "jp.comments.delete",
+      (await admin.from("comments").delete().in("id", slice)).error,
+    );
+  });
+  await chunked(postIds, 80, async (slice) => {
+    for (const table of ["likes", "wants", "saves"] as const) {
+      throwIfError(
+        `jp.${table}.delete`,
+        (await admin.from(table).delete().in("post_id", slice)).error,
+      );
+    }
+  });
+  await chunked(profileIds, 80, async (slice) => {
+    for (const table of ["likes", "wants", "saves"] as const) {
+      throwIfError(
+        `jp.${table}.user.delete`,
+        (await admin.from(table).delete().in("user_id", slice)).error,
+      );
+    }
+    throwIfError(
+      "jp.follows.follower.delete",
+      (await admin.from("follows").delete().in("follower_id", slice)).error,
+    );
+    throwIfError(
+      "jp.follows.followee.delete",
+      (await admin.from("follows").delete().in("followee_id", slice)).error,
+    );
+  });
+  await chunked(postIds, 80, async (slice) => {
+    throwIfError("jp.posts.delete", (await admin.from("posts").delete().in("id", slice)).error);
+  });
+  await chunked(profileIds, 80, async (slice) => {
+    throwIfError(
+      "jp.profiles.delete",
+      (await admin.from("profiles").delete().in("id", slice)).error,
+    );
+  });
+
+  const authTargets = [
+    ...SEED_JP_AUTH_PROFILES,
+    ...Array.from({ length: 2200 }, (_, i) => ({
+      id: demoJpReactorId(i + 1),
+      username: `${DEMO_JP_USERNAME_PREFIX}legacy_r${i + 1}`,
+    })),
+  ];
+  for (const profile of authTargets) {
+    if (!isDemoJpProfileId(profile.id)) continue;
     const { error } = await admin.auth.admin.deleteUser(profile.id);
     if (error && !error.message.toLowerCase().includes("not found")) {
       throw new Error(`auth.deleteUser ${profile.username}: ${error.message}`);

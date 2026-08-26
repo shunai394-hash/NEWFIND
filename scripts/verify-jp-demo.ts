@@ -79,21 +79,24 @@ async function verifyMemory(issues: string[]) {
   );
   console.log(`uniquePhotos=${uniquePhotos}/${photos.length} reuse=${mediaDupes}`);
 
-  if (SEED_JP_POSTS.length < 400) fail(`posts too few: ${SEED_JP_POSTS.length}`, issues);
+  if (SEED_JP_POSTS.length < 120) fail(`posts too few: ${SEED_JP_POSTS.length}`, issues);
   if (withMedia.length / SEED_JP_POSTS.length < 0.95) {
     fail(`too many posts without media: ${withMedia.length}/${SEED_JP_POSTS.length}`, issues);
   }
   if (mediaDupes !== 0) fail(`duplicate photo media_url: ${mediaDupes}`, issues);
-  if (stats.likes < 5000) fail(`likes too low: ${stats.likes}`, issues);
-  if (stats.comments < 200) fail(`comments too low: ${stats.comments}`, issues);
-  if (stats.follows < 5000) fail(`follows too low: ${stats.follows}`, issues);
-  if (stats.followFollowers.min < 5) {
+  if (stats.likes < 800) fail(`likes too low: ${stats.likes}`, issues);
+  if (stats.comments < 80) fail(`comments too low: ${stats.comments}`, issues);
+  if (stats.follows < 300) fail(`follows too low: ${stats.follows}`, issues);
+  if (stats.followFollowers.min < 1) {
     fail(`followers min too low: ${stats.followFollowers.min}`, issues);
   }
-  if (stats.followFollowers.max < 400) {
+  if (stats.followFollowers.max < 15) {
     fail(`followers max too low: ${stats.followFollowers.max}`, issues);
   }
-  if (stats.followFollowing.min < 5) {
+  if (stats.followFollowers.max > 80) {
+    fail(`followers max too high for demo list UX: ${stats.followFollowers.max}`, issues);
+  }
+  if (stats.followFollowing.min < 1) {
     fail(`following min too low: ${stats.followFollowing.min}`, issues);
   }
   if ((stats.selfFollows ?? 0) > 0) fail(`self-follows present: ${stats.selfFollows}`, issues);
@@ -102,13 +105,37 @@ async function verifyMemory(issues: string[]) {
   }
   if ((stats.selfLikes ?? 0) > 0) fail(`self-likes present: ${stats.selfLikes}`, issues);
   if ((stats.snsUsers ?? 0) < 20) fail(`sns users too few: ${stats.snsUsers}`, issues);
-  if ((stats.likesPerPost?.max ?? 0) < 200) {
+  if ((stats.likesPerPost?.max ?? 0) < 20) {
     fail(`like max too low: ${stats.likesPerPost?.max}`, issues);
   }
+  if ((stats.reactors ?? 0) < 50) fail(`reactors too few: ${stats.reactors}`, issues);
+  const noAvatarReactors = SEED_JP_AUTH_PROFILES.filter(
+    (p) => p.username.startsWith("nfdemo_jp_rx") && !p.avatarUrl,
+  ).length;
+  if (noAvatarReactors > 0) {
+    fail(`reactors missing avatar: ${noAvatarReactors}`, issues);
+  }
+  const fashionProducts = SEED_JP_POSTS.filter(
+    (p) => p.category === "fashion" && p.productLabel && p.productLabel !== "商品を見る",
+  ).length;
+  if (fashionProducts < 40) {
+    fail(`fashion product-linked posts too few: ${fashionProducts}`, issues);
+  }
 
-  for (const need of ["fashion", "beauty", "food", "travel", "home", "lifestyle"]) {
+  const fashionShare =
+    ((stats.categories as Record<string, number>).fashion ?? 0) / SEED_JP_POSTS.length;
+  if (fashionShare < 0.3) {
+    fail(`fashion share too low: ${pct((stats.categories as Record<string, number>).fashion ?? 0, SEED_JP_POSTS.length)}`, issues);
+  }
+
+  const badPlace = SEED_JP_POSTS.filter((p) =>
+    /東京駅|場所は|夜景の記録/.test(p.caption),
+  ).length;
+  if (badPlace > 0) fail(`suspicious place/night captions: ${badPlace}`, issues);
+
+  for (const need of ["fashion", "beauty", "food", "home", "lifestyle"]) {
     const n = (stats.categories as Record<string, number>)[need] ?? 0;
-    if (n < 10) fail(`category underrepresented: ${need}=${n}`, issues);
+    if (n < 8) fail(`category underrepresented: ${need}=${n}`, issues);
   }
 }
 
@@ -263,16 +290,19 @@ async function verifyDb(issues: string[]) {
   if (photos.length - uniquePhotos !== 0) {
     fail(`DB photo URL reuse ${photos.length - uniquePhotos}`, issues);
   }
-  if (likes < 15000) fail(`DB likes too low ${likes}`, issues);
-  if (comments < 200) fail(`DB comments too low ${comments}`, issues);
-  if (follows < 20000) fail(`DB follows too low ${follows}`, issues);
+  if (likes < 800) fail(`DB likes too low ${likes}`, issues);
+  if (comments < 150) fail(`DB comments too low ${comments}`, issues);
+  if (follows < 400) fail(`DB follows too low ${follows}`, issues);
   if (selfFollows > 0) fail(`DB self-follows ${selfFollows}`, issues);
   if (snsUsers < 20) fail(`DB sns users too few ${snsUsers}`, issues);
-  if ((followerVals[0] ?? 0) < 5) {
+  if ((followerVals[0] ?? 0) < 1) {
     fail(`DB followers min too low ${followerVals[0]}`, issues);
   }
-  if ((followingVals[0] ?? 0) < 5) {
+  if ((followingVals[0] ?? 0) < 1) {
     fail(`DB following min too low ${followingVals[0]}`, issues);
+  }
+  if ((followerVals[followerVals.length - 1] ?? 0) > 80) {
+    fail(`DB followers max too high ${followerVals[followerVals.length - 1]}`, issues);
   }
 }
 

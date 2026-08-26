@@ -81,6 +81,7 @@ type PostRow = {
   visual_kind?: string | null;
   featured_person?: string | null;
   featured_credit?: string | null;
+  discovery_product_id?: string | null;
   created_at: string;
 };
 
@@ -212,6 +213,7 @@ function mapPost(row: PostRow): Post {
     visualKind: isVisualKind(row.visual_kind) ? row.visual_kind : null,
     featuredPerson: row.featured_person ?? null,
     featuredCredit: row.featured_credit ?? null,
+    discoveryProductId: row.discovery_product_id ?? null,
     createdAt: row.created_at,
   };
 }
@@ -680,13 +682,15 @@ export const supabaseStore: Store = {
     if (input.visualKind) payload.visual_kind = input.visualKind;
     if (input.featuredPerson) payload.featured_person = input.featuredPerson;
     if (input.featuredCredit) payload.featured_credit = input.featuredCredit;
+    if (input.discoveryProductId) payload.discovery_product_id = input.discoveryProductId;
 
     let { data, error } = await supabase.from("posts").insert(payload).select("*").single();
-    if (error && /japan_context|visual_kind|featured_person|featured_credit|schema cache|42703/i.test(error.message)) {
+    if (error && /japan_context|visual_kind|featured_person|featured_credit|discovery_product_id|schema cache|42703/i.test(error.message)) {
       delete payload.japan_context;
       delete payload.visual_kind;
       delete payload.featured_person;
       delete payload.featured_credit;
+      delete payload.discovery_product_id;
       const retry = await supabase.from("posts").insert(payload).select("*").single();
       data = retry.data;
       error = retry.error;

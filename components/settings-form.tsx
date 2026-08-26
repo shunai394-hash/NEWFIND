@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useApp } from "@/lib/app-context";
 import { validateSocialUrl } from "@/lib/social-links";
 import { getStore } from "@/lib/store";
@@ -229,6 +230,13 @@ export function SettingsForm() {
           className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-normal text-neutral-900"
         />
       </label>
+
+      <Link
+        href="/admin/discovery"
+        className="block rounded-lg bg-white px-3 py-3 text-sm font-semibold"
+      >
+        Discovery Manager
+      </Link>
 
       <div className="space-y-3 rounded-2xl bg-white p-3">
         <p className="text-xs font-semibold text-neutral-500">SNS / Web</p>

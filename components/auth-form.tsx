@@ -87,12 +87,6 @@ export function AuthForm() {
   return (
     <div className="px-6 py-10">
       <h1 className="text-center text-3xl font-semibold tracking-tight">NEWFIND</h1>
-      <p className="mt-2 text-center text-sm text-neutral-500">
-        Discover what&apos;s happening in Japan.
-      </p>
-      <p className="mt-1 text-center text-xs text-neutral-400">
-        日本で今起きていることを発見する
-      </p>
 
       <form onSubmit={submit} className="mt-8 space-y-3">
         {mode === "signup" ? (

@@ -105,23 +105,6 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   return (
     <div>
       {kind === "foryou" ? (
-        <section className="border-b border-neutral-200 bg-white px-4 py-5">
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-neutral-400">
-            DISCOVER JAPAN
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-            Discover Japan
-          </h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            今、日本で見つかっているもの。
-          </p>
-          <p className="mt-0.5 text-xs text-neutral-400">
-            Discover what&apos;s happening in Japan.
-          </p>
-        </section>
-      ) : null}
-
-      {kind === "foryou" ? (
         <div className="flex gap-2 overflow-x-auto border-b border-neutral-200 bg-white px-3 py-2.5 [scrollbar-width:none]">
           {FEED_CHANNELS.map((item) => (
             <button
@@ -179,7 +162,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
           {kind === "following"
             ? "フォロー中の投稿はまだありません。Discoverからアカウントを探してください。"
             : channel === "today"
-              ? "投稿はまだありません。日本で見つけたものを投稿してみましょう。"
+              ? "投稿はまだありません。"
               : `${selected.hint}の投稿はまだありません。見つけたら投稿してください。`}
         </p>
       ) : (

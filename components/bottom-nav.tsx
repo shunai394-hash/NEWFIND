@@ -42,15 +42,14 @@ export function BottomNav() {
       label: "ホーム",
       active:
         pathname === "/" ||
-        pathname === "/following" ||
-        pathname.startsWith("/products"),
+        pathname === "/following",
     },
     {
       key: "discover",
       href: "/discover",
       icon: SearchIcon,
       label: "Discover",
-      active: pathname.startsWith("/discover"),
+      active: pathname.startsWith("/discover") || pathname.startsWith("/products"),
     },
     {
       key: "create",

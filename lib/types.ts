@@ -69,6 +69,7 @@ export type Post = {
   visualKind?: VisualKind | null;
   featuredPerson?: string | null;
   featuredCredit?: string | null;
+  discoveryProductId?: string | null;
   createdAt: string;
 };
 
@@ -133,6 +134,7 @@ export type CreatePostInput = {
   visualKind?: VisualKind | null;
   featuredPerson?: string | null;
   featuredCredit?: string | null;
+  discoveryProductId?: string | null;
 };
 
 export type UpdateProfileInput = {

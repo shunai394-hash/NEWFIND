@@ -1,7 +1,7 @@
 import type { CatalogProduct } from "@/lib/products/types";
 
 /**
- * NEWFIND product catalog — source of truth for Discover Japan.
+ * NEWFIND product catalog — seed source for Discovery Products.
  *
  * To add a product later:
  * 1. Confirm a checkable source URL (magazine, official SNS, brand, news, survey).

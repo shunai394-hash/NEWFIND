@@ -1,5 +1,5 @@
-import { ProductDiscoverView } from "@/components/product-discover-view";
+import { FeedView } from "@/components/feed-view";
 
 export default function HomePage() {
-  return <ProductDiscoverView />;
+  return <FeedView kind="foryou" />;
 }

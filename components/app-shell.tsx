@@ -11,11 +11,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hideChrome =
     pathname.startsWith("/login") || pathname.startsWith("/auth");
-  const showNav = !hideChrome;
+  const isAdmin = pathname.startsWith("/admin");
+  const showNav = !hideChrome && !isAdmin;
 
   return (
     <div className="min-h-dvh bg-neutral-200">
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-[430px] flex-col overflow-x-hidden bg-[#fafafa] shadow-xl">
+      <div
+        className={`relative mx-auto flex min-h-dvh w-full flex-col overflow-x-hidden bg-[#fafafa] shadow-xl ${
+          isAdmin ? "max-w-3xl" : "max-w-[430px]"
+        }`}
+      >
         {hideChrome ? null : (
           <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white pt-[env(safe-area-inset-top,0px)]">
             <div className="flex items-center justify-between gap-2 px-4 py-3">

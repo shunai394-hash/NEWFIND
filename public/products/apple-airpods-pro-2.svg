@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img">
+  <rect width="400" height="500" fill="#eef0f2"/>
+  <rect x="130" y="150" width="140" height="80" rx="40" fill="#111" opacity="0.14"/>
+  <text x="28" y="40" fill="#111" font-family="Georgia, serif" font-size="12" letter-spacing="3">NEWFIND</text>
+  <text x="28" y="390" fill="#111" font-family="Georgia, serif" font-size="13" letter-spacing="2">APPLE</text>
+  <text x="28" y="424" fill="#111" font-family="Georgia, serif" font-size="22">AirPods Pro</text>
+  <text x="28" y="456" fill="#111" font-family="Georgia, serif" font-size="12" opacity="0.7">TECH</text>
+</svg>

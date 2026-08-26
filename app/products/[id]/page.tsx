@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/product-detail";
-import { getCatalogProduct, listCatalogProducts } from "@/lib/products";
+import { getDiscoveryProduct, listDiscoveryProducts } from "@/lib/discovery/store";
 
 export function generateStaticParams() {
-  return listCatalogProducts().map((product) => ({ id: product.id }));
+  return listDiscoveryProducts({ admin: false, status: "approved" }).map((product) => ({
+    id: product.id,
+  }));
 }
 
 export default async function ProductPage({
@@ -12,7 +14,7 @@ export default async function ProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const product = getCatalogProduct(id);
+  const product = getDiscoveryProduct(id, false);
   if (!product) notFound();
   return <ProductDetail product={product} />;
 }

@@ -371,6 +371,7 @@ export const localStore: Store = {
         visualKind: input.visualKind ?? null,
         featuredPerson: input.featuredPerson ?? null,
         featuredCredit: input.featuredCredit ?? null,
+        discoveryProductId: input.discoveryProductId ?? null,
         createdAt: new Date().toISOString(),
       };
       state.posts.unshift(post);

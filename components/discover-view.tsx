@@ -7,7 +7,7 @@ import { MediaThumb } from "@/components/media-thumb";
 import { ProductCard } from "@/components/product-card";
 import { useApp } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
-import { listCatalogProducts, searchCatalogProducts } from "@/lib/products";
+import { listDiscoveryProducts } from "@/lib/discovery/store";
 import { filterDiscoveryPosts } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
 import { type CategoryId, type PostView, type Profile } from "@/lib/types";
@@ -33,15 +33,29 @@ export function DiscoverView() {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const shownProducts = useMemo(() => {
-    if (tab === "search") return searchCatalogProducts(query);
+    const products = listDiscoveryProducts({ admin: false, status: "approved" });
+    if (tab === "search") {
+      const q = query.trim().toLowerCase();
+      if (!q) return products;
+      return products.filter((item) =>
+        [item.productName, item.brand, item.description, ...item.people.map((person) => person.personName)]
+          .join(" ")
+          .toLowerCase()
+          .includes(q),
+      );
+    }
     if (tab !== "products") return [];
-    return listCatalogProducts().filter((item) => {
-      if (category === "fashion") return item.collections.includes("fashion") || item.collections.includes("teen");
-      if (category === "beauty") return item.collections.includes("beauty");
-      if (category === "accessories") return item.collections.includes("accessories");
-      if (category === "fragrance") return item.collections.includes("fragrance");
-      if (category === "japan_brands") return item.collections.includes("japan_brands");
-      if (category === "celebrity") return item.collections.includes("celebrity");
+    return products.filter((item) => {
+      if (category === "fashion") return item.category === "fashion" || item.trendTags.includes("teen");
+      if (category === "beauty") return item.category === "beauty";
+      if (category === "accessories") return item.category === "accessories";
+      if (category === "fragrance") return item.category === "fragrance";
+      if (category === "japan_brands") {
+        return item.category === "japan_brand" || item.trendTags.includes("japan_trend");
+      }
+      if (category === "celebrity") {
+        return item.category === "celebrity_style" || item.people.length > 0;
+      }
       return true;
     });
   }, [tab, query, category]);
@@ -123,10 +137,7 @@ export function DiscoverView() {
   return (
     <div>
       <section className="border-b border-neutral-200 bg-white px-4 py-4">
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-neutral-400">
-          DISCOVER JAPAN
-        </p>
-        <h1 className="mt-1 text-xl font-semibold">今、日本で見つかっているもの。</h1>
+        <h1 className="text-xl font-semibold">Discover</h1>
       </section>
 
       <div className="grid grid-cols-3 border-b border-neutral-200 bg-white text-[11px] font-semibold">

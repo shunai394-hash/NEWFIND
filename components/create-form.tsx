@@ -12,7 +12,7 @@ const VISUAL_OPTIONS: Array<{ id: VisualKind | ""; label: string }> = [
   { id: "", label: "ビジュアル（任意）" },
   { id: "model", label: "リアルなファッション" },
   { id: "product", label: "商品" },
-  { id: "street", label: "日本の街・店舗" },
+  { id: "street", label: "ストリート" },
   { id: "lifestyle", label: "ライフスタイル" },
   { id: "illustration", label: "イラスト" },
   { id: "anime", label: "アニメ・カルチャー" },
@@ -109,10 +109,7 @@ export function CreateForm() {
   return (
     <form onSubmit={submit} className="space-y-4 px-4 py-4">
       <div>
-        <h1 className="text-lg font-semibold">日本で見つけたものを投稿</h1>
-        <p className="mt-1 text-xs text-neutral-500">
-          今日見つけた服、買ったコスメ、話題の商品、街、カルチャーなどをシェアできます。
-        </p>
+        <h1 className="text-lg font-semibold">投稿</h1>
       </div>
       <label className="block rounded-2xl border border-dashed border-neutral-300 bg-white p-4 text-center">
         <input
@@ -142,7 +139,7 @@ export function CreateForm() {
       <textarea
         value={caption}
         onChange={(e) => setCaption(e.target.value)}
-        placeholder="今日、日本で見つけたこと"
+        placeholder="キャプション"
         rows={3}
         className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
       />

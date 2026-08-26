@@ -4,19 +4,22 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { MediaThumb } from "@/components/media-thumb";
+import { ProductCard } from "@/components/product-card";
 import { useApp } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
+import { listCatalogProducts, searchCatalogProducts } from "@/lib/products";
+import { filterDiscoveryPosts } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
 import { type CategoryId, type PostView, type Profile } from "@/lib/types";
 
-type Tab = "search" | "trending" | "new" | "category";
+type Tab = "products" | "search" | "posts";
 
 const PAGE_SIZE = 24;
 
 export function DiscoverView() {
   const { session } = useApp();
   const viewerId = session?.userId ?? null;
-  const [tab, setTab] = useState<Tab>("trending");
+  const [tab, setTab] = useState<Tab>("products");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryId>("fashion");
   const [posts, setPosts] = useState<PostView[]>([]);
@@ -29,81 +32,53 @@ export function DiscoverView() {
   const dbOffsetRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const title = useMemo(() => {
-    if (tab === "search") return "Search";
-    if (tab === "trending") return "Trending";
-    if (tab === "new") return "New Finds";
-    return "Category";
-  }, [tab]);
+  const shownProducts = useMemo(() => {
+    if (tab === "search") return searchCatalogProducts(query);
+    if (tab !== "products") return [];
+    return listCatalogProducts().filter((item) => {
+      if (category === "fashion") return item.collections.includes("fashion") || item.collections.includes("teen");
+      if (category === "beauty") return item.collections.includes("beauty");
+      if (category === "accessories") return item.collections.includes("accessories");
+      if (category === "fragrance") return item.collections.includes("fragrance");
+      if (category === "japan_brands") return item.collections.includes("japan_brands");
+      if (category === "celebrity") return item.collections.includes("celebrity");
+      return true;
+    });
+  }, [tab, query, category]);
 
-  const paginatedTab = tab !== "search";
+  const paginatedTab = tab === "posts";
 
   const loadPage = useCallback(
     async (offset: number, replace: boolean) => {
-      if (loadingRef.current) return;
-
-      loadingRef.current = true;
-
-      if (replace) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
+      if (tab === "products") {
+        setLoading(false);
+        setHasMore(false);
+        return;
       }
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+      if (replace) setLoading(true);
+      else setLoadingMore(true);
 
       const store = getStore();
-
       try {
         if (tab === "search") {
           const result = await store.search(query, viewerId);
           setUsers(result.users);
-          setPosts(result.posts);
+          setPosts(filterDiscoveryPosts(result.posts));
           setHasMore(false);
           dbOffsetRef.current = 0;
-        } else if (tab === "trending") {
+        } else {
           const page = await store.trending(viewerId, offset, PAGE_SIZE);
           dbOffsetRef.current = page.nextOffset;
+          const safe = filterDiscoveryPosts(page.posts);
           if (replace) {
             setUsers([]);
-            setPosts(page.posts);
+            setPosts(safe);
           } else {
             setPosts((prev) => {
               const existing = new Set(prev.map((post) => post.id));
-              return [
-                ...prev,
-                ...page.posts.filter((post) => !existing.has(post.id)),
-              ];
-            });
-          }
-          setHasMore(page.hasMore);
-        } else if (tab === "new") {
-          const page = await store.newFinds(viewerId, offset, PAGE_SIZE);
-          dbOffsetRef.current = page.nextOffset;
-          if (replace) {
-            setUsers([]);
-            setPosts(page.posts);
-          } else {
-            setPosts((prev) => {
-              const existing = new Set(prev.map((post) => post.id));
-              return [
-                ...prev,
-                ...page.posts.filter((post) => !existing.has(post.id)),
-              ];
-            });
-          }
-          setHasMore(page.hasMore);
-        } else {
-          const page = await store.byCategory(category, viewerId, offset, PAGE_SIZE);
-          dbOffsetRef.current = page.nextOffset;
-          if (replace) {
-            setUsers([]);
-            setPosts(page.posts);
-          } else {
-            setPosts((prev) => {
-              const existing = new Set(prev.map((post) => post.id));
-              return [
-                ...prev,
-                ...page.posts.filter((post) => !existing.has(post.id)),
-              ];
+              return [...prev, ...safe.filter((post) => !existing.has(post.id))];
             });
           }
           setHasMore(page.hasMore);
@@ -114,7 +89,7 @@ export function DiscoverView() {
         setLoadingMore(false);
       }
     },
-    [tab, query, category, viewerId],
+    [tab, query, viewerId],
   );
 
   useEffect(() => {
@@ -122,45 +97,44 @@ export function DiscoverView() {
     setUsers([]);
     setHasMore(true);
     dbOffsetRef.current = 0;
-
     const timer = setTimeout(
       () => {
         void loadPage(0, true);
       },
       tab === "search" ? 200 : 0,
     );
-
     return () => clearTimeout(timer);
-  }, [loadPage]);
+  }, [loadPage, tab]);
 
   useEffect(() => {
     const target = sentinelRef.current;
-
     if (!target || !hasMore || !paginatedTab) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries[0]?.isIntersecting || loadingRef.current) return;
-
         void loadPage(dbOffsetRef.current, false);
       },
       { rootMargin: "800px" },
     );
-
     observer.observe(target);
-
     return () => observer.disconnect();
   }, [hasMore, loadPage, paginatedTab, posts.length]);
 
   return (
     <div>
-      <div className="grid grid-cols-4 border-b border-neutral-200 bg-white text-[11px] font-semibold">
+      <section className="border-b border-neutral-200 bg-white px-4 py-4">
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-neutral-400">
+          DISCOVER JAPAN
+        </p>
+        <h1 className="mt-1 text-xl font-semibold">今、日本で見つかっているもの。</h1>
+      </section>
+
+      <div className="grid grid-cols-3 border-b border-neutral-200 bg-white text-[11px] font-semibold">
         {(
           [
+            ["products", "商品"],
             ["search", "Search"],
-            ["trending", "Trending"],
-            ["new", "New Finds"],
-            ["category", "Category"],
+            ["posts", "投稿"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -179,15 +153,17 @@ export function DiscoverView() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="アカウントや投稿を検索"
+            placeholder="商品・アカウント・投稿を検索"
             className="w-full rounded-lg bg-neutral-100 px-3 py-2 text-sm outline-none"
           />
         </div>
       ) : null}
 
-      {tab === "category" ? (
+      {tab === "products" ? (
         <div className="flex gap-2 overflow-x-auto bg-white px-3 py-3">
-          {POST_CATEGORIES.map((id) => (
+          {POST_CATEGORIES.filter((id) =>
+            ["fashion", "beauty", "accessories", "fragrance", "japan_brands", "celebrity"].includes(id),
+          ).map((id) => (
             <button
               key={id}
               type="button"
@@ -202,12 +178,12 @@ export function DiscoverView() {
         </div>
       ) : null}
 
-      {loading ? (
+      {loading && tab !== "products" ? (
         <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>
       ) : (
-        <div className="space-y-4 px-3 py-3">
+        <div className="space-y-4 px-0 py-0">
           {tab === "search" && users.length > 0 ? (
-            <section>
+            <section className="px-3 pt-3">
               <p className="mb-2 text-xs font-semibold text-neutral-400">アカウント</p>
               <div className="space-y-2">
                 {users.map((user) => (
@@ -227,38 +203,47 @@ export function DiscoverView() {
             </section>
           ) : null}
 
-          <section>
-            <p className="mb-2 text-xs font-semibold text-neutral-400">{title}</p>
-            {posts.length === 0 ? (
-              <p className="py-10 text-center text-sm text-neutral-400">見つかりませんでした</p>
-            ) : (
-              <>
-                <div className="grid grid-cols-3 gap-1">
-                  {posts.map((post) => (
-                    <Link key={post.id} href={`/p/${post.id}`} className="relative aspect-square bg-neutral-100">
-                      <MediaThumb post={post} />
-                      {post.mediaType === "video" ? (
-                        <span className="absolute right-1 top-1 text-[10px] font-bold text-white">▶</span>
-                      ) : null}
-                    </Link>
-                  ))}
-                </div>
+          {(tab === "products" || tab === "search") && shownProducts.length > 0 ? (
+            <section>
+              <p className="mb-2 px-3 pt-3 text-xs font-semibold text-neutral-400">商品</p>
+              <div className="grid grid-cols-2 gap-px bg-neutral-200">
+                {shownProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-                {paginatedTab ? (
-                  <div ref={sentinelRef} className="min-h-12">
-                    {loadingMore ? (
-                      <p className="py-4 text-center text-sm text-neutral-400">さらに読み込み中...</p>
-                    ) : null}
-                    {!hasMore ? (
-                      <p className="py-4 text-center text-xs text-neutral-400">
-                        すべての投稿を表示しました
-                      </p>
-                    ) : null}
+          {tab === "posts" || (tab === "search" && query.trim()) ? (
+            <section className="px-3 pb-6">
+              <p className="mb-2 text-xs font-semibold text-neutral-400">投稿</p>
+              {posts.length === 0 ? (
+                <p className="py-10 text-center text-sm text-neutral-400">
+                  商品発見向けの投稿は見つかりませんでした
+                </p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-1">
+                    {posts.map((post) => (
+                      <Link key={post.id} href={`/p/${post.id}`} className="relative aspect-square bg-neutral-100">
+                        <MediaThumb post={post} />
+                        {post.mediaType === "video" ? (
+                          <span className="absolute right-1 top-1 text-[10px] font-bold text-white">▶</span>
+                        ) : null}
+                      </Link>
+                    ))}
                   </div>
-                ) : null}
-              </>
-            )}
-          </section>
+                  {paginatedTab ? (
+                    <div ref={sentinelRef} className="min-h-12">
+                      {loadingMore ? (
+                        <p className="py-4 text-center text-sm text-neutral-400">さらに読み込み中...</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </section>
+          ) : null}
         </div>
       )}
     </div>

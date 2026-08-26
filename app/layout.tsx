@@ -11,7 +11,7 @@ const geist = Geist({
 
 export const metadata: Metadata = {
   title: "NEWFIND",
-  description: "Discover what's happening in Japan. 日本で今注目されているものを発見する。",
+  description: "今、日本で見つかっている商品を発見する。出典を確認し、購入先まで進める。",
 };
 
 export const viewport: Viewport = {

@@ -1,3 +1,5 @@
+import { isDummyUrl } from "@/lib/products/discovery-filter";
+
 export function timeAgo(iso: string) {
   const delta = Date.now() - Date.parse(iso);
   const minutes = Math.floor(delta / 60000);
@@ -20,5 +22,7 @@ export function productHref(post: {
   productUrl: string | null;
   sourceUrl: string | null;
 }) {
-  return post.productUrl || post.sourceUrl || null;
+  const href = post.productUrl || post.sourceUrl || null;
+  if (!href || isDummyUrl(href)) return null;
+  return href;
 }

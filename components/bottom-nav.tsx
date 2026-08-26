@@ -40,7 +40,10 @@ export function BottomNav() {
       href: "/",
       icon: HomeIcon,
       label: "ホーム",
-      active: pathname === "/" || pathname === "/following",
+      active:
+        pathname === "/" ||
+        pathname === "/following" ||
+        pathname.startsWith("/products"),
     },
     {
       key: "discover",

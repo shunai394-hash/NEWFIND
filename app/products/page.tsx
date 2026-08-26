@@ -1,5 +1,5 @@
 import { ProductDiscoverView } from "@/components/product-discover-view";
 
-export default function HomePage() {
+export default function ProductsPage() {
   return <ProductDiscoverView />;
 }

@@ -191,14 +191,31 @@ export const JP_TRAVEL_IMAGES: JpImageAsset[] = [];
 export const JP_TECH_IMAGES: JpImageAsset[] = [];
 export const JP_OTHER_IMAGES: JpImageAsset[] = [];
 
+export function isGeneratedPersonAsset(asset: JpImageAsset) {
+  const url = asset.url.toLowerCase();
+  return (
+    asset.id.startsWith("gen:") ||
+    url.includes("/gen_") ||
+    url.includes("gen_fashion") ||
+    url.includes("gen_beauty") ||
+    url.includes("gen_food") ||
+    url.includes("gen_lifestyle") ||
+    url.includes("gen_home")
+  );
+}
+
+function withoutGeneratedPeople(list: readonly JpImageAsset[]) {
+  return list.filter((asset) => !isGeneratedPersonAsset(asset));
+}
+
 export const JP_IMAGES_BY_CATEGORY = {
-  fashion: JP_FASHION_IMAGES,
-  beauty: JP_BEAUTY_IMAGES,
-  food: JP_FOOD_IMAGES,
-  lifestyle: JP_LIFESTYLE_IMAGES,
+  fashion: withoutGeneratedPeople(JP_FASHION_IMAGES),
+  beauty: withoutGeneratedPeople(JP_BEAUTY_IMAGES),
+  food: withoutGeneratedPeople(JP_FOOD_IMAGES),
+  lifestyle: withoutGeneratedPeople(JP_LIFESTYLE_IMAGES),
   travel: JP_TRAVEL_IMAGES,
   tech: JP_TECH_IMAGES,
-  home: JP_HOME_IMAGES,
+  home: withoutGeneratedPeople(JP_HOME_IMAGES),
   other: JP_OTHER_IMAGES,
 } as const;
 

@@ -730,7 +730,7 @@ function socialLinksForDemo(n: number, slug: string, companyWebsite: string | nu
       xUrl: null as string | null,
       tiktokUrl: null as string | null,
       youtubeUrl: null as string | null,
-      websiteUrl: companyWebsite ?? `https://example.com/${handle}`,
+      websiteUrl: companyWebsite ?? null,
     };
   }
   if (pattern === 4) {
@@ -808,21 +808,19 @@ function buildReactors(): Profile[] {
     "推し活小物も好き。サンプルアカウント。",
   ];
   const avatarPool = [
-    ...JP_IMAGES_BY_CATEGORY.home,
-    ...JP_IMAGES_BY_CATEGORY.other,
-    ...JP_IMAGES_BY_CATEGORY.lifestyle,
+    ...JP_IMAGES_BY_CATEGORY.fashion,
+    ...JP_IMAGES_BY_CATEGORY.beauty,
   ];
   return Array.from({ length: 160 }, (_, i) => {
     const n = i + 1;
     const name = givenNames[i % givenNames.length]!;
     const suffix = n > givenNames.length ? String.fromCharCode(97 + ((n - 1) % 26)) : "";
-    const asset = avatarPool[i % avatarPool.length]!;
+    const stockAvatar = JP_PHOTO_AVATARS[n % JP_PHOTO_AVATARS.length] ?? null;
+    const asset = avatarPool.length > 0 ? avatarPool[i % avatarPool.length] : null;
     const avatarUrl =
       n % 5 === 0
         ? demoAvatar(`jp-rx${n}`, name)
-        : n % 5 === 1
-          ? (JP_PHOTO_AVATARS[n % JP_PHOTO_AVATARS.length] ?? asset.url)
-          : asset.url;
+        : stockAvatar ?? asset?.url ?? demoAvatar(`jp-rx${n}`, name);
     return {
       id: demoJpReactorId(n),
       username: `${DEMO_JP_USERNAME_PREFIX}rx${String(n).padStart(3, "0")}`,
@@ -912,7 +910,7 @@ function buildPosts(profiles: Profile[]): Post[] {
     260,
     fashionMax + beautyMax + foodMax + lifeMax + homeMax,
   );
-  if (total < 120) {
+  if (total < 40) {
     throw new Error(`JP image pools too small for fashion-first seed: ${total}`);
   }
   const authorCounts = new Map<string, number>();

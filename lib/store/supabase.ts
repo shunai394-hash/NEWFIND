@@ -1,4 +1,5 @@
 import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
+import { filterDiscoveryPosts } from "@/lib/products/discovery-filter";
 import { mediaTypeFromFile } from "@/lib/media";
 import {
   EMPTY_SOCIAL_LINKS,
@@ -639,7 +640,8 @@ export const supabaseStore: Store = {
     } catch (err) {
       console.warn("[getFeed] using light hydrate", err);
     }
-    const ranked = kind === "foryou" ? rankForYouFeed(views) : views;
+    const ranked =
+      kind === "foryou" ? rankForYouFeed(filterDiscoveryPosts(views)) : views;
     const pagePosts = kind === "foryou" ? ranked.slice(offset, offset + pageLimit) : ranked;
     const hasMore =
       kind === "foryou" ? offset + pageLimit < ranked.length : posts.length === pageLimit;
@@ -870,7 +872,7 @@ export const supabaseStore: Store = {
     );
     return {
       users: ((usersRes.data ?? []) as ProfileRow[]).map((row) => mapProfile(row)),
-      posts,
+      posts: filterDiscoveryPosts(posts),
     };
   },
 
@@ -887,7 +889,7 @@ export const supabaseStore: Store = {
       .range(offset, offset + pageLimit - 1);
     if (error) throw new Error(error.message);
     const rows = ((data ?? []) as PostRow[]).map(mapPost);
-    const posts = await hydratePosts(supabase, rows, viewerId);
+    const posts = filterDiscoveryPosts(await hydratePosts(supabase, rows, viewerId));
     return {
       posts,
       hasMore: rows.length === pageLimit,
@@ -897,18 +899,22 @@ export const supabaseStore: Store = {
 
   async byCategory(category: CategoryId, viewerId, offset = 0, pageLimit = 24) {
     const supabase = createClient();
+    const fetchLimit = pageLimit * 3;
     const { data, error } = await supabase
       .from("posts")
       .select("*")
       .eq("category", category)
       .order("created_at", { ascending: false })
-      .range(offset, offset + pageLimit - 1);
+      .range(offset, offset + fetchLimit - 1);
     if (error) throw new Error(error.message);
     const rows = ((data ?? []) as PostRow[]).map(mapPost);
-    const posts = await hydratePosts(supabase, rows, viewerId);
+    const posts = filterDiscoveryPosts(await hydratePosts(supabase, rows, viewerId)).slice(
+      0,
+      pageLimit,
+    );
     return {
       posts,
-      hasMore: rows.length === pageLimit,
+      hasMore: rows.length === fetchLimit,
       nextOffset: offset + rows.length,
     };
   },

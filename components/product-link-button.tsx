@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PRODUCT_CTA_DEFAULT } from "@/lib/config";
-import { productHref } from "@/lib/format";
+import { postShopHref } from "@/lib/discovery/shop";
 import type { Post } from "@/lib/types";
 
 export function ProductLinkButton({
@@ -10,28 +10,32 @@ export function ProductLinkButton({
   post: Pick<Post, "productUrl" | "productLabel" | "sourceUrl" | "discoveryProductId">;
   className?: string;
 }) {
+  const shopHref = postShopHref(post);
+  const label = post.productLabel?.trim() || PRODUCT_CTA_DEFAULT;
+
+  if (shopHref) {
+    return (
+      <a
+        href={shopHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`inline-flex items-center justify-center rounded-full bg-[#C6FF00] px-4 py-2 text-sm font-semibold text-black ${className}`}
+      >
+        {label} →
+      </a>
+    );
+  }
+
   if (post.discoveryProductId) {
     return (
       <Link
         href={`/products/${post.discoveryProductId}`}
-        className={`inline-flex items-center justify-center rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white ${className}`}
+        className={`inline-flex items-center justify-center rounded-full bg-[#C6FF00] px-4 py-2 text-sm font-semibold text-black ${className}`}
       >
-        {post.productLabel?.trim() || PRODUCT_CTA_DEFAULT}
+        {label} →
       </Link>
     );
   }
 
-  const href = productHref(post);
-  if (!href) return null;
-
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`inline-flex items-center justify-center rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white ${className}`}
-    >
-      {post.productLabel?.trim() || PRODUCT_CTA_DEFAULT}
-    </a>
-  );
+  return null;
 }

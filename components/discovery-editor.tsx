@@ -1,14 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  canApprove,
-  emptyDiscoveryProduct,
-  getDiscoveryProduct,
-  newDiscoveryId,
-  saveDiscoveryProduct,
-} from "@/lib/discovery/store";
+  fetchDiscoveryProduct,
+  saveDiscoveryProductApi,
+} from "@/lib/discovery/client-api";
+import { canApprove, emptyDiscoveryProduct, newDiscoveryId } from "@/lib/discovery/rules";
 import {
   DISCOVERY_CATEGORIES,
   DISCOVERY_CATEGORY_LABELS,
@@ -52,33 +50,57 @@ function Field({
 
 export function DiscoveryEditor({ id }: { id: string }) {
   const router = useRouter();
-  const initial = useMemo(() => {
-    if (id === "new") return emptyDiscoveryProduct();
-    return getDiscoveryProduct(id, true) ?? emptyDiscoveryProduct();
-  }, [id]);
-  const [product, setProduct] = useState<DiscoveryProductInput>(initial);
+  const [product, setProduct] = useState<DiscoveryProductInput>(emptyDiscoveryProduct());
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(id !== "new");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (id === "new") return;
+    let cancelled = false;
+    fetchDiscoveryProduct(id)
+      .then((item) => {
+        if (cancelled) return;
+        setProduct(item ?? emptyDiscoveryProduct());
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Load failed");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   function update<K extends keyof DiscoveryProductInput>(key: K, value: DiscoveryProductInput[K]) {
     setProduct((current) => ({ ...current, [key]: value }));
   }
 
-  function save(status?: DiscoveryStatus) {
+  async function save(status?: DiscoveryStatus) {
     setError("");
+    setBusy(true);
     try {
       const next = { ...product, status: status ?? product.status };
       if (next.status === "approved" && !canApprove(next)) {
         throw new Error("Approve needs image, source, and a live product URL.");
       }
-      const saved = saveDiscoveryProduct(next);
+      const saved = await saveDiscoveryProductApi(next);
       router.replace(`/admin/discovery/${saved.id}`);
       setProduct(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setBusy(false);
     }
   }
 
   const selectedTags = new Set(product.trendTags);
+
+  if (loading) {
+    return <p className="px-4 py-16 text-center text-sm text-neutral-400">Loading...</p>;
+  }
 
   return (
     <div className="space-y-6 px-4 py-4">
@@ -109,9 +131,9 @@ export function DiscoveryEditor({ id }: { id: string }) {
             onChange={(event) => update("category", event.target.value as DiscoveryProductInput["category"])}
             className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
           >
-            {DISCOVERY_CATEGORIES.map((id) => (
-              <option key={id} value={id}>
-                {DISCOVERY_CATEGORY_LABELS[id]}
+            {DISCOVERY_CATEGORIES.map((item) => (
+              <option key={item} value={item}>
+                {DISCOVERY_CATEGORY_LABELS[item]}
               </option>
             ))}
           </select>
@@ -138,12 +160,26 @@ export function DiscoveryEditor({ id }: { id: string }) {
             onChange={(event) => update("discoverySource", event.target.value)}
             className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
           >
-            {DISCOVERY_ORIGINS.map((id) => (
-              <option key={id} value={id}>
-                {DISCOVERY_ORIGIN_LABELS[id]}
+            {DISCOVERY_ORIGINS.map((item) => (
+              <option key={item} value={item}>
+                {DISCOVERY_ORIGIN_LABELS[item]}
               </option>
             ))}
           </select>
+        </label>
+        <Field
+          label="Discovered at"
+          value={product.discoveredAt ?? ""}
+          onChange={(value) => update("discoveredAt", value || null)}
+        />
+        <label className="block text-xs font-semibold text-neutral-500">
+          Attention reason
+          <textarea
+            value={product.attentionReason ?? ""}
+            onChange={(event) => update("attentionReason", event.target.value)}
+            rows={3}
+            className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm font-normal"
+          />
         </label>
         <Field
           label="Trend score"
@@ -166,7 +202,7 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 else next.add(tag);
                 update("trendTags", [...next] as TrendTag[]);
               }}
-              className={`rounded-full px-3 py-1 text-[10px] font-semibold ${
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
                 selectedTags.has(tag) ? "bg-[#C6FF00] text-black" : "bg-neutral-100 text-neutral-500"
               }`}
             >
@@ -223,9 +259,9 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 }}
                 className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
               >
-                {PERSON_TYPES.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
+                {PERSON_TYPES.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
                   </option>
                 ))}
               </select>
@@ -241,9 +277,9 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 }}
                 className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
               >
-                {PERSON_RELATIONS.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
+                {PERSON_RELATIONS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
                   </option>
                 ))}
               </select>
@@ -315,6 +351,37 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 update("sources", sources);
               }}
             />
+            <Field
+              label="Domain"
+              value={source.sourceDomain ?? ""}
+              onChange={(value) => {
+                const sources = [...product.sources];
+                sources[index] = { ...source, sourceDomain: value || null };
+                update("sources", sources);
+              }}
+            />
+            <Field
+              label="Published date"
+              value={source.publishedAt ?? ""}
+              onChange={(value) => {
+                const sources = [...product.sources];
+                sources[index] = { ...source, publishedAt: value || null };
+                update("sources", sources);
+              }}
+            />
+            <label className="block text-xs font-semibold text-neutral-500">
+              Excerpt
+              <textarea
+                value={source.sourceExcerpt ?? ""}
+                onChange={(event) => {
+                  const sources = [...product.sources];
+                  sources[index] = { ...source, sourceExcerpt: event.target.value || null };
+                  update("sources", sources);
+                }}
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm font-normal"
+              />
+            </label>
             <label className="block text-xs font-semibold text-neutral-500">
               Type
               <select
@@ -326,11 +393,30 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 }}
                 className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
               >
-                {SOURCE_TYPES.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
+                {SOURCE_TYPES.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
                   </option>
                 ))}
+              </select>
+            </label>
+            <label className="block text-xs font-semibold text-neutral-500">
+              Verification
+              <select
+                value={source.verificationStatus}
+                onChange={(event) => {
+                  const sources = [...product.sources];
+                  sources[index] = {
+                    ...source,
+                    verificationStatus: event.target.value as typeof source.verificationStatus,
+                  };
+                  update("sources", sources);
+                }}
+                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+              >
+                <option value="unverified">unverified</option>
+                <option value="verified">verified</option>
+                <option value="rejected">rejected</option>
               </select>
             </label>
             <Field
@@ -402,6 +488,24 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 update("sales", sales);
               }}
             />
+            <Field
+              label="Price"
+              value={sale.price == null ? "" : String(sale.price)}
+              onChange={(value) => {
+                const sales = [...product.sales];
+                sales[index] = { ...sale, price: value ? Number(value) : null };
+                update("sales", sales);
+              }}
+            />
+            <Field
+              label="Currency"
+              value={sale.currency ?? ""}
+              onChange={(value) => {
+                const sales = [...product.sales];
+                sales[index] = { ...sale, currency: value || null };
+                update("sales", sales);
+              }}
+            />
             <label className="block text-xs font-semibold text-neutral-500">
               Kind
               <select
@@ -413,9 +517,9 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 }}
                 className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
               >
-                {SELLER_KINDS.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
+                {SELLER_KINDS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
                   </option>
                 ))}
               </select>
@@ -441,6 +545,15 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 update("sales", sales);
               }}
             />
+            <Field
+              label="Last verified at"
+              value={sale.lastVerifiedAt ?? ""}
+              onChange={(value) => {
+                const sales = [...product.sales];
+                sales[index] = { ...sale, lastVerifiedAt: value || null };
+                update("sales", sales);
+              }}
+            />
             <button
               type="button"
               className="text-xs text-red-600"
@@ -459,7 +572,8 @@ export function DiscoveryEditor({ id }: { id: string }) {
             <button
               key={status}
               type="button"
-              onClick={() => save(status)}
+              onClick={() => void save(status)}
+              disabled={busy}
               className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold"
             >
               {status === "approved" ? "Approve" : status === "rejected" ? "Reject" : status}
@@ -467,10 +581,11 @@ export function DiscoveryEditor({ id }: { id: string }) {
           ))}
           <button
             type="button"
-            onClick={() => save()}
+            onClick={() => void save()}
+            disabled={busy}
             className="rounded-full bg-[#C6FF00] px-3 py-1.5 text-xs font-semibold text-black"
           >
-            Save
+            {busy ? "Saving..." : "Save"}
           </button>
         </div>
       </section>

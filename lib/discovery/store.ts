@@ -1,14 +1,22 @@
+import { isSupabaseConfigured } from "@/lib/config";
 import { isUsableProductImage } from "@/lib/discovery/media";
-import { isDummyUrl } from "@/lib/products/discovery-filter";
 import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
 import { catalogProductToDiscovery } from "@/lib/discovery/from-catalog";
 import { WORLD_SEED_PRODUCTS } from "@/lib/discovery/world-seed";
-import { normalizeBrand, normalizeProductName, sourceDomain } from "@/lib/discovery/normalize";
+import {
+  canApprove,
+  emptyDiscoveryProduct,
+  findDuplicate,
+  newDiscoveryId,
+  prepareDiscoveryProduct,
+} from "@/lib/discovery/rules";
 import type {
   DiscoveryProduct,
   DiscoveryProductInput,
   DiscoveryStatus,
 } from "@/lib/discovery/types";
+
+export { canApprove, emptyDiscoveryProduct, findDuplicate, newDiscoveryId };
 
 const STORAGE_KEY = "nf_discovery_products_v1";
 
@@ -52,21 +60,29 @@ function mergeById(base: DiscoveryProduct[], overlay: DiscoveryProduct[]) {
   return [...map.values()].sort((a, b) => b.trendScore - a.trendScore);
 }
 
+function withDiscoveryFields(product: DiscoveryProduct): DiscoveryProduct {
+  return {
+    ...product,
+    discoveredAt: product.discoveredAt ?? null,
+    attentionReason: product.attentionReason ?? "",
+  };
+}
+
 export function listSeedDiscoveryProducts() {
-  return clone(seedProducts());
+  return clone(seedProducts()).map(withDiscoveryFields);
 }
 
-export function currentDiscoveryCatalog() {
-  return mergeById(memory, readLocalOverlay());
+function currentDiscoveryCatalog() {
+  return mergeById(memory, readLocalOverlay()).map(withDiscoveryFields);
 }
 
-export function listDiscoveryProducts(options?: {
-  status?: DiscoveryStatus | "all";
-  admin?: boolean;
-}) {
+function filterCatalog(
+  catalog: DiscoveryProduct[],
+  options?: { status?: DiscoveryStatus | "all"; admin?: boolean },
+) {
   const admin = Boolean(options?.admin);
   const status = options?.status ?? (admin ? "all" : "approved");
-  return currentDiscoveryCatalog().filter((item) => {
+  return catalog.filter((item) => {
     if (!admin && item.status !== "approved") return false;
     if (!admin && !isUsableProductImage(item.productImageUrl)) return false;
     if (status !== "all" && item.status !== status) return false;
@@ -74,7 +90,14 @@ export function listDiscoveryProducts(options?: {
   });
 }
 
-export function getDiscoveryProduct(id: string, admin = false) {
+export function listDiscoveryProductsLocal(options?: {
+  status?: DiscoveryStatus | "all";
+  admin?: boolean;
+}) {
+  return filterCatalog(currentDiscoveryCatalog(), options);
+}
+
+export function getDiscoveryProductLocal(id: string, admin = false) {
   const product = currentDiscoveryCatalog().find((item) => item.id === id) ?? null;
   if (!product) return null;
   if (!admin && product.status !== "approved") return null;
@@ -82,50 +105,8 @@ export function getDiscoveryProduct(id: string, admin = false) {
   return clone(product);
 }
 
-export function canApprove(product: Pick<
-  DiscoveryProduct,
-  "productName" | "brand" | "productImageUrl" | "sources" | "sales" | "productUrl" | "officialUrl"
->) {
-  if (!product.productName.trim() || !product.brand.trim()) return false;
-  if (!isUsableProductImage(product.productImageUrl)) return false;
-  if (product.sources.length === 0) return false;
-  if (product.sales.length === 0 && !product.productUrl) return false;
-  const urls = [
-    product.productUrl,
-    product.officialUrl,
-    ...product.sources.map((item) => item.sourceUrl),
-    ...product.sales.map((item) => item.productUrl),
-  ];
-  if (urls.some((url) => isDummyUrl(url))) return false;
-  if (urls.filter(Boolean).some((url) => !String(url).startsWith("https://"))) return false;
-  return true;
-}
-
-export function findDuplicate(product: DiscoveryProduct, others: DiscoveryProduct[]) {
-  const brand = product.normalizedBrand || normalizeBrand(product.brand);
-  const name = product.normalizedProductName || normalizeProductName(product.productName);
-  return others.find((item) => {
-    if (item.id === product.id || item.status === "rejected") return false;
-    if (product.productUrl && item.productUrl === product.productUrl) return item;
-    if (product.officialUrl && item.officialUrl === product.officialUrl) return item;
-    if (product.sku && item.sku && product.sku === item.sku) return item;
-    return item.normalizedBrand === brand && item.normalizedProductName === name;
-  }) ?? null;
-}
-
-export function saveDiscoveryProduct(input: DiscoveryProductInput) {
-  const now = new Date().toISOString();
-  const next: DiscoveryProduct = {
-    ...input,
-    sources: input.sources.map((item) => ({
-      ...item,
-      sourceDomain: item.sourceDomain || sourceDomain(item.sourceUrl),
-    })),
-    normalizedBrand: normalizeBrand(input.brand),
-    normalizedProductName: normalizeProductName(input.productName),
-    createdAt: input.createdAt ?? now,
-    updatedAt: now,
-  };
+export function saveDiscoveryProductLocal(input: DiscoveryProductInput) {
+  const next = prepareDiscoveryProduct(input);
   if (next.status === "approved" && !canApprove(next)) {
     throw new Error("Approved products need an image, a source, and a live product URL.");
   }
@@ -141,41 +122,64 @@ export function saveDiscoveryProduct(input: DiscoveryProductInput) {
   return clone(next);
 }
 
-export function setDiscoveryStatus(id: string, status: DiscoveryStatus) {
-  const current = getDiscoveryProduct(id, true);
+function isMissingDiscoveryTable(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /discovery_products|schema cache|42P01/i.test(message);
+}
+
+export async function listDiscoveryProducts(options?: {
+  status?: DiscoveryStatus | "all";
+  admin?: boolean;
+}) {
+  if (isSupabaseConfigured() && typeof window === "undefined") {
+    try {
+      const { listDiscoveryProductsFromDb } = await import("@/lib/discovery/db");
+      return await listDiscoveryProductsFromDb(options);
+    } catch (error) {
+      if (!isMissingDiscoveryTable(error)) throw error;
+      console.error("[discovery] table missing, using local catalog");
+    }
+  }
+  return listDiscoveryProductsLocal(options);
+}
+
+export async function getDiscoveryProduct(id: string, admin = false) {
+  if (isSupabaseConfigured() && typeof window === "undefined") {
+    try {
+      const { getDiscoveryProductFromDb } = await import("@/lib/discovery/db");
+      return await getDiscoveryProductFromDb(id, admin);
+    } catch (error) {
+      if (!isMissingDiscoveryTable(error)) throw error;
+      console.error("[discovery] table missing, using local catalog");
+    }
+  }
+  return getDiscoveryProductLocal(id, admin);
+}
+
+export async function saveDiscoveryProduct(input: DiscoveryProductInput) {
+  const next = prepareDiscoveryProduct(input);
+  if (next.status === "approved" && !canApprove(next)) {
+    throw new Error("Approved products need an image, a source, and a live product URL.");
+  }
+  if (isSupabaseConfigured() && typeof window === "undefined") {
+    try {
+      const { saveDiscoveryProductToDb, listDiscoveryProductsFromDb } = await import("@/lib/discovery/db");
+      const existing = await listDiscoveryProductsFromDb({ admin: true, status: "all" });
+      const duplicate = findDuplicate(next, existing);
+      if (duplicate) {
+        throw new Error(`Duplicate of ${duplicate.brand} ${duplicate.productName}`);
+      }
+      return await saveDiscoveryProductToDb(next);
+    } catch (error) {
+      if (!isMissingDiscoveryTable(error)) throw error;
+      console.error("[discovery] table missing, using local catalog");
+    }
+  }
+  return saveDiscoveryProductLocal(next);
+}
+
+export async function setDiscoveryStatus(id: string, status: DiscoveryStatus) {
+  const current = await getDiscoveryProduct(id, true);
   if (!current) throw new Error("Product not found");
   return saveDiscoveryProduct({ ...current, status });
-}
-
-export function newDiscoveryId() {
-  return `dp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-export function emptyDiscoveryProduct(): DiscoveryProductInput {
-  const now = new Date().toISOString();
-  return {
-    id: newDiscoveryId(),
-    brand: "",
-    productName: "",
-    category: "other",
-    subcategory: "",
-    country: null,
-    description: "",
-    productImageUrl: null,
-    productUrl: null,
-    officialUrl: null,
-    price: null,
-    currency: "USD",
-    sku: null,
-    trendScore: 0,
-    confidenceScore: 0,
-    discoverySource: "admin",
-    status: "draft",
-    trendTags: [],
-    sources: [],
-    people: [],
-    sales: [],
-    createdAt: now,
-    updatedAt: now,
-  };
 }

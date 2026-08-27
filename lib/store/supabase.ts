@@ -728,7 +728,9 @@ export const supabaseStore: Store = {
       post_id: postId,
       user_id: userId,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      logSupabaseError("sharePost", error);
+    }
   },
 
   async addComment(postId, userId, body) {

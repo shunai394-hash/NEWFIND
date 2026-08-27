@@ -220,6 +220,8 @@ export type DiscoveryProduct = {
   trendScore: number;
   confidenceScore: number;
   discoverySource: string | null;
+  discoveredAt: string | null;
+  attentionReason: string;
   status: DiscoveryStatus;
   normalizedBrand: string;
   normalizedProductName: string;

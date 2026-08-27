@@ -45,7 +45,7 @@ export function CommentSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-[300] flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
         className="flex max-h-[75vh] w-full max-w-[430px] flex-col rounded-t-2xl bg-white"
         onClick={(e) => e.stopPropagation()}
@@ -85,7 +85,7 @@ export function CommentSheet({
             <button
               type="submit"
               disabled={busy || !body.trim()}
-              className="text-sm font-semibold text-sky-600 disabled:text-neutral-300"
+              className="text-sm font-semibold text-black disabled:text-neutral-300"
             >
               投稿
             </button>

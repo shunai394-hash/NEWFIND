@@ -3,11 +3,13 @@ import { getDiscoveryAdminState } from "@/lib/discovery/server-auth";
 import { listDiscoveryProducts, saveDiscoveryProduct } from "@/lib/discovery/store";
 import type { DiscoveryStatus } from "@/lib/discovery/types";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const status = url.searchParams.get("status");
   const { admin } = await getDiscoveryAdminState();
-  const products = listDiscoveryProducts({
+  const products = await listDiscoveryProducts({
     admin,
     status: admin
       ? ((status as DiscoveryStatus | "all") || "all")
@@ -20,7 +22,7 @@ export async function POST(request: Request) {
   const { admin } = await getDiscoveryAdminState();
   if (!admin) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   try {
-    const product = saveDiscoveryProduct(await request.json());
+    const product = await saveDiscoveryProduct(await request.json());
     return NextResponse.json({ product });
   } catch (error) {
     return NextResponse.json(

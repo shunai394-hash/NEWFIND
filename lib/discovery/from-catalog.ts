@@ -108,6 +108,8 @@ export function catalogProductToDiscovery(product: CatalogProduct): DiscoveryPro
     trendScore: product.popularityScore,
     confidenceScore: product.celebrityName ? 78 : 64,
     discoverySource: "editorial",
+    discoveredAt: now,
+    attentionReason: "",
     status: "pending",
     normalizedBrand: normalizeBrand(product.brand),
     normalizedProductName: normalizeProductName(product.name),

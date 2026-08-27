@@ -7,10 +7,11 @@ import { MediaThumb } from "@/components/media-thumb";
 import { ProductCard } from "@/components/product-card";
 import { useApp } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
-import { listDiscoveryProducts } from "@/lib/discovery/store";
+import { fetchDiscoveryList } from "@/lib/discovery/client-api";
 import { filterDiscoveryPosts } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
 import { type CategoryId, type PostView, type Profile } from "@/lib/types";
+import type { DiscoveryProduct } from "@/lib/discovery/types";
 
 type Tab = "products" | "search" | "posts";
 
@@ -32,8 +33,16 @@ export function DiscoverView() {
   const dbOffsetRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  const [catalog, setCatalog] = useState<DiscoveryProduct[]>([]);
+
+  useEffect(() => {
+    fetchDiscoveryList("approved")
+      .then((data) => setCatalog(data.products))
+      .catch(() => setCatalog([]));
+  }, []);
+
   const shownProducts = useMemo(() => {
-    const products = listDiscoveryProducts({ admin: false, status: "approved" });
+    const products = catalog;
     if (tab === "search") {
       const q = query.trim().toLowerCase();
       if (!q) return products;
@@ -58,7 +67,7 @@ export function DiscoverView() {
       }
       return true;
     });
-  }, [tab, query, category]);
+  }, [tab, query, category, catalog]);
 
   const paginatedTab = tab === "posts";
 

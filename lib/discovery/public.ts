@@ -1,12 +1,12 @@
 import { listDiscoveryProducts } from "@/lib/discovery/store";
 import type { DiscoveryCategory } from "@/lib/discovery/types";
 
-export function listPublicDiscoveryProducts() {
+export async function listPublicDiscoveryProducts() {
   return listDiscoveryProducts({ admin: false, status: "approved" });
 }
 
-export function listPublicByCategory(category: DiscoveryCategory | "all" | "trending") {
-  const products = listPublicDiscoveryProducts();
+export async function listPublicByCategory(category: DiscoveryCategory | "all" | "trending") {
+  const products = await listPublicDiscoveryProducts();
   if (category === "all") return products;
   if (category === "trending") {
     return products.filter(

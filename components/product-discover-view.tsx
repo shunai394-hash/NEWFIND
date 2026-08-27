@@ -1,20 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ProductCard } from "@/components/product-card";
-import { listDiscoveryProducts } from "@/lib/discovery/store";
+import { fetchDiscoveryList } from "@/lib/discovery/client-api";
 import {
   DISCOVERY_CATEGORIES,
   DISCOVERY_CATEGORY_LABELS,
   type DiscoveryCategory,
+  type DiscoveryProduct,
 } from "@/lib/discovery/types";
 
 const FILTERS: Array<DiscoveryCategory | "trending"> = ["trending", ...DISCOVERY_CATEGORIES];
 
 export function ProductDiscoverView() {
   const [collection, setCollection] = useState<DiscoveryCategory | "trending">("trending");
-  const all = useMemo(() => listDiscoveryProducts({ admin: false, status: "approved" }), []);
+  const [all, setAll] = useState<DiscoveryProduct[]>([]);
+
+  useEffect(() => {
+    fetchDiscoveryList("approved")
+      .then((data) => setAll(data.products))
+      .catch(() => setAll([]));
+  }, []);
+
   const products = useMemo(() => {
     if (collection === "trending") {
       return all.filter(
@@ -27,7 +35,7 @@ export function ProductDiscoverView() {
   return (
     <div>
       <section className="border-b border-neutral-800 bg-black px-4 py-4">
-        <h1 className="text-xl font-semibold tracking-tight text-white">Discover</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-white">Discovery</h1>
       </section>
       <div className="flex gap-2 overflow-x-auto border-b border-neutral-800 bg-black px-3 py-2.5 [scrollbar-width:none]">
         {FILTERS.map((id) => (

@@ -3,6 +3,7 @@ import { isUsableProductImage } from "@/lib/discovery/media";
 import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
 import { catalogProductToDiscovery } from "@/lib/discovery/from-catalog";
 import { WORLD_SEED_PRODUCTS } from "@/lib/discovery/world-seed";
+import { JAPAN_SEED_PRODUCTS } from "@/lib/discovery/japan-seed";
 import {
   canApprove,
   emptyDiscoveryProduct,
@@ -25,7 +26,7 @@ function seedProducts(): DiscoveryProduct[] {
     (item): item is DiscoveryProduct => Boolean(item),
   );
   const byId = new Map<string, DiscoveryProduct>();
-  for (const item of [...fromCatalog, ...WORLD_SEED_PRODUCTS]) {
+  for (const item of [...fromCatalog, ...WORLD_SEED_PRODUCTS, ...JAPAN_SEED_PRODUCTS]) {
     const image = isUsableProductImage(item.productImageUrl) ? item.productImageUrl : null;
     byId.set(item.id, {
       ...item,
@@ -132,6 +133,10 @@ function isMissingDiscoveryTable(error: unknown) {
   return /discovery_products|schema cache|42P01/i.test(message);
 }
 
+function withJapanCatalog(products: DiscoveryProduct[], options?: { status?: DiscoveryStatus | "all"; admin?: boolean }) {
+  return mergeById(filterCatalog(JAPAN_SEED_PRODUCTS, options), products);
+}
+
 export async function listDiscoveryProducts(options?: {
   status?: DiscoveryStatus | "all";
   admin?: boolean;
@@ -139,7 +144,7 @@ export async function listDiscoveryProducts(options?: {
   if (isSupabaseConfigured() && typeof window === "undefined") {
     try {
       const { listDiscoveryProductsFromDb } = await import("@/lib/discovery/db");
-      return await listDiscoveryProductsFromDb(options);
+      return withJapanCatalog(await listDiscoveryProductsFromDb(options), options);
     } catch (error) {
       if (!isMissingDiscoveryTable(error)) throw error;
       if (options?.admin) {
@@ -147,7 +152,7 @@ export async function listDiscoveryProducts(options?: {
           "Discovery tables are missing in Supabase. Apply supabase/migrations/006_discovery_products.sql and 007_discovery_ops.sql.",
         );
       }
-      return [];
+      return withJapanCatalog([], options);
     }
   }
   return listDiscoveryProductsLocal(options);
@@ -157,7 +162,8 @@ export async function getDiscoveryProduct(id: string, admin = false) {
   if (isSupabaseConfigured() && typeof window === "undefined") {
     try {
       const { getDiscoveryProductFromDb } = await import("@/lib/discovery/db");
-      return await getDiscoveryProductFromDb(id, admin);
+      const fromDb = await getDiscoveryProductFromDb(id, admin);
+      if (fromDb) return fromDb;
     } catch (error) {
       if (!isMissingDiscoveryTable(error)) throw error;
       if (admin) {
@@ -165,7 +171,6 @@ export async function getDiscoveryProduct(id: string, admin = false) {
           "Discovery tables are missing in Supabase. Apply supabase/migrations/006_discovery_products.sql and 007_discovery_ops.sql.",
         );
       }
-      return null;
     }
   }
   return getDiscoveryProductLocal(id, admin);

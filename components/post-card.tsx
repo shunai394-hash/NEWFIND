@@ -9,6 +9,7 @@ import { DeletePostButton } from "@/components/delete-post-button";
 import { PostActions } from "@/components/post-actions";
 import { ProductLinkButton } from "@/components/product-link-button";
 import { ShareSheet } from "@/components/share-sheet";
+import { ProductImagePlaceholder } from "@/components/product-image-placeholder";
 import { useApp } from "@/lib/app-context";
 import { categoryLabel } from "@/lib/categories";
 import { timeAgo } from "@/lib/format";
@@ -17,6 +18,7 @@ import {
   inferVisualKind,
   visualKindLabel,
 } from "@/lib/japan-context";
+import { isAiPersonDiscoveryMedia } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
 import type { PostView } from "@/lib/types";
 
@@ -115,6 +117,9 @@ export function PostCard({
       : `${window.location.origin}/p/${post.id}`;
   const worn = celebrityLine(post);
   const visual = visualKindLabel(inferVisualKind(post));
+  const hidePersonMedia =
+    isAiPersonDiscoveryMedia(post.mediaUrl) ||
+    isAiPersonDiscoveryMedia(post.thumbnailUrl);
 
   return (
     <article className="border-b border-neutral-200 bg-white">
@@ -152,7 +157,9 @@ export function PostCard({
       </header>
 
       <div className="relative bg-neutral-200">
-        {mediaFailed ? (
+        {hidePersonMedia ? (
+          <ProductImagePlaceholder label="商品そのものの画像がありません" />
+        ) : mediaFailed ? (
           <div className="flex aspect-[4/5] w-full items-center justify-center text-sm text-neutral-500">
             画像を表示できません
           </div>

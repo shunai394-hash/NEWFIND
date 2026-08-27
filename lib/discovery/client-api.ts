@@ -68,3 +68,55 @@ export async function patchDiscoveryProduct(
   );
   return body.product as DiscoveryProduct;
 }
+
+export async function fetchSavedProducts() {
+  const body = await readJson(
+    await authFetch("/api/discovery/saves?hydrate=1", { cache: "no-store" }),
+  );
+  return {
+    productIds: (body.productIds ?? []) as string[],
+    products: (body.products ?? []) as DiscoveryProduct[],
+  };
+}
+
+export async function fetchProductSaveState(productId: string) {
+  const body = await readJson(
+    await authFetch(`/api/discovery/saves?productId=${encodeURIComponent(productId)}`, {
+      cache: "no-store",
+    }),
+  );
+  return Boolean(body.saved);
+}
+
+export async function toggleProductSaveApi(productId: string) {
+  const body = await readJson(
+    await authFetch("/api/discovery/saves", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ productId }),
+    }),
+  );
+  return Boolean(body.saved);
+}
+
+export async function fetchUserAlerts() {
+  const body = await readJson(await authFetch("/api/alerts", { cache: "no-store" }));
+  return (body.alerts ?? []) as Array<{
+    id: string;
+    alertType: string;
+    productId: string | null;
+    brand: string | null;
+    isEnabled: boolean;
+  }>;
+}
+
+export async function patchUserAlert(id: string, isEnabled: boolean) {
+  const body = await readJson(
+    await authFetch("/api/alerts", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, isEnabled }),
+    }),
+  );
+  return body.alert;
+}

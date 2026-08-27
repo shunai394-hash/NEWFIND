@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAiPersonDiscoveryMedia } from "@/lib/products/discovery-filter";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { normalizeBrand, normalizeProductName, sourceDomain } from "@/lib/discovery/normalize";
 import { asUuid, isUuid } from "@/lib/discovery/rules";
@@ -116,7 +117,7 @@ function mapPerson(row: PersonRow): DiscoveryPerson {
     personName: row.person_name,
     personType: row.person_type as PersonType,
     personUrl: row.person_url,
-    personImageUrl: row.person_image_url,
+    personImageUrl: isAiPersonDiscoveryMedia(row.person_image_url) ? null : row.person_image_url,
     relation: row.relation as PersonRelation,
     sourceId: row.source_id,
     createdAt: row.created_at,
@@ -154,7 +155,7 @@ function mapProduct(
     subcategory: row.subcategory ?? "",
     country: row.country,
     description: row.description ?? "",
-    productImageUrl: row.product_image_url,
+    productImageUrl: isUsableProductImage(row.product_image_url) ? row.product_image_url : null,
     productUrl: row.product_url,
     officialUrl: row.official_url,
     price: row.price,
@@ -342,7 +343,7 @@ export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
           person_name: item.personName,
           person_type: item.personType,
           person_url: item.personUrl,
-          person_image_url: item.personImageUrl,
+          person_image_url: isAiPersonDiscoveryMedia(item.personImageUrl) ? null : item.personImageUrl,
           relation: item.relation,
           source_id: mappedSource,
           created_at: item.createdAt,
@@ -382,4 +383,25 @@ export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
   const saved = await getDiscoveryProductFromDb(input.id, true);
   if (!saved) throw new Error("Product not found after save");
   return saved;
+}
+
+export async function listDiscoveryProductsByIdsFromDb(
+  ids: string[],
+  options?: { admin?: boolean; requireImage?: boolean },
+) {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return [];
+  const admin = Boolean(options?.admin);
+  const requireImage = options?.requireImage !== false;
+  const supabase = discoveryDb();
+  const { data, error } = await supabase.from("discovery_products").select("*").in("id", unique);
+  if (error) throw new Error(error.message);
+  const products = await hydrate(discoveryDb(), (data ?? []) as ProductRow[]);
+  const visible = products.filter((item) => {
+    if (!admin && item.status !== "approved") return false;
+    if (!admin && requireImage && !isUsableProductImage(item.productImageUrl)) return false;
+    return true;
+  });
+  const order = new Map(unique.map((id, index) => [id, index]));
+  return visible.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }

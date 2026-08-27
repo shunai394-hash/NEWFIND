@@ -30,8 +30,13 @@ export function isAiPersonDiscoveryMedia(url: string | null | undefined): boolea
     value.includes("gen_beauty_") ||
     value.includes("gen_food_") ||
     value.includes("gen_lifestyle_") ||
+    value.includes("gen_home_") ||
     value.includes("/gen_") ||
     value.includes("demo-jp-img/gen_") ||
+    value.includes("tmp-img/gen") ||
+    value.includes("gen-fashion") ||
+    value.includes("generated-person") ||
+    value.includes("ai-person") ||
     /[?&]v=gen\d+/i.test(value)
   );
 }
@@ -46,9 +51,6 @@ export function isProductDiscoverySafePost(
     author?: { username?: string } | null;
   },
 ): boolean {
-  if (isAiPersonDiscoveryMedia(post.mediaUrl)) return false;
-  if (isAiPersonDiscoveryMedia(post.thumbnailUrl)) return false;
-  if (post.visualKind === "model") return false;
   if (isDummyUrl(post.productUrl) || isDummyUrl(post.sourceUrl)) return false;
   if (isOverseasDemoUsername(post.author?.username)) return false;
   return true;

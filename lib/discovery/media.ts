@@ -1,4 +1,4 @@
-import { isDummyUrl } from "@/lib/products/discovery-filter";
+import { isAiPersonDiscoveryMedia, isDummyUrl } from "@/lib/products/discovery-filter";
 
 const DUMMY_IMAGE_HINTS = [
   "placeholder",
@@ -14,6 +14,7 @@ export function isUsableProductImage(url: string | null | undefined): boolean {
   const value = url.trim();
   if (!value) return false;
   if (isDummyUrl(value)) return false;
+  if (isAiPersonDiscoveryMedia(value)) return false;
 
   const lower = value.toLowerCase();
   if (DUMMY_IMAGE_HINTS.some((hint) => lower.includes(hint))) return false;

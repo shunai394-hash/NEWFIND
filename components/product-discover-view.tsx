@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ProductCard } from "@/components/product-card";
 import { fetchDiscoveryList } from "@/lib/discovery/client-api";
+import { isJapanProduct } from "@/lib/discovery/product-signals";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import {
   DISCOVERY_CATEGORIES,
@@ -12,14 +13,15 @@ import {
   type DiscoveryProduct,
 } from "@/lib/discovery/types";
 
-const FILTERS: Array<DiscoveryCategory | "trending" | "all"> = [
+const FILTERS: Array<DiscoveryCategory | "trending" | "japan" | "all"> = [
   "all",
   "trending",
+  "japan",
   ...DISCOVERY_CATEGORIES,
 ];
 
 export function ProductDiscoverView() {
-  const [collection, setCollection] = useState<DiscoveryCategory | "trending" | "all">("all");
+  const [collection, setCollection] = useState<DiscoveryCategory | "trending" | "japan" | "all">("all");
   const [all, setAll] = useState<DiscoveryProduct[]>([]);
 
   useEffect(() => {
@@ -36,6 +38,9 @@ export function ProductDiscoverView() {
       return all.filter(
         (item) => item.trendTags.includes("trending") || item.trendTags.includes("world_trend"),
       );
+    }
+    if (collection === "japan") {
+      return all.filter((item) => isJapanProduct(item));
     }
     return all.filter((item) => item.category === collection);
   }, [all, collection]);
@@ -55,7 +60,7 @@ export function ProductDiscoverView() {
               collection === id ? "bg-[#C6FF00] text-black" : "bg-neutral-900 text-neutral-300"
             }`}
           >
-            {id === "all" ? "ALL" : id === "trending" ? "TRENDING" : DISCOVERY_CATEGORY_LABELS[id]}
+            {id === "all" ? "ALL" : id === "trending" ? "TRENDING" : id === "japan" ? "🇯🇵 JAPAN" : DISCOVERY_CATEGORY_LABELS[id]}
           </button>
         ))}
       </div>

@@ -160,6 +160,36 @@ export const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   other: "Other",
 };
 
+export const EVIDENCE_GROUPS = ["official", "major_media", "retailer", "social", "other"] as const;
+export type EvidenceGroup = (typeof EVIDENCE_GROUPS)[number];
+
+export const EVIDENCE_GROUP_LABELS: Record<EvidenceGroup, string> = {
+  official: "Official",
+  major_media: "Major Media",
+  retailer: "Retailer",
+  social: "Social",
+  other: "Other",
+};
+
+export const ALERT_TYPES = [
+  "hot",
+  "trending",
+  "new_product",
+  "price_change",
+  "celebrity",
+  "japan_gap",
+] as const;
+export type AlertType = (typeof ALERT_TYPES)[number];
+
+export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
+  hot: "HOT",
+  trending: "TRENDING",
+  new_product: "NEW PRODUCT",
+  price_change: "PRICE CHANGE",
+  celebrity: "CELEBRITY",
+  japan_gap: "JAPAN GAP",
+};
+
 export const SELLER_KINDS = ["official", "authorized", "retailer", "marketplace"] as const;
 export type SellerKind = (typeof SELLER_KINDS)[number];
 

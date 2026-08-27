@@ -8,6 +8,7 @@ import { ProductCard } from "@/components/product-card";
 import { useApp } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { fetchDiscoveryList } from "@/lib/discovery/client-api";
+import { isJapanProduct } from "@/lib/discovery/product-signals";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { filterDiscoveryPosts } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
@@ -65,7 +66,7 @@ export function DiscoverView() {
       if (category === "accessories") return item.category === "accessories";
       if (category === "fragrance") return item.category === "fragrance";
       if (category === "japan_brands") {
-        return item.category === "japan_brand" || item.trendTags.includes("japan_trend");
+        return isJapanProduct(item) || item.trendTags.includes("japan_trend");
       }
       if (category === "celebrity") {
         return item.category === "celebrity_style" || item.people.length > 0;

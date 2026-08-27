@@ -26,7 +26,12 @@ function seedProducts(): DiscoveryProduct[] {
   );
   const byId = new Map<string, DiscoveryProduct>();
   for (const item of [...fromCatalog, ...WORLD_SEED_PRODUCTS]) {
-    byId.set(item.id, item);
+    const image = isUsableProductImage(item.productImageUrl) ? item.productImageUrl : null;
+    byId.set(item.id, {
+      ...item,
+      productImageUrl: image,
+      status: item.status === "approved" && !image ? "pending" : item.status,
+    });
   }
   return [...byId.values()];
 }
@@ -108,7 +113,7 @@ export function getDiscoveryProductLocal(id: string, admin = false) {
 export function saveDiscoveryProductLocal(input: DiscoveryProductInput) {
   const next = prepareDiscoveryProduct(input);
   if (next.status === "approved" && !canApprove(next)) {
-    throw new Error("Approved products need an image, a source, and a live product URL.");
+    throw new Error("Approved products need an image, a source, and a live sales page.");
   }
   const existing = currentDiscoveryCatalog();
   const duplicate = findDuplicate(next, existing);
@@ -137,7 +142,12 @@ export async function listDiscoveryProducts(options?: {
       return await listDiscoveryProductsFromDb(options);
     } catch (error) {
       if (!isMissingDiscoveryTable(error)) throw error;
-      console.error("[discovery] table missing, using local catalog");
+      if (options?.admin) {
+        throw new Error(
+          "Discovery tables are missing in Supabase. Apply supabase/migrations/006_discovery_products.sql and 007_discovery_ops.sql.",
+        );
+      }
+      return [];
     }
   }
   return listDiscoveryProductsLocal(options);
@@ -150,7 +160,12 @@ export async function getDiscoveryProduct(id: string, admin = false) {
       return await getDiscoveryProductFromDb(id, admin);
     } catch (error) {
       if (!isMissingDiscoveryTable(error)) throw error;
-      console.error("[discovery] table missing, using local catalog");
+      if (admin) {
+        throw new Error(
+          "Discovery tables are missing in Supabase. Apply supabase/migrations/006_discovery_products.sql and 007_discovery_ops.sql.",
+        );
+      }
+      return null;
     }
   }
   return getDiscoveryProductLocal(id, admin);
@@ -159,7 +174,7 @@ export async function getDiscoveryProduct(id: string, admin = false) {
 export async function saveDiscoveryProduct(input: DiscoveryProductInput) {
   const next = prepareDiscoveryProduct(input);
   if (next.status === "approved" && !canApprove(next)) {
-    throw new Error("Approved products need an image, a source, and a live product URL.");
+    throw new Error("Approved products need an image, a source, and a live sales page.");
   }
   if (isSupabaseConfigured() && typeof window === "undefined") {
     try {
@@ -171,8 +186,13 @@ export async function saveDiscoveryProduct(input: DiscoveryProductInput) {
       }
       return await saveDiscoveryProductToDb(next);
     } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Discovery tables are missing")) {
+        throw error;
+      }
       if (!isMissingDiscoveryTable(error)) throw error;
-      console.error("[discovery] table missing, using local catalog");
+      throw new Error(
+        "Discovery tables are missing in Supabase. Apply supabase/migrations/006_discovery_products.sql and 007_discovery_ops.sql.",
+      );
     }
   }
   return saveDiscoveryProductLocal(next);

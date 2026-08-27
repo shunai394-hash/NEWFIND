@@ -221,7 +221,7 @@ export function CreateForm() {
         disabled={busy}
         className="w-full rounded-lg bg-[#C6FF00] py-2.5 text-sm font-semibold text-black disabled:opacity-50"
       >
-        シェア
+        投稿
       </button>
     </form>
   );

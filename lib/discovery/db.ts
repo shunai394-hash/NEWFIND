@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { normalizeBrand, normalizeProductName, sourceDomain } from "@/lib/discovery/normalize";
+import { asUuid, isUuid } from "@/lib/discovery/rules";
 import type {
   DiscoveryCategory,
   DiscoveryPerson,
@@ -91,8 +91,8 @@ function adminDb() {
   return createAdminClient();
 }
 
-async function publicDb() {
-  return createClient();
+function discoveryDb() {
+  return adminDb();
 }
 
 function mapSource(row: SourceRow): DiscoverySource {
@@ -224,7 +224,7 @@ export async function listDiscoveryProductsFromDb(options?: {
 }) {
   const admin = Boolean(options?.admin);
   const status = options?.status ?? (admin ? "all" : "approved");
-  const supabase = admin ? adminDb() : await publicDb();
+  const supabase = discoveryDb();
   let query = supabase
     .from("discovery_products")
     .select("*")
@@ -233,7 +233,7 @@ export async function listDiscoveryProductsFromDb(options?: {
   else if (status !== "all") query = query.eq("status", status);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  const products = await hydrate(admin ? adminDb() : supabase, (data ?? []) as ProductRow[]);
+  const products = await hydrate(discoveryDb(), (data ?? []) as ProductRow[]);
   return applyPublicFilter(products, admin).filter((item) => {
     if (admin && status !== "all" && item.status !== status) return false;
     return true;
@@ -241,19 +241,19 @@ export async function listDiscoveryProductsFromDb(options?: {
 }
 
 export async function getDiscoveryProductFromDb(id: string, admin = false) {
-  const supabase = admin ? adminDb() : await publicDb();
+  const supabase = discoveryDb();
   let query = supabase.from("discovery_products").select("*").eq("id", id);
   if (!admin) query = query.eq("status", "approved");
   const { data, error } = await query.maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const [product] = await hydrate(admin ? adminDb() : supabase, [data as ProductRow]);
+  const [product] = await hydrate(discoveryDb(), [data as ProductRow]);
   if (!product) return null;
   return applyPublicFilter([product], admin)[0] ?? null;
 }
 
 export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
-  const supabase = adminDb();
+  const supabase = discoveryDb();
   const now = new Date().toISOString();
   const productPayload: Record<string, unknown> = {
     id: input.id,
@@ -305,38 +305,49 @@ export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
     if (result.error) throw new Error(result.error.message);
   }
 
+  const sourceIdMap = new Map<string, string>();
+
   if (input.sources.length > 0) {
     const { error } = await supabase.from("discovery_sources").insert(
-      input.sources.map((item) => ({
-        id: item.id,
-        product_id: input.id,
-        source_type: item.sourceType,
-        source_url: item.sourceUrl,
-        source_title: item.sourceTitle ?? "",
-        source_domain: item.sourceDomain || sourceDomain(item.sourceUrl),
-        published_at: item.publishedAt,
-        source_excerpt: item.sourceExcerpt,
-        verification_status: item.verificationStatus,
-        source_tier: item.sourceTier,
-        created_at: item.createdAt,
-      })),
+      input.sources.map((item) => {
+        const id = asUuid(item.id);
+        sourceIdMap.set(item.id, id);
+        return {
+          id,
+          product_id: input.id,
+          source_type: item.sourceType,
+          source_url: item.sourceUrl,
+          source_title: item.sourceTitle ?? "",
+          source_domain: item.sourceDomain || sourceDomain(item.sourceUrl),
+          published_at: item.publishedAt,
+          source_excerpt: item.sourceExcerpt,
+          verification_status: item.verificationStatus,
+          source_tier: item.sourceTier,
+          created_at: item.createdAt,
+        };
+      }),
     );
     if (error) throw new Error(error.message);
   }
 
   if (input.people.length > 0) {
     const { error } = await supabase.from("discovery_product_people").insert(
-      input.people.map((item) => ({
-        id: item.id,
-        product_id: input.id,
-        person_name: item.personName,
-        person_type: item.personType,
-        person_url: item.personUrl,
-        person_image_url: item.personImageUrl,
-        relation: item.relation,
-        source_id: item.sourceId,
-        created_at: item.createdAt,
-      })),
+      input.people.map((item) => {
+        const mappedSource =
+          (item.sourceId && sourceIdMap.get(item.sourceId)) ||
+          (isUuid(item.sourceId) ? item.sourceId : null);
+        return {
+          id: asUuid(item.id),
+          product_id: input.id,
+          person_name: item.personName,
+          person_type: item.personType,
+          person_url: item.personUrl,
+          person_image_url: item.personImageUrl,
+          relation: item.relation,
+          source_id: mappedSource,
+          created_at: item.createdAt,
+        };
+      }),
     );
     if (error) throw new Error(error.message);
   }
@@ -344,7 +355,7 @@ export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
   if (input.sales.length > 0) {
     const { error } = await supabase.from("discovery_product_sales").insert(
       input.sales.map((item) => ({
-        id: item.id,
+        id: asUuid(item.id),
         product_id: input.id,
         seller_name: item.sellerName,
         product_url: item.productUrl,

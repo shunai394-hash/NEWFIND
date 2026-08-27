@@ -1,8 +1,10 @@
 import { listDiscoveryProducts } from "@/lib/discovery/store";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import type { DiscoveryCategory } from "@/lib/discovery/types";
 
 export async function listPublicDiscoveryProducts() {
-  return listDiscoveryProducts({ admin: false, status: "approved" });
+  const products = await listDiscoveryProducts({ admin: false, status: "approved" });
+  return products.filter((item) => isUsableProductImage(item.productImageUrl));
 }
 
 export async function listPublicByCategory(category: DiscoveryCategory | "all" | "trending") {

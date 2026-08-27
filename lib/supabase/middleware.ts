@@ -3,13 +3,27 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_OPTIONS } from "@/lib/supabase/cookie-options";
 import { isSupabaseConfigured } from "@/lib/config";
 
-const AUTH_REFRESH_MS = 2500;
+const AUTH_REFRESH_MS = 1500;
 
 function hasSupabaseAuthCookie(request: NextRequest) {
   return request.cookies.getAll().some((cookie) => {
     const name = cookie.name.toLowerCase();
     return name.includes("auth-token") || name.startsWith("sb-");
   });
+}
+
+function isPublicPath(pathname: string, method: string) {
+  if (pathname === "/") return true;
+  if (
+    pathname.startsWith("/products") ||
+    pathname.startsWith("/p/") ||
+    pathname.startsWith("/discover") ||
+    pathname.startsWith("/u/")
+  ) {
+    return true;
+  }
+  if (method === "GET" && pathname === "/api/discovery") return true;
+  return false;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -21,7 +35,11 @@ export async function updateSession(request: NextRequest) {
       request: { headers: requestHeaders },
     });
 
-  if (!isSupabaseConfigured() || !hasSupabaseAuthCookie(request)) {
+  if (
+    isPublicPath(request.nextUrl.pathname, request.method) ||
+    !isSupabaseConfigured() ||
+    !hasSupabaseAuthCookie(request)
+  ) {
     return passThrough();
   }
 

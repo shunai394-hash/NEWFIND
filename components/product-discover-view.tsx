@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ProductCard } from "@/components/product-card";
 import { fetchDiscoveryList } from "@/lib/discovery/client-api";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import {
   DISCOVERY_CATEGORIES,
   DISCOVERY_CATEGORY_LABELS,
@@ -11,19 +12,26 @@ import {
   type DiscoveryProduct,
 } from "@/lib/discovery/types";
 
-const FILTERS: Array<DiscoveryCategory | "trending"> = ["trending", ...DISCOVERY_CATEGORIES];
+const FILTERS: Array<DiscoveryCategory | "trending" | "all"> = [
+  "all",
+  "trending",
+  ...DISCOVERY_CATEGORIES,
+];
 
 export function ProductDiscoverView() {
-  const [collection, setCollection] = useState<DiscoveryCategory | "trending">("trending");
+  const [collection, setCollection] = useState<DiscoveryCategory | "trending" | "all">("all");
   const [all, setAll] = useState<DiscoveryProduct[]>([]);
 
   useEffect(() => {
     fetchDiscoveryList("approved")
-      .then((data) => setAll(data.products))
+      .then((data) =>
+        setAll(data.products.filter((item) => isUsableProductImage(item.productImageUrl))),
+      )
       .catch(() => setAll([]));
   }, []);
 
   const products = useMemo(() => {
+    if (collection === "all") return all;
     if (collection === "trending") {
       return all.filter(
         (item) => item.trendTags.includes("trending") || item.trendTags.includes("world_trend"),
@@ -47,7 +55,7 @@ export function ProductDiscoverView() {
               collection === id ? "bg-[#C6FF00] text-black" : "bg-neutral-900 text-neutral-300"
             }`}
           >
-            {id === "trending" ? "TRENDING" : DISCOVERY_CATEGORY_LABELS[id]}
+            {id === "all" ? "ALL" : id === "trending" ? "TRENDING" : DISCOVERY_CATEGORY_LABELS[id]}
           </button>
         ))}
       </div>

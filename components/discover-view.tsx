@@ -8,6 +8,7 @@ import { ProductCard } from "@/components/product-card";
 import { useApp } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { fetchDiscoveryList } from "@/lib/discovery/client-api";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import { filterDiscoveryPosts } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
 import { type CategoryId, type PostView, type Profile } from "@/lib/types";
@@ -31,13 +32,17 @@ export function DiscoverView() {
 
   const loadingRef = useRef(false);
   const dbOffsetRef = useRef(0);
+  const postsRef = useRef<PostView[]>([]);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const [catalog, setCatalog] = useState<DiscoveryProduct[]>([]);
+  postsRef.current = posts;
 
   useEffect(() => {
     fetchDiscoveryList("approved")
-      .then((data) => setCatalog(data.products))
+      .then((data) =>
+        setCatalog(data.products.filter((item) => isUsableProductImage(item.productImageUrl))),
+      )
       .catch(() => setCatalog([]));
   }, []);
 
@@ -92,19 +97,32 @@ export function DiscoverView() {
           setHasMore(false);
           dbOffsetRef.current = 0;
         } else {
-          const page = await store.trending(viewerId, offset, PAGE_SIZE);
-          dbOffsetRef.current = page.nextOffset;
-          const safe = filterDiscoveryPosts(page.posts);
+          const collected: PostView[] = [];
+          const seen = new Set(replace ? [] : postsRef.current.map((post) => post.id));
+          let cursor = offset;
+          let more = true;
+          while (collected.length < PAGE_SIZE && more) {
+            const page = await store.trending(viewerId, cursor, PAGE_SIZE);
+            cursor = page.nextOffset;
+            more = page.hasMore;
+            if (page.posts.length === 0) break;
+            for (const post of filterDiscoveryPosts(page.posts)) {
+              if (seen.has(post.id)) continue;
+              seen.add(post.id);
+              collected.push(post);
+            }
+          }
+          dbOffsetRef.current = cursor;
           if (replace) {
             setUsers([]);
-            setPosts(safe);
+            setPosts(collected);
           } else {
             setPosts((prev) => {
               const existing = new Set(prev.map((post) => post.id));
-              return [...prev, ...safe.filter((post) => !existing.has(post.id))];
+              return [...prev, ...collected.filter((post) => !existing.has(post.id))];
             });
           }
-          setHasMore(page.hasMore);
+          setHasMore(more);
         }
       } finally {
         loadingRef.current = false;

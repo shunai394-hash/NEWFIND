@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
-import { JapanSoundToggle } from "@/components/japan-sound";
 
 const NAV_HEIGHT_PX = 56;
 
@@ -17,7 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-black">
       <div
-        className={`relative mx-auto flex min-h-dvh w-full flex-col overflow-x-hidden bg-white text-black ${
+        className={`relative mx-auto flex min-h-dvh w-full flex-col overflow-x-clip bg-white text-black ${
           isAdmin ? "max-w-3xl" : "max-w-[430px]"
         }`}
       >
@@ -28,7 +27,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 NEWFIND
               </Link>
               <div className="flex items-center gap-2">
-                <JapanSoundToggle />
                 <Link href="/settings" className="text-xs font-medium text-neutral-300">
                   設定
                 </Link>

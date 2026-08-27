@@ -8,14 +8,21 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const status = url.searchParams.get("status");
-  const { admin } = await getDiscoveryAdminState();
-  const products = await listDiscoveryProducts({
-    admin,
-    status: admin
-      ? ((status as DiscoveryStatus | "all") || "all")
-      : "approved",
-  });
-  return NextResponse.json({ products, admin });
+  try {
+    const { admin } = await getDiscoveryAdminState();
+    const products = await listDiscoveryProducts({
+      admin,
+      status: admin
+        ? ((status as DiscoveryStatus | "all") || "all")
+        : "approved",
+    });
+    return NextResponse.json({ products, admin });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "load failed", products: [] },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: Request) {

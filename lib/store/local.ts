@@ -1,6 +1,5 @@
 import { fileToStoredUrl } from "@/lib/media";
 import { rankForYouFeed, engagementScore } from "@/lib/feed-rank";
-import { filterDiscoveryPosts } from "@/lib/products/discovery-filter";
 import {
   SEED_COMMENTS,
   SEED_FOLLOWS,
@@ -326,9 +325,7 @@ export const localStore: Store = {
     posts.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     if (kind === "foryou") {
       const slice = posts.slice(offset, offset + limit);
-      const ranked = rankForYouFeed(
-        filterDiscoveryPosts(slice.map((p) => toView(state, p, viewerId))),
-      );
+      const ranked = rankForYouFeed(slice.map((p) => toView(state, p, viewerId)));
       return {
         posts: ranked,
         hasMore: slice.length === limit,
@@ -483,7 +480,7 @@ export const localStore: Store = {
           p.category.toLowerCase().includes(q),
       )
       .map((p) => toView(state, p, viewerId));
-    return { users, posts: filterDiscoveryPosts(posts) };
+    return { users, posts };
   },
 
   async trending(viewerId, offset = 0, limit = 24) {
@@ -496,7 +493,7 @@ export const localStore: Store = {
       (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
     );
     const slice = sorted.slice(offset, offset + limit);
-    const posts = filterDiscoveryPosts(slice.map((p) => toView(state, p, viewerId)));
+    const posts = slice.map((p) => toView(state, p, viewerId));
     return {
       posts,
       hasMore: slice.length === limit,
@@ -510,7 +507,7 @@ export const localStore: Store = {
       .filter((p) => p.category === category)
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     const slice = filtered.slice(offset, offset + limit);
-    const posts = filterDiscoveryPosts(slice.map((p) => toView(state, p, viewerId)));
+    const posts = slice.map((p) => toView(state, p, viewerId));
     return {
       posts,
       hasMore: slice.length === limit,

@@ -11,6 +11,10 @@ export function ProductShareButton({
   title: string;
 }) {
   const [open, setOpen] = useState(false);
+  const shareUrl =
+    typeof window === "undefined"
+      ? url
+      : window.location.href || url;
 
   return (
     <>
@@ -22,7 +26,7 @@ export function ProductShareButton({
         シェア
       </button>
       {open ? (
-        <ShareSheet url={url} title={title} onClose={() => setOpen(false)} />
+        <ShareSheet url={shareUrl} title={title} onClose={() => setOpen(false)} />
       ) : null}
     </>
   );

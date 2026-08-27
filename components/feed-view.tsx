@@ -20,8 +20,10 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
 
   const loadingRef = useRef(false);
   const dbOffsetRef = useRef(0);
+  const postsRef = useRef<PostView[]>([]);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const selected = FEED_CHANNELS.find((item) => item.id === channel) ?? FEED_CHANNELS[0]!;
+  postsRef.current = posts;
 
   const loadPage = useCallback(
     async (offset: number, replace: boolean) => {
@@ -38,26 +40,41 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
       try {
         const store = getStore();
         const category = selected.categories?.[0];
-        const page =
-          kind === "foryou" && category
-            ? await store.byCategory(category, session?.userId ?? null, offset, PAGE_SIZE)
-            : await store.getFeed(kind, session?.userId ?? null, offset, PAGE_SIZE);
+        const collected: PostView[] = [];
+        const seen = new Set(replace ? [] : postsRef.current.map((post) => post.id));
+        let cursor = offset;
+        let more = true;
 
-        dbOffsetRef.current = page.nextOffset;
+        while (collected.length < PAGE_SIZE && more) {
+          const page =
+            kind === "foryou" && category
+              ? await store.byCategory(category, session?.userId ?? null, cursor, PAGE_SIZE)
+              : await store.getFeed(kind, session?.userId ?? null, cursor, PAGE_SIZE);
+
+          cursor = page.nextOffset;
+          more = page.hasMore;
+
+          if (page.posts.length === 0) break;
+
+          for (const post of page.posts) {
+            if (seen.has(post.id)) continue;
+            seen.add(post.id);
+            collected.push(post);
+          }
+        }
+
+        dbOffsetRef.current = cursor;
 
         if (replace) {
-          setPosts(page.posts);
+          setPosts(collected);
         } else {
           setPosts((prev) => {
             const existing = new Set(prev.map((post) => post.id));
-            return [
-              ...prev,
-              ...page.posts.filter((post) => !existing.has(post.id)),
-            ];
+            return [...prev, ...collected.filter((post) => !existing.has(post.id))];
           });
         }
 
-        setHasMore(page.hasMore);
+        setHasMore(more);
       } catch (err) {
         console.error("[FeedView] getFeed failed", err);
 
@@ -149,7 +166,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
 
       {kind === "foryou" ? (
         <p className="bg-white px-4 py-2 text-[11px] text-neutral-400">
-          {selected.hint} ・ スクロールするほど新しい発見
+          {selected.hint}
         </p>
       ) : null}
 
@@ -185,6 +202,16 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
                 さらに読み込み中...
               </p>
             )}
+
+            {hasMore && !loadingMore ? (
+              <button
+                type="button"
+                onClick={() => void loadPage(dbOffsetRef.current, false)}
+                className="mx-auto my-4 block rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold"
+              >
+                Load more
+              </button>
+            ) : null}
 
             {!hasMore && (
               <p className="py-6 text-center text-xs text-neutral-400">

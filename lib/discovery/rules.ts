@@ -10,6 +10,29 @@ export function newDiscoveryId() {
   return `dp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isUuid(value: string | null | undefined): value is string {
+  return Boolean(value && UUID_RE.test(value));
+}
+
+export function newChildId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const n = (Math.random() * 16) | 0;
+    const v = c === "x" ? n : (n & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export function asUuid(id: string | null | undefined) {
+  if (isUuid(id)) return id;
+  return newChildId();
+}
+
 export function canApprove(product: Pick<
   DiscoveryProduct,
   "productName" | "brand" | "productImageUrl" | "sources" | "sales" | "productUrl" | "officialUrl"
@@ -17,7 +40,7 @@ export function canApprove(product: Pick<
   if (!product.productName.trim() || !product.brand.trim()) return false;
   if (!isUsableProductImage(product.productImageUrl)) return false;
   if (product.sources.length === 0) return false;
-  if (product.sales.length === 0 && !product.productUrl) return false;
+  if (product.sales.length === 0) return false;
   const urls = [
     product.productUrl,
     product.officialUrl,

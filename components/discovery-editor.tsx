@@ -6,7 +6,7 @@ import {
   fetchDiscoveryProduct,
   saveDiscoveryProductApi,
 } from "@/lib/discovery/client-api";
-import { canApprove, emptyDiscoveryProduct, newDiscoveryId } from "@/lib/discovery/rules";
+import { canApprove, emptyDiscoveryProduct, newChildId } from "@/lib/discovery/rules";
 import {
   DISCOVERY_CATEGORIES,
   DISCOVERY_CATEGORY_LABELS,
@@ -84,7 +84,7 @@ export function DiscoveryEditor({ id }: { id: string }) {
     try {
       const next = { ...product, status: status ?? product.status };
       if (next.status === "approved" && !canApprove(next)) {
-        throw new Error("Approve needs image, source, and a live product URL.");
+        throw new Error("Approve needs image, source, and a live sales page.");
       }
       const saved = await saveDiscoveryProductApi(next);
       router.replace(`/admin/discovery/${saved.id}`);
@@ -222,7 +222,7 @@ export function DiscoveryEditor({ id }: { id: string }) {
               update("people", [
                 ...product.people,
                 {
-                  id: newDiscoveryId(),
+                  id: newChildId(),
                   personName: "",
                   personType: "celebrity",
                   personUrl: null,
@@ -293,6 +293,25 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 update("people", people);
               }}
             />
+            <label className="block text-xs font-semibold text-neutral-500">
+              Source
+              <select
+                value={person.sourceId ?? ""}
+                onChange={(event) => {
+                  const people = [...product.people];
+                  people[index] = { ...person, sourceId: event.target.value || null };
+                  update("people", people);
+                }}
+                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+              >
+                <option value="">none</option>
+                {product.sources.map((source) => (
+                  <option key={source.id} value={source.id}>
+                    {source.sourceTitle || source.sourceUrl || source.id}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button
               type="button"
               className="text-xs text-red-600"
@@ -314,7 +333,7 @@ export function DiscoveryEditor({ id }: { id: string }) {
               update("sources", [
                 ...product.sources,
                 {
-                  id: newDiscoveryId(),
+                  id: newChildId(),
                   sourceType: "editorial",
                   sourceUrl: "",
                   sourceTitle: "",
@@ -450,7 +469,7 @@ export function DiscoveryEditor({ id }: { id: string }) {
               update("sales", [
                 ...product.sales,
                 {
-                  id: newDiscoveryId(),
+                  id: newChildId(),
                   sellerName: "",
                   productUrl: "",
                   price: null,
@@ -535,6 +554,25 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 }}
               />
               Official store
+            </label>
+            <label className="block text-xs font-semibold text-neutral-500">
+              Availability
+              <select
+                value={sale.availability}
+                onChange={(event) => {
+                  const sales = [...product.sales];
+                  sales[index] = {
+                    ...sale,
+                    availability: event.target.value as typeof sale.availability,
+                  };
+                  update("sales", sales);
+                }}
+                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+              >
+                <option value="unknown">unknown</option>
+                <option value="in_stock">in stock</option>
+                <option value="out_of_stock">out of stock</option>
+              </select>
             </label>
             <Field
               label="Affiliate URL (optional)"

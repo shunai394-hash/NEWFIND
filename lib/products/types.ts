@@ -23,14 +23,14 @@ export const PRODUCT_COLLECTION_LABELS: Record<ProductCollection, string> = {
 };
 
 export const PRODUCT_COLLECTION_HINTS: Record<ProductCollection, string> = {
-  trending: "今週、日本で見つかっている人気商品",
-  fashion: "洋服・トップス・スカート・スニーカー",
-  beauty: "コスメ・スキンケア・ヘアケア",
-  accessories: "バッグ・靴・アクセサリー",
-  fragrance: "香水・コロン・オードパルファム",
-  celebrity: "出典付きの芸能人愛用品",
-  teen: "高校生調査で支持された店舗の定番商品",
-  japan_brands: "日本ブランドの公式商品",
+  trending: "Trending products with sources and a real store page",
+  fashion: "Clothes, tops, skirts, sneakers",
+  beauty: "Makeup, skincare, hair",
+  accessories: "Bags, shoes, jewelry",
+  fragrance: "Perfume, cologne, EDP",
+  celebrity: "Sourced celebrity style",
+  teen: "Gen Z / teen products",
+  japan_brands: "Japan brand products",
 };
 
 export type CelebrityRelation =

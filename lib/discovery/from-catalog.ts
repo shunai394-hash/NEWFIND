@@ -1,3 +1,4 @@
+import { isUsableProductImage } from "@/lib/discovery/media";
 import { isDummyUrl } from "@/lib/products/discovery-filter";
 import type { CatalogProduct } from "@/lib/products/types";
 import type {
@@ -99,7 +100,7 @@ export function catalogProductToDiscovery(product: CatalogProduct): DiscoveryPro
     subcategory: product.subcategoryLabel || product.subcategory,
     country: product.collections.includes("japan_brands") ? "JP" : null,
     description: product.description,
-    productImageUrl: product.imageUrl,
+    productImageUrl: isUsableProductImage(product.imageUrl) ? product.imageUrl : null,
     productUrl: product.purchaseUrl,
     officialUrl: product.purchaseUrl,
     price: parsePrice(product.priceText),

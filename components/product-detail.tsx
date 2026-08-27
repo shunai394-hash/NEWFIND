@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import { ProductCard } from "@/components/product-card";
-import { PERSON_RELATION_LABELS, SOURCE_TYPE_LABELS, TREND_TAG_LABELS } from "@/lib/discovery/types";
+import { DISCOVERY_ORIGIN_LABELS, PERSON_RELATION_LABELS, SOURCE_TYPE_LABELS, TREND_TAG_LABELS } from "@/lib/discovery/types";
 import { listPublicDiscoveryProducts } from "@/lib/discovery/public";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
 
@@ -18,16 +19,16 @@ export function ProductDetail({ product }: { product: DiscoveryProduct }) {
 
   return (
     <article className="bg-white">
-      <div className="relative aspect-[4/5] w-full bg-neutral-100">
-        {product.productImageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
+      {isUsableProductImage(product.productImageUrl) ? (
+        <div className="relative aspect-[4/5] w-full bg-black">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={product.productImageUrl}
+            src={product.productImageUrl!}
             alt={`${product.brand} ${product.productName}`}
             className="h-full w-full object-cover"
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       <div className="px-4 py-5">
         <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">{product.brand}</p>
         <h1 className="mt-1 text-2xl font-semibold leading-tight">{product.productName}</h1>
@@ -43,6 +44,7 @@ export function ProductDetail({ product }: { product: DiscoveryProduct }) {
         <p className="mt-4 text-sm leading-relaxed text-neutral-700">{product.description}</p>
         <p className="mt-3 text-[11px] text-neutral-400">
           Trend {product.trendScore} · Confidence {product.confidenceScore}
+          {product.discoverySource ? ` · ${DISCOVERY_ORIGIN_LABELS[product.discoverySource as keyof typeof DISCOVERY_ORIGIN_LABELS] ?? product.discoverySource}` : ""}
           {product.trendTags.length
             ? ` · ${product.trendTags.map((tag) => TREND_TAG_LABELS[tag]).join(" / ")}`
             : ""}

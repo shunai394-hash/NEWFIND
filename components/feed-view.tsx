@@ -113,7 +113,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
               onClick={() => setChannel(item.id)}
               className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-semibold tracking-wide ${
                 channel === item.id
-                  ? "bg-neutral-900 text-white"
+                  ? "bg-[#C6FF00] text-black"
                   : "bg-neutral-100 text-neutral-500"
               }`}
             >
@@ -128,7 +128,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
           href="/"
           className={`py-3 text-center ${
             kind === "foryou"
-              ? "border-b-2 border-neutral-900"
+              ? "border-b-2 border-[#C6FF00]"
               : "text-neutral-400"
           }`}
         >
@@ -139,7 +139,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
           href="/following"
           className={`py-3 text-center ${
             kind === "following"
-              ? "border-b-2 border-neutral-900"
+              ? "border-b-2 border-[#C6FF00]"
               : "text-neutral-400"
           }`}
         >

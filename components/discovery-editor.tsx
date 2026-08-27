@@ -12,6 +12,8 @@ import {
 import {
   DISCOVERY_CATEGORIES,
   DISCOVERY_CATEGORY_LABELS,
+  DISCOVERY_ORIGINS,
+  DISCOVERY_ORIGIN_LABELS,
   DISCOVERY_STATUSES,
   PERSON_RELATIONS,
   PERSON_TYPES,
@@ -129,11 +131,20 @@ export function DiscoveryEditor({ id }: { id: string }) {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Discovery</h2>
-        <Field
-          label="Discovery source"
-          value={product.discoverySource ?? ""}
-          onChange={(value) => update("discoverySource", value || null)}
-        />
+        <label className="block text-xs font-semibold text-neutral-500">
+          Discovery origin
+          <select
+            value={product.discoverySource ?? "admin"}
+            onChange={(event) => update("discoverySource", event.target.value)}
+            className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+          >
+            {DISCOVERY_ORIGINS.map((id) => (
+              <option key={id} value={id}>
+                {DISCOVERY_ORIGIN_LABELS[id]}
+              </option>
+            ))}
+          </select>
+        </label>
         <Field
           label="Trend score"
           value={String(product.trendScore)}
@@ -156,7 +167,7 @@ export function DiscoveryEditor({ id }: { id: string }) {
                 update("trendTags", [...next] as TrendTag[]);
               }}
               className={`rounded-full px-3 py-1 text-[10px] font-semibold ${
-                selectedTags.has(tag) ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500"
+                selectedTags.has(tag) ? "bg-[#C6FF00] text-black" : "bg-neutral-100 text-neutral-500"
               }`}
             >
               {TREND_TAG_LABELS[tag]}
@@ -457,7 +468,7 @@ export function DiscoveryEditor({ id }: { id: string }) {
           <button
             type="button"
             onClick={() => save()}
-            className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white"
+            className="rounded-full bg-[#C6FF00] px-3 py-1.5 text-xs font-semibold text-black"
           >
             Save
           </button>

@@ -325,15 +325,14 @@ export const localStore: Store = {
     }
     posts.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     if (kind === "foryou") {
-      const windowed = filterDiscoveryPosts(
-        posts.slice(0, 96).map((p) => toView(state, p, viewerId)),
+      const slice = posts.slice(offset, offset + limit);
+      const ranked = rankForYouFeed(
+        filterDiscoveryPosts(slice.map((p) => toView(state, p, viewerId))),
       );
-      const ranked = rankForYouFeed(windowed);
-      const pagePosts = ranked.slice(offset, offset + limit);
       return {
-        posts: pagePosts,
-        hasMore: offset + limit < ranked.length,
-        nextOffset: offset + pagePosts.length,
+        posts: ranked,
+        hasMore: slice.length === limit,
+        nextOffset: offset + slice.length,
       };
     }
     const slice = posts.slice(offset, offset + limit);

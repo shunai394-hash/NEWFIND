@@ -600,14 +600,12 @@ export const supabaseStore: Store = {
 
   async getFeed(kind, viewerId, offset = 0, pageLimit = 24) {
     const supabase = createClient();
-    const forYouWindow = 96;
-    const fetchLimit = kind === "foryou" ? forYouWindow : pageLimit;
-    const fetchOffset = kind === "foryou" ? 0 : offset;
+    const fetchLimit = pageLimit;
     let query = supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false })
-      .range(fetchOffset, fetchOffset + fetchLimit - 1);
+      .range(offset, offset + fetchLimit - 1);
 
     if (kind === "following") {
       if (!viewerId) {
@@ -644,13 +642,10 @@ export const supabaseStore: Store = {
     }
     const ranked =
       kind === "foryou" ? rankForYouFeed(filterDiscoveryPosts(views)) : views;
-    const pagePosts = kind === "foryou" ? ranked.slice(offset, offset + pageLimit) : ranked;
-    const hasMore =
-      kind === "foryou" ? offset + pageLimit < ranked.length : posts.length === pageLimit;
     return {
-      posts: pagePosts,
-      hasMore,
-      nextOffset: offset + pagePosts.length,
+      posts: ranked,
+      hasMore: posts.length === fetchLimit,
+      nextOffset: offset + posts.length,
     };
   },
 

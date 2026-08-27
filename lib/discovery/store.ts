@@ -1,3 +1,4 @@
+import { isUsableProductImage } from "@/lib/discovery/media";
 import { isDummyUrl } from "@/lib/products/discovery-filter";
 import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
 import { catalogProductToDiscovery } from "@/lib/discovery/from-catalog";
@@ -67,6 +68,7 @@ export function listDiscoveryProducts(options?: {
   const status = options?.status ?? (admin ? "all" : "approved");
   return currentDiscoveryCatalog().filter((item) => {
     if (!admin && item.status !== "approved") return false;
+    if (!admin && !isUsableProductImage(item.productImageUrl)) return false;
     if (status !== "all" && item.status !== status) return false;
     return true;
   });
@@ -76,6 +78,7 @@ export function getDiscoveryProduct(id: string, admin = false) {
   const product = currentDiscoveryCatalog().find((item) => item.id === id) ?? null;
   if (!product) return null;
   if (!admin && product.status !== "approved") return null;
+  if (!admin && !isUsableProductImage(product.productImageUrl)) return null;
   return clone(product);
 }
 
@@ -84,7 +87,7 @@ export function canApprove(product: Pick<
   "productName" | "brand" | "productImageUrl" | "sources" | "sales" | "productUrl" | "officialUrl"
 >) {
   if (!product.productName.trim() || !product.brand.trim()) return false;
-  if (!product.productImageUrl) return false;
+  if (!isUsableProductImage(product.productImageUrl)) return false;
   if (product.sources.length === 0) return false;
   if (product.sales.length === 0 && !product.productUrl) return false;
   const urls = [
@@ -166,7 +169,7 @@ export function emptyDiscoveryProduct(): DiscoveryProductInput {
     sku: null,
     trendScore: 0,
     confidenceScore: 0,
-    discoverySource: null,
+    discoverySource: "admin",
     status: "draft",
     trendTags: [],
     sources: [],

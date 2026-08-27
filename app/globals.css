@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafafa;
-  --foreground: #111111;
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --accent: #c6ff00;
 }
 
 @theme inline {
@@ -19,6 +20,10 @@
   html,
   body {
     min-height: 100%;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
   }
 
   /* Safe-area via CSS env() only — do not inject --safe-area-* on <html> from JS
@@ -28,7 +33,7 @@
   }
 
   body {
-    background: #e5e5e5;
+    background: #0a0a0a;
     color: var(--foreground);
     font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   }

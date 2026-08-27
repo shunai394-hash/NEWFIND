@@ -109,7 +109,7 @@ export function CreateForm() {
   return (
     <form onSubmit={submit} className="space-y-4 px-4 py-4">
       <div>
-        <h1 className="text-lg font-semibold">投稿</h1>
+        <h1 className="text-lg font-semibold">投稿する</h1>
       </div>
       <label className="block rounded-2xl border border-dashed border-neutral-300 bg-white p-4 text-center">
         <input
@@ -219,7 +219,7 @@ export function CreateForm() {
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        className="w-full rounded-lg bg-[#C6FF00] py-2.5 text-sm font-semibold text-black disabled:opacity-50"
       >
         シェア
       </button>

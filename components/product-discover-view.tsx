@@ -26,17 +26,17 @@ export function ProductDiscoverView() {
 
   return (
     <div>
-      <section className="border-b border-neutral-200 bg-white px-4 py-4">
-        <h1 className="text-xl font-semibold tracking-tight">Discover</h1>
+      <section className="border-b border-neutral-800 bg-black px-4 py-4">
+        <h1 className="text-xl font-semibold tracking-tight text-white">Discover</h1>
       </section>
-      <div className="flex gap-2 overflow-x-auto border-b border-neutral-200 bg-white px-3 py-2.5 [scrollbar-width:none]">
+      <div className="flex gap-2 overflow-x-auto border-b border-neutral-800 bg-black px-3 py-2.5 [scrollbar-width:none]">
         {FILTERS.map((id) => (
           <button
             key={id}
             type="button"
             onClick={() => setCollection(id)}
             className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-semibold tracking-wide ${
-              collection === id ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500"
+              collection === id ? "bg-[#C6FF00] text-black" : "bg-neutral-900 text-neutral-300"
             }`}
           >
             {id === "trending" ? "TRENDING" : DISCOVERY_CATEGORY_LABELS[id]}
@@ -47,15 +47,14 @@ export function ProductDiscoverView() {
         <Link href="/" className="py-3 text-center text-neutral-400">
           For You
         </Link>
-        <Link href="/products" className="border-b-2 border-neutral-900 py-3 text-center">
+        <Link href="/products" className="border-b-2 border-[#C6FF00] py-3 text-center">
           Products
         </Link>
       </div>
-      <p className="bg-white px-4 py-2 text-[11px] text-neutral-400">
-        {products.length} products
-      </p>
       {products.length === 0 ? (
-        <p className="px-6 py-16 text-center text-sm text-neutral-500">No products in this filter yet.</p>
+        <p className="px-6 py-16 text-center text-sm text-neutral-500">
+          No products in this filter yet.
+        </p>
       ) : (
         <div className="grid grid-cols-2 gap-px bg-neutral-200">
           {products.map((product) => (

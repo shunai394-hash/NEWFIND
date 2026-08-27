@@ -27,12 +27,12 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="ja"
-      className={`${geist.variable} h-full antialiased`}
+      lang="en"
+      className={`${geist.variable} antialiased`}
       suppressHydrationWarning
     >
       <body
-        className="min-h-full bg-neutral-200 font-sans text-neutral-900"
+        className="min-h-full bg-black font-sans text-white"
         suppressHydrationWarning
       >
         <AppProvider>

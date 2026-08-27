@@ -119,7 +119,7 @@ export function AuthForm() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="w-full rounded-lg bg-[#C6FF00] py-2.5 text-sm font-semibold text-black disabled:opacity-50"
         >
           {mode === "signup" ? "登録する" : "ログイン"}
         </button>

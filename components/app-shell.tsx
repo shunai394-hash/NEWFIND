@@ -15,21 +15,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const showNav = !hideChrome && !isAdmin;
 
   return (
-    <div className="min-h-dvh bg-neutral-200">
+    <div className="min-h-dvh bg-black">
       <div
-        className={`relative mx-auto flex min-h-dvh w-full flex-col overflow-x-hidden bg-[#fafafa] shadow-xl ${
+        className={`relative mx-auto flex min-h-dvh w-full flex-col overflow-x-hidden bg-white text-black ${
           isAdmin ? "max-w-3xl" : "max-w-[430px]"
         }`}
       >
         {hideChrome ? null : (
-          <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white pt-[env(safe-area-inset-top,0px)]">
+          <header className="sticky top-0 z-40 border-b border-neutral-800 bg-black pt-[env(safe-area-inset-top,0px)]">
             <div className="flex items-center justify-between gap-2 px-4 py-3">
-              <Link href="/" className="text-[21px] font-semibold tracking-tight">
+              <Link href="/" className="text-[21px] font-semibold tracking-tight text-white">
                 NEWFIND
               </Link>
               <div className="flex items-center gap-2">
                 <JapanSoundToggle />
-                <Link href="/settings" className="text-xs font-medium text-neutral-500">
+                <Link href="/settings" className="text-xs font-medium text-neutral-300">
                   設定
                 </Link>
               </div>

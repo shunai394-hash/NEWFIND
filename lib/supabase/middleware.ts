@@ -3,19 +3,29 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_OPTIONS } from "@/lib/supabase/cookie-options";
 import { isSupabaseConfigured } from "@/lib/config";
 
+const AUTH_REFRESH_MS = 2500;
+
+function hasSupabaseAuthCookie(request: NextRequest) {
+  return request.cookies.getAll().some((cookie) => {
+    const name = cookie.name.toLowerCase();
+    return name.includes("auth-token") || name.startsWith("sb-");
+  });
+}
+
 export async function updateSession(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", request.nextUrl.pathname);
 
-  if (!isSupabaseConfigured()) {
-    return NextResponse.next({
+  const passThrough = () =>
+    NextResponse.next({
       request: { headers: requestHeaders },
     });
+
+  if (!isSupabaseConfigured() || !hasSupabaseAuthCookie(request)) {
+    return passThrough();
   }
 
-  let supabaseResponse = NextResponse.next({
-    request: { headers: requestHeaders },
-  });
+  let supabaseResponse = passThrough();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,9 +41,7 @@ export async function updateSession(request: NextRequest) {
             request.cookies.set(name, value);
           });
 
-          supabaseResponse = NextResponse.next({
-            request: { headers: requestHeaders },
-          });
+          supabaseResponse = passThrough();
 
           cookiesToSet.forEach(({ name, value, options }) => {
             supabaseResponse.cookies.set(name, value, options);
@@ -43,6 +51,16 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  try {
+    await Promise.race([
+      supabase.auth.getUser(),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("auth-refresh-timeout")), AUTH_REFRESH_MS);
+      }),
+    ]);
+  } catch {
+    return supabaseResponse;
+  }
+
   return supabaseResponse;
 }

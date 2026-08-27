@@ -129,7 +129,7 @@ export function BottomNav() {
   return (
     <nav
       data-testid="bottom-nav"
-      className="pointer-events-auto fixed inset-x-0 bottom-0 z-[200] border-t border-neutral-200 bg-white pb-[env(safe-area-inset-bottom,0px)]"
+      className="pointer-events-auto fixed inset-x-0 bottom-0 z-[200] border-t border-neutral-800 bg-black pb-[env(safe-area-inset-bottom,0px)]"
       style={{ touchAction: "manipulation" }}
     >
       <div className="mx-auto w-full max-w-[430px]">
@@ -144,7 +144,7 @@ export function BottomNav() {
                   aria-current={item.active ? "page" : undefined}
                   onClick={(event) => onActivate(event, item.href, item.key)}
                   className={`flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] select-none ${
-                    item.active ? "text-neutral-900" : "text-neutral-400"
+                    item.active ? "text-[#C6FF00]" : "text-neutral-400"
                   }`}
                   style={{
                     WebkitTapHighlightColor: "transparent",

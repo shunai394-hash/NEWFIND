@@ -287,7 +287,7 @@ export function JapanSoundToggle() {
         }`}
         aria-pressed={on}
       >
-        {on ? "JAPAN SOUND ON" : "JAPAN SOUND OFF"}
+        {on ? "SOUND ON" : "SOUND"}
       </button>
       <button
         type="button"

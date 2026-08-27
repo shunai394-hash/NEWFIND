@@ -82,6 +82,20 @@ export const TREND_TAG_LABELS: Record<TrendTag, string> = {
   streetwear: "Streetwear",
 };
 
+export const DISCOVERY_ORIGINS = [
+  "editorial",
+  "ai",
+  "user_post",
+  "admin",
+] as const;
+export type DiscoveryOrigin = (typeof DISCOVERY_ORIGINS)[number];
+export const DISCOVERY_ORIGIN_LABELS: Record<DiscoveryOrigin, string> = {
+  editorial: "NEWFIND Editorial",
+  ai: "NEWFIND Discovery",
+  user_post: "User Post",
+  admin: "Admin",
+};
+
 export const DISCOVERY_STATUSES = ["draft", "pending", "approved", "rejected"] as const;
 export type DiscoveryStatus = (typeof DISCOVERY_STATUSES)[number];
 

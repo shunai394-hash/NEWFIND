@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { deleteOwnedAccount } from "@/lib/account/delete-user";
 import { authErrorResponse, requireAdmin } from "@/lib/auth/request-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { mediaObjectPath } from "@/lib/media-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -53,23 +53,8 @@ export async function DELETE(
     if (id === auth.userId) {
       return NextResponse.json({ error: "cannot delete self" }, { status: 400 });
     }
-    const admin = createAdminClient();
-    const { data: posts, error: postsError } = await admin
-      .from("posts")
-      .select("media_url, thumbnail_url")
-      .eq("author_id", id);
-    if (postsError) throw new Error(postsError.message);
-
-    const paths = (posts ?? [])
-      .flatMap((post) => [mediaObjectPath(post.media_url), mediaObjectPath(post.thumbnail_url)])
-      .filter((path): path is string => Boolean(path));
-    if (paths.length > 0) {
-      await admin.storage.from("media").remove(paths);
-    }
-
-    const { error: deleteAuthError } = await admin.auth.admin.deleteUser(id);
-    if (deleteAuthError) throw new Error(deleteAuthError.message);
-    return NextResponse.json({ ok: true });
+    const result = await deleteOwnedAccount(id);
+    return NextResponse.json({ ok: true, warning: result.warning ?? null });
   } catch (error) {
     const { status, message } = authErrorResponse(error);
     return NextResponse.json({ error: message }, { status });

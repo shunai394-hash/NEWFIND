@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { startAppleSignIn } from "@/lib/apple/client";
@@ -174,6 +175,11 @@ export function AuthForm() {
         >
           {mode === "login" ? "登録する" : "ログイン"}
         </button>
+      </p>
+      <p className="mt-4 text-center text-xs text-neutral-500">
+        <Link href="/privacy" className="underline">
+          プライバシーポリシー
+        </Link>
       </p>
     </div>
   );

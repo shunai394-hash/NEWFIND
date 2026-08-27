@@ -525,6 +525,26 @@ export const supabaseStore: Store = {
     await supabase.auth.signOut();
   },
 
+  async deleteAccount() {
+    const { authHeaders } = await import("@/lib/auth/client-headers");
+    const response = await fetch("/api/account", {
+      method: "DELETE",
+      headers: await authHeaders(),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        typeof body.error === "string" ? body.error : "アカウントの削除に失敗しました",
+      );
+    }
+    try {
+      await this.signOut();
+    } catch {
+      // Auth user is already gone; clear local session best-effort.
+    }
+    return { warning: typeof body.warning === "string" ? body.warning : null };
+  },
+
   async getProfile(id) {
     const supabase = createClient();
     const { data, error, status } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();

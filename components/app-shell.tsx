@@ -45,6 +45,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           }
         >
           {children}
+          {hideChrome ? null : (
+            <footer className="border-t border-neutral-200 px-4 py-4 text-center">
+              <Link href="/privacy" className="text-xs text-neutral-500">
+                プライバシーポリシー
+              </Link>
+            </footer>
+          )}
         </main>
         {showNav ? <BottomNav /> : null}
       </div>

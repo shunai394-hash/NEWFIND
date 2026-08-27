@@ -51,6 +51,7 @@ export type Store = {
   getSaved(userId: string): Promise<PostView[]>;
   getUserPosts(userId: string, viewerId: string | null): Promise<PostView[]>;
   deletePost(postId: string, userId: string): Promise<{ warning?: string | null }>;
+  deleteAccount(): Promise<{ warning?: string | null }>;
   search(query: string, viewerId: string | null): Promise<SearchResult>;
   trending(
     viewerId: string | null,

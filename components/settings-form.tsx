@@ -33,6 +33,9 @@ export function SettingsForm() {
   const [profileError, setProfileError] = useState("");
   const [busy, setBusy] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (ready && sessionResolved && !session) {
@@ -196,6 +199,23 @@ export function SettingsForm() {
     router.replace("/");
   }
 
+  async function deleteAccount() {
+    if (deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteError("");
+    try {
+      const result = await getStore().deleteAccount();
+      await refresh();
+      if (result.warning) {
+        window.alert(result.warning);
+      }
+      router.replace("/login");
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "アカウントの削除に失敗しました");
+      setDeleteBusy(false);
+    }
+  }
+
   return (
     <form onSubmit={save} className="space-y-3 px-4 py-4">
       <h1 className="text-lg font-semibold">プロフィール設定</h1>
@@ -317,6 +337,65 @@ export function SettingsForm() {
       >
         ログアウト
       </button>
+
+      <div className="rounded-2xl border border-red-100 bg-white px-3 py-3">
+        <p className="text-xs font-semibold text-neutral-500">アカウント</p>
+        <button
+          type="button"
+          onClick={() => {
+            setDeleteError("");
+            setDeleteOpen(true);
+          }}
+          disabled={deleteBusy}
+          className="mt-2 w-full py-2 text-sm font-semibold text-red-600 disabled:opacity-50"
+        >
+          アカウントを削除
+        </button>
+      </div>
+
+      <p className="pt-2 text-center text-xs text-neutral-500">
+        <Link href="/privacy" className="underline">
+          プライバシーポリシー
+        </Link>
+      </p>
+
+      {deleteOpen ? (
+        <div
+          className="fixed inset-0 z-[300] flex items-end justify-center bg-black/40"
+          onClick={() => {
+            if (!deleteBusy) setDeleteOpen(false);
+          }}
+        >
+          <div
+            className="w-full max-w-[430px] rounded-t-2xl bg-white px-4 py-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="text-sm font-semibold">アカウントを削除しますか？</p>
+            <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+              削除すると、プロフィール、投稿、コメント、いいね、保存、フォローなどのデータは元に戻せません。他の人のアカウントは削除されません。
+            </p>
+            {deleteError ? <p className="mt-3 text-sm text-red-600">{deleteError}</p> : null}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={deleteBusy}
+                onClick={() => setDeleteOpen(false)}
+                className="rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                disabled={deleteBusy}
+                onClick={() => void deleteAccount()}
+                className="rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {deleteBusy ? "削除中..." : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

@@ -226,6 +226,33 @@ export const localStore: Store = {
     });
   },
 
+  async deleteAccount() {
+    return mutate((state) => {
+      const userId = state.session?.userId;
+      if (!userId) throw new Error("ログインが必要です");
+      const myPostIds = new Set(
+        state.posts.filter((post) => post.authorId === userId).map((post) => post.id),
+      );
+      state.posts = state.posts.filter((post) => post.authorId !== userId);
+      state.likes = state.likes.filter((item) => item.userId !== userId && !myPostIds.has(item.postId));
+      state.wants = state.wants.filter((item) => item.userId !== userId && !myPostIds.has(item.postId));
+      state.saves = state.saves.filter((item) => item.userId !== userId && !myPostIds.has(item.postId));
+      state.comments = state.comments.filter(
+        (item) => item.userId !== userId && !myPostIds.has(item.postId),
+      );
+      state.follows = state.follows.filter(
+        (item) => item.followerId !== userId && item.followeeId !== userId,
+      );
+      state.shares = state.shares
+        .filter((item) => !myPostIds.has(item.postId))
+        .map((item) => (item.userId === userId ? { ...item, userId: null } : item));
+      state.profiles = state.profiles.filter((profile) => profile.id !== userId);
+      state.users = state.users.filter((user) => user.id !== userId);
+      state.session = null;
+      return {};
+    });
+  },
+
   async getProfile(id) {
     return load().profiles.find((p) => p.id === id) ?? null;
   },

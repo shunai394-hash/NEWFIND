@@ -59,6 +59,8 @@ type ProfileRow = {
   tiktok_url?: string | null;
   youtube_url?: string | null;
   website_url?: string | null;
+  is_admin?: boolean | null;
+  is_suspended?: boolean | null;
   created_at: string;
 };
 
@@ -102,6 +104,8 @@ function mapProfile(row: ProfileRow, social?: SocialLinks | null): Profile {
     tiktokUrl: row.tiktok_url ?? social?.tiktokUrl ?? null,
     youtubeUrl: row.youtube_url ?? social?.youtubeUrl ?? null,
     websiteUrl: row.website_url ?? social?.websiteUrl ?? null,
+    isAdmin: Boolean(row.is_admin),
+    isSuspended: Boolean(row.is_suspended),
     createdAt: row.created_at,
   };
 }
@@ -229,7 +233,14 @@ async function ensureProfile(
       status: (existing as { status?: number }).status ?? null,
     });
   }
-  if (existing.data) return hydrateProfile(supabase, existing.data as ProfileRow);
+  if (existing.data) {
+    const row = existing.data as ProfileRow;
+    if (row.is_suspended) {
+      await supabase.auth.signOut();
+      throw new Error("このアカウントは停止されています");
+    }
+    return hydrateProfile(supabase, row);
+  }
 
   const base = email.split("@")[0].toLowerCase().replace(/[^a-z0-9._]/g, "").slice(0, 16) || "user";
   let username = base;
@@ -463,6 +474,15 @@ export const supabaseStore: Store = {
       throw new Error(error?.message || "ログインに失敗しました");
     }
     const user = data.session.user;
+    const suspended = await supabase
+      .from("profiles")
+      .select("is_suspended")
+      .eq("id", user.id)
+      .maybeSingle();
+    if ((suspended.data as { is_suspended?: boolean } | null)?.is_suspended) {
+      await supabase.auth.signOut();
+      throw new Error("このアカウントは停止されています");
+    }
     return { userId: user.id, email: user.email ?? email };
   },
 
@@ -657,6 +677,20 @@ export const supabaseStore: Store = {
 
   async createPost(authorId, input: CreatePostInput) {
     const supabase = createClient();
+    const suspended = await supabase
+      .from("profiles")
+      .select("is_suspended")
+      .eq("id", authorId)
+      .maybeSingle();
+    if (
+      suspended.error &&
+      !/is_suspended|42703|schema cache/i.test(suspended.error.message)
+    ) {
+      throw new Error(suspended.error.message);
+    }
+    if (suspended.data && (suspended.data as { is_suspended?: boolean }).is_suspended) {
+      throw new Error("このアカウントは停止されています");
+    }
     const payload: Record<string, unknown> = {
       author_id: authorId,
       media_type: input.mediaType,
@@ -706,6 +740,20 @@ export const supabaseStore: Store = {
     if (error) throw new Error(error.message);
     const { data } = supabase.storage.from("media").getPublicUrl(path);
     return { url: data.publicUrl, type };
+  },
+
+  async deletePost(postId, _userId) {
+    const { authHeaders } = await import("@/lib/auth/client-headers");
+    const response = await fetch(`/api/posts/${encodeURIComponent(postId)}`, {
+      method: "DELETE",
+      headers: await authHeaders(),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 404) return {};
+    if (!response.ok) {
+      throw new Error(typeof body.error === "string" ? body.error : "削除に失敗しました");
+    }
+    return { warning: typeof body.warning === "string" ? body.warning : null };
   },
 
   async toggleLike(postId, userId) {

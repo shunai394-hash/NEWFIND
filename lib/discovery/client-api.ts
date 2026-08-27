@@ -1,3 +1,4 @@
+import { authHeaders } from "@/lib/auth/client-headers";
 import type {
   DiscoveryProduct,
   DiscoveryProductInput,
@@ -14,9 +15,20 @@ async function readJson(response: Response) {
   return body;
 }
 
+async function authFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  const auth = await authHeaders();
+  Object.entries(auth).forEach(([key, value]) => {
+    if (typeof value === "string") headers.set(key, value);
+  });
+  return fetch(input, { ...init, headers });
+}
+
 export async function fetchDiscoveryList(status: DiscoveryStatus | "all" = "all") {
   const query = status === "all" ? "" : `?status=${encodeURIComponent(status)}`;
-  const body = await readJson(await fetch(`/api/discovery${query}`, { cache: "no-store" }));
+  const body = await readJson(
+    await authFetch(`/api/discovery${query}`, { cache: "no-store" }),
+  );
   return {
     products: (body.products ?? []) as DiscoveryProduct[],
     admin: Boolean(body.admin),
@@ -24,7 +36,7 @@ export async function fetchDiscoveryList(status: DiscoveryStatus | "all" = "all"
 }
 
 export async function fetchDiscoveryProduct(id: string) {
-  const response = await fetch(`/api/discovery/${encodeURIComponent(id)}`, {
+  const response = await authFetch(`/api/discovery/${encodeURIComponent(id)}`, {
     cache: "no-store",
   });
   if (response.status === 404) return null;
@@ -34,7 +46,7 @@ export async function fetchDiscoveryProduct(id: string) {
 
 export async function saveDiscoveryProductApi(input: DiscoveryProductInput) {
   const body = await readJson(
-    await fetch("/api/discovery", {
+    await authFetch("/api/discovery", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input),
@@ -48,7 +60,7 @@ export async function patchDiscoveryProduct(
   input: Partial<DiscoveryProductInput> & { status?: DiscoveryStatus },
 ) {
   const body = await readJson(
-    await fetch(`/api/discovery/${encodeURIComponent(id)}`, {
+    await authFetch(`/api/discovery/${encodeURIComponent(id)}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input),

@@ -32,6 +32,7 @@ export function SettingsForm() {
   const [error, setError] = useState("");
   const [profileError, setProfileError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (ready && sessionResolved && !session) {
@@ -90,6 +91,26 @@ export function SettingsForm() {
     setAvatarPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [avatarFile]);
+
+  useEffect(() => {
+    if (!session) {
+      setIsAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { authHeaders } = await import("@/lib/auth/client-headers");
+      const response = await fetch("/api/admin/me", {
+        headers: await authHeaders(),
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!cancelled) setIsAdmin(Boolean(data.admin));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   if (!ready || !sessionResolved) {
     return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;
@@ -231,12 +252,14 @@ export function SettingsForm() {
         />
       </label>
 
-      <Link
-        href="/admin/discovery"
-        className="block rounded-lg bg-white px-3 py-3 text-sm font-semibold"
-      >
-        Discovery Manager
-      </Link>
+      {isAdmin ? (
+        <Link
+          href="/admin"
+          className="block rounded-lg bg-white px-3 py-3 text-sm font-semibold"
+        >
+          管理画面
+        </Link>
+      ) : null}
 
       <div className="space-y-3 rounded-2xl bg-white p-3">
         <p className="text-xs font-semibold text-neutral-500">SNS / Web</p>

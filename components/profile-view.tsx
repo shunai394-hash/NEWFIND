@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { FollowListSheet } from "@/components/follow-list-sheet";
 import { MediaThumb } from "@/components/media-thumb";
+import { DeletePostButton } from "@/components/delete-post-button";
 import { useApp } from "@/lib/app-context";
 import { displayUrl, socialLinkEntries } from "@/lib/social-links";
 import { getStore } from "@/lib/store";
@@ -254,9 +255,19 @@ export function ProfileView({ username }: { username: string }) {
 
       <div className="grid grid-cols-3 gap-px bg-neutral-200">
         {posts.map((post) => (
-          <Link key={post.id} href={`/p/${post.id}`} className="aspect-square bg-neutral-100">
-            <MediaThumb post={post} />
-          </Link>
+          <div key={post.id} className="relative aspect-square bg-neutral-100">
+            <Link href={`/p/${post.id}`} className="block h-full w-full">
+              <MediaThumb post={post} />
+            </Link>
+            {mine && session ? (
+              <DeletePostButton
+                postId={post.id}
+                userId={session.userId}
+                onDeleted={(id) => setPosts((prev) => prev.filter((item) => item.id !== id))}
+                className="absolute right-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+              />
+            ) : null}
+          </div>
         ))}
       </div>
 

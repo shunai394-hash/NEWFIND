@@ -30,6 +30,7 @@
 /ios/DerivedData/
 *.keystore
 *.jks
+android/keystore.properties
 
 # misc
 .DS_Store

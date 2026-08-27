@@ -50,6 +50,7 @@ export type Store = {
   isFollowing(followerId: string, followeeId: string): Promise<boolean>;
   getSaved(userId: string): Promise<PostView[]>;
   getUserPosts(userId: string, viewerId: string | null): Promise<PostView[]>;
+  deletePost(postId: string, userId: string): Promise<{ warning?: string | null }>;
   search(query: string, viewerId: string | null): Promise<SearchResult>;
   trending(
     viewerId: string | null,

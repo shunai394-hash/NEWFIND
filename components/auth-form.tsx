@@ -94,26 +94,36 @@ export function AuthForm() {
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="表示名"
-            className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm"
+            autoComplete="nickname"
+            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900"
           />
         ) : null}
         <input
-          type="text"
+          id="login-email"
+          name="email"
+          type="email"
           inputMode="email"
+          autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="メールアドレス"
           required
-          className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm"
+          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900"
         />
         <input
+          id="login-password"
+          name="password"
           type="password"
+          autoComplete={mode === "signup" ? "new-password" : "current-password"}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="パスワード"
           required
           minLength={6}
-          className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm"
+          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900"
         />
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <button

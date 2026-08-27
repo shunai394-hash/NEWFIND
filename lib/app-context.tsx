@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { AndroidImeSupport } from "@/components/android-ime";
 import { OAuthReturnListener } from "@/components/oauth-return-listener";
 import { getStore, storeMode } from "@/lib/store";
 import { createClient as createSupabaseClient } from "@/lib/supabase/client";
@@ -126,6 +127,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={value}>
       <OAuthReturnListener />
+      <AndroidImeSupport />
       {children}
     </AppContext.Provider>
   );

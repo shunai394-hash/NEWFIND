@@ -48,6 +48,8 @@ export type Profile = {
   tiktokUrl: string | null;
   youtubeUrl: string | null;
   websiteUrl: string | null;
+  isAdmin?: boolean;
+  isSuspended?: boolean;
   createdAt: string;
 };
 

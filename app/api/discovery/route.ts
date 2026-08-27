@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const status = url.searchParams.get("status");
   try {
-    const { admin } = await getDiscoveryAdminState();
+    const { admin } = await getDiscoveryAdminState(request);
     const products = await listDiscoveryProducts({
       admin,
       status: admin
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { admin } = await getDiscoveryAdminState();
+  const { admin } = await getDiscoveryAdminState(request);
   if (!admin) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   try {
     const product = await saveDiscoveryProduct(await request.json());

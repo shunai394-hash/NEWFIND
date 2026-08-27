@@ -46,7 +46,13 @@ export function SavedView() {
       ) : posts.length === 0 ? (
         <p className="px-4 py-16 text-center text-sm text-neutral-500">保存した投稿はまだありません</p>
       ) : (
-        posts.map((post) => <PostCard key={post.id} post={post} />)
+        posts.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            onDeleted={(id) => setPosts((prev) => prev.filter((item) => item.id !== id))}
+          />
+        ))
       )}
     </div>
   );

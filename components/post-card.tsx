@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { CommentSheet } from "@/components/comment-sheet";
 import { MuteIcon, VolumeIcon } from "@/components/icons";
+import { DeletePostButton } from "@/components/delete-post-button";
 import { PostActions } from "@/components/post-actions";
 import { ProductLinkButton } from "@/components/product-link-button";
 import { ShareSheet } from "@/components/share-sheet";
@@ -22,9 +23,11 @@ import type { PostView } from "@/lib/types";
 export function PostCard({
   post: initial,
   onChange,
+  onDeleted,
 }: {
   post: PostView;
   onChange?: (post: PostView) => void;
+  onDeleted?: (postId: string) => void;
 }) {
   const { ready, session, me } = useApp();
   const [post, setPost] = useState(initial);
@@ -128,7 +131,14 @@ export function PostCard({
             </p>
           </div>
         </Link>
-        {me?.id !== post.authorId ? (
+        {me?.id === post.authorId ? (
+          <DeletePostButton
+            postId={post.id}
+            userId={me.id}
+            onDeleted={onDeleted}
+            className="text-xs font-semibold text-red-600"
+          />
+        ) : me?.id !== post.authorId ? (
           <button
             type="button"
             onClick={onFollow}

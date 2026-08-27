@@ -375,6 +375,21 @@ export const localStore: Store = {
     });
   },
 
+  async deletePost(postId, userId) {
+    return mutate((state) => {
+      const post = state.posts.find((item) => item.id === postId);
+      if (!post) return {};
+      if (post.authorId !== userId) throw new Error("forbidden");
+      state.posts = state.posts.filter((item) => item.id !== postId);
+      state.likes = state.likes.filter((item) => item.postId !== postId);
+      state.wants = state.wants.filter((item) => item.postId !== postId);
+      state.saves = state.saves.filter((item) => item.postId !== postId);
+      state.comments = state.comments.filter((item) => item.postId !== postId);
+      state.shares = state.shares.filter((item) => item.postId !== postId);
+      return {};
+    });
+  },
+
   async uploadMedia(file) {
     return fileToStoredUrl(file);
   },

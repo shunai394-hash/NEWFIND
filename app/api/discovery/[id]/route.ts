@@ -6,11 +6,11 @@ import type { DiscoveryStatus } from "@/lib/discovery/types";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const { admin } = await getDiscoveryAdminState();
+  const { admin } = await getDiscoveryAdminState(request);
   const product = await getDiscoveryProduct(id, admin);
   if (!product) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ product, admin });
@@ -20,7 +20,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { admin } = await getDiscoveryAdminState();
+  const { admin } = await getDiscoveryAdminState(request);
   if (!admin) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const { id } = await params;
   const body = await request.json();

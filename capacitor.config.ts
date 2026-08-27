@@ -46,6 +46,9 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: !isReleaseBuild,
   },
   plugins: {
+    Keyboard: {
+      resizeOnFullScreen: true,
+    },
     SplashScreen: {
       launchAutoHide: true,
       backgroundColor: "#e5e5e5",

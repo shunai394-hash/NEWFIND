@@ -50,6 +50,21 @@
     font: inherit;
   }
 
+  /* Android WebView: custom webfonts + overflow clip can hide caret / block IME. */
+  input,
+  textarea,
+  select {
+    -webkit-user-select: text;
+    user-select: text;
+    touch-action: manipulation;
+  }
+
+  html.android-cap input,
+  html.android-cap textarea {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    caret-color: #111111;
+  }
+
   textarea {
     resize: vertical;
   }

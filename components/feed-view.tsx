@@ -193,6 +193,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
                   prev.map((p) => (p.id === next.id ? next : p)),
                 )
               }
+              onDeleted={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
             />
           ))}
 

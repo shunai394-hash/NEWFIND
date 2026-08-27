@@ -13,5 +13,5 @@ export function isDiscoveryAdmin(email: string | null | undefined, isAdminFlag =
   const emails = discoveryAdminEmails();
   if (emails.length > 0) return Boolean(value && emails.includes(value));
   if (!isSupabaseConfigured()) return true;
-  return Boolean(value);
+  return false;
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BrandMark } from "@/components/brand-mark";
 import { startAppleSignIn } from "@/lib/apple/client";
 import { useApp } from "@/lib/app-context";
 import { safeNextPath } from "@/lib/config";
@@ -87,7 +88,10 @@ export function AuthForm() {
 
   return (
     <div className="px-6 py-10">
-      <h1 className="text-center text-3xl font-semibold tracking-tight">NEWFIND</h1>
+      <div className="flex flex-col items-center gap-3">
+        <BrandMark className="h-14 w-14" title="NEWFIND" />
+        <h1 className="text-center text-3xl font-semibold tracking-tight">NEWFIND</h1>
+      </div>
 
       <form onSubmit={submit} className="mt-8 space-y-3">
         {mode === "signup" ? (

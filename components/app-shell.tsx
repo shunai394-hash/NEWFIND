@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
+import { BrandMark } from "@/components/brand-mark";
 
 const NAV_HEIGHT_PX = 56;
 
@@ -23,7 +24,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {hideChrome ? null : (
           <header className="sticky top-0 z-40 border-b border-neutral-800 bg-black pt-[env(safe-area-inset-top,0px)]">
             <div className="flex items-center justify-between gap-2 px-4 py-3">
-              <Link href="/" className="text-[21px] font-semibold tracking-tight text-white">
+              <Link
+                href="/"
+                className="flex min-w-0 items-center gap-2 text-[21px] font-semibold tracking-tight text-white"
+              >
+                <BrandMark className="h-7 w-7 shrink-0" />
                 NEWFIND
               </Link>
               <div className="flex items-center gap-2">

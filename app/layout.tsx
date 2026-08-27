@@ -12,6 +12,10 @@ const geist = Geist({
 export const metadata: Metadata = {
   title: "NEWFIND",
   description: "Discover products, people, and trends. Check sources and go to a real store.",
+  icons: {
+    icon: [{ url: "/brand/n-mark.svg", type: "image/svg+xml" }],
+    apple: "/brand/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

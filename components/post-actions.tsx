@@ -26,13 +26,14 @@ export function PostActions({
   onShare: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between px-3 py-2">
-      <div className="flex items-center gap-4">
+    <div className="flex items-center justify-between gap-3 px-3 py-2">
+      <div className="flex min-w-0 items-center gap-4">
         <ActionButton
-          label="Like"
+          label="いいね"
           count={post.likeCount}
           active={post.liked}
           onClick={onLike}
+          showLabel
         >
           <HeartIcon className="h-6 w-6" filled={post.liked} />
         </ActionButton>
@@ -44,7 +45,7 @@ export function PostActions({
         >
           <WantIcon className="h-6 w-6" filled={post.wanted} />
         </ActionButton>
-        <ActionButton label="Comment" count={post.commentCount} onClick={onComment}>
+        <ActionButton label="コメント" count={post.commentCount} onClick={onComment}>
           <CommentIcon className="h-6 w-6" />
         </ActionButton>
         <ActionButton label="Share" count={post.shareCount} onClick={onShare}>
@@ -54,10 +55,14 @@ export function PostActions({
       <button
         type="button"
         onClick={onSave}
-        className={post.saved ? "text-neutral-900" : "text-neutral-800"}
-        aria-label="Save"
+        aria-label="保存"
+        aria-pressed={post.saved}
+        className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${
+          post.saved ? "text-neutral-900" : "text-neutral-800"
+        }`}
       >
         <BookmarkIcon className="h-6 w-6" filled={post.saved} />
+        <span>保存</span>
       </button>
     </div>
   );
@@ -69,12 +74,14 @@ function ActionButton({
   count,
   active,
   onClick,
+  showLabel,
 }: {
   children: React.ReactNode;
   label: string;
   count: number;
   active?: boolean;
   onClick: () => void;
+  showLabel?: boolean;
 }) {
   return (
     <button
@@ -84,6 +91,7 @@ function ActionButton({
       className={`flex items-center gap-1 text-xs ${active ? "text-neutral-900" : "text-neutral-800"}`}
     >
       {children}
+      {showLabel ? <span className="font-medium">{label}</span> : null}
       <span className="min-w-3 font-medium">{compactCount(count)}</span>
     </button>
   );

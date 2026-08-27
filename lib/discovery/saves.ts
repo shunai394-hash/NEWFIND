@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { enableSaveAlerts, disableProductTrendingAlert } from "@/lib/discovery/alerts";
 import { listDiscoveryProductsByIdsFromDb } from "@/lib/discovery/db";
 import { JAPAN_SEED_PRODUCTS } from "@/lib/discovery/japan-seed";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
 
 function db() {
@@ -33,14 +34,19 @@ export async function listSavedProductIds(userId: string): Promise<string[]> {
 
 export async function listSavedProducts(userId: string): Promise<DiscoveryProduct[]> {
   const ids = await listSavedProductIds(userId);
-  const fromDb = await listDiscoveryProductsByIdsFromDb(ids, { requireImage: false });
+  const fromDb = await listDiscoveryProductsByIdsFromDb(ids, { requireImage: true });
   const byId = new Map(fromDb.map((item) => [item.id, item]));
   for (const id of ids) {
     if (byId.has(id)) continue;
     const seeded = JAPAN_SEED_PRODUCTS.find((item) => item.id === id);
-    if (seeded) byId.set(id, seeded);
+    if (seeded && isUsableProductImage(seeded.productImageUrl)) byId.set(id, seeded);
   }
-  return ids.map((id) => byId.get(id)).filter((item): item is DiscoveryProduct => Boolean(item));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((item): item is DiscoveryProduct => {
+      if (!item) return false;
+      return isUsableProductImage(item.productImageUrl);
+    });
 }
 
 export async function isProductSaved(userId: string, productId: string) {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
-import { ProductImagePlaceholder } from "@/components/product-image-placeholder";
+import { ProductHeroImage } from "@/components/product-hero-image";
 import { ProductSaveButton } from "@/components/product-save-button";
 import { ProductShareButton } from "@/components/product-share-button";
 import { evidenceGroupForSource, evidenceSources, whyIsThisHere } from "@/lib/discovery/evidence";
@@ -33,18 +33,12 @@ export function ProductDetail({
 
   return (
     <article className="bg-white">
-      {imageOk ? (
-        <div className="relative aspect-[4/5] w-full bg-black">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={product.productImageUrl ?? ""}
-            alt={`${product.brand} ${product.productName}`}
-            className="h-full w-full object-cover"
-          />
-        </div>
-      ) : (
-        <ProductImagePlaceholder />
-      )}
+      {imageOk && product.productImageUrl ? (
+        <ProductHeroImage
+          src={product.productImageUrl}
+          alt={`${product.brand} ${product.productName}`}
+        />
+      ) : null}
       <div className="space-y-5 px-4 py-5">
         <div className="flex items-start justify-between gap-3">
           <div>

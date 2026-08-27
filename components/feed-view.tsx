@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PostCard } from "@/components/post-card";
 import { useApp } from "@/lib/app-context";
 import { FEED_CHANNELS, type FeedChannelId } from "@/lib/japan-context";
+import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
 import type { PostView } from "@/lib/types";
 
@@ -58,6 +59,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
 
           for (const post of page.posts) {
             if (seen.has(post.id)) continue;
+            if (!hasDisplayablePostMedia(post)) continue;
             seen.add(post.id);
             collected.push(post);
           }
@@ -194,6 +196,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
                 )
               }
               onDeleted={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
+              onUnavailable={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
             />
           ))}
 

@@ -9,7 +9,6 @@ import { DeletePostButton } from "@/components/delete-post-button";
 import { PostActions } from "@/components/post-actions";
 import { ProductLinkButton } from "@/components/product-link-button";
 import { ShareSheet } from "@/components/share-sheet";
-import { ProductImagePlaceholder } from "@/components/product-image-placeholder";
 import { useApp } from "@/lib/app-context";
 import { categoryLabel } from "@/lib/categories";
 import { timeAgo } from "@/lib/format";
@@ -18,7 +17,7 @@ import {
   inferVisualKind,
   visualKindLabel,
 } from "@/lib/japan-context";
-import { isAiPersonDiscoveryMedia } from "@/lib/products/discovery-filter";
+import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
 import type { PostView } from "@/lib/types";
 
@@ -26,10 +25,12 @@ export function PostCard({
   post: initial,
   onChange,
   onDeleted,
+  onUnavailable,
 }: {
   post: PostView;
   onChange?: (post: PostView) => void;
   onDeleted?: (postId: string) => void;
+  onUnavailable?: (postId: string) => void;
 }) {
   const { ready, session, me } = useApp();
   const [post, setPost] = useState(initial);
@@ -38,11 +39,21 @@ export function PostCard({
   const [muted, setMuted] = useState(true);
   const [mediaFailed, setMediaFailed] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hideMedia = !hasDisplayablePostMedia(post);
+
+  const notified = useRef(false);
 
   useEffect(() => {
     setPost(initial);
     setMediaFailed(false);
+    notified.current = false;
   }, [initial]);
+
+  useEffect(() => {
+    if (!(hideMedia || mediaFailed) || notified.current) return;
+    notified.current = true;
+    onUnavailable?.(post.id);
+  }, [hideMedia, mediaFailed, onUnavailable, post.id]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -96,12 +107,6 @@ export function PostCard({
     await refresh();
   }
 
-  async function onFollow() {
-    if (needLogin()) return;
-    await getStore().toggleFollow(post.authorId, session!.userId);
-    await refresh();
-  }
-
   async function onShared() {
     try {
       await getStore().sharePost(post.id, session?.userId ?? null);
@@ -117,9 +122,8 @@ export function PostCard({
       : `${window.location.origin}/p/${post.id}`;
   const worn = celebrityLine(post);
   const visual = visualKindLabel(inferVisualKind(post));
-  const hidePersonMedia =
-    isAiPersonDiscoveryMedia(post.mediaUrl) ||
-    isAiPersonDiscoveryMedia(post.thumbnailUrl);
+
+  if (hideMedia || mediaFailed) return null;
 
   return (
     <article className="border-b border-neutral-200 bg-white">
@@ -143,27 +147,11 @@ export function PostCard({
             onDeleted={onDeleted}
             className="text-xs font-semibold text-red-600"
           />
-        ) : me?.id !== post.authorId ? (
-          <button
-            type="button"
-            onClick={onFollow}
-            className={`text-xs font-semibold ${
-              post.followingAuthor ? "text-neutral-400" : "text-[#C6FF00]"
-            }`}
-          >
-            {post.followingAuthor ? "フォロー中" : "フォロー"}
-          </button>
         ) : null}
       </header>
 
       <div className="relative bg-neutral-200">
-        {hidePersonMedia ? (
-          <ProductImagePlaceholder label="商品そのものの画像がありません" />
-        ) : mediaFailed ? (
-          <div className="flex aspect-[4/5] w-full items-center justify-center text-sm text-neutral-500">
-            画像を表示できません
-          </div>
-        ) : post.mediaType === "video" ? (
+        {post.mediaType === "video" ? (
           <>
             <video
               ref={videoRef}
@@ -201,10 +189,6 @@ export function PostCard({
         )}
       </div>
 
-      <div className="px-3 pt-3">
-        <ProductLinkButton post={post} className="w-full" />
-      </div>
-
       <PostActions
         post={post}
         onLike={onLike}
@@ -213,6 +197,10 @@ export function PostCard({
         onSave={onSave}
         onShare={() => setShareOpen(true)}
       />
+
+      <div className="px-3 pt-1">
+        <ProductLinkButton post={post} className="w-full" />
+      </div>
 
       <div className="space-y-2 px-3 pb-3">
         {worn ? (
@@ -260,5 +248,3 @@ export function PostCard({
     </article>
   );
 }
-
-

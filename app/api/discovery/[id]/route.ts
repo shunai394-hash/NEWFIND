@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDiscoveryAdminState } from "@/lib/discovery/server-auth";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import { getDiscoveryProduct, saveDiscoveryProduct, setDiscoveryStatus } from "@/lib/discovery/store";
 import type { DiscoveryStatus } from "@/lib/discovery/types";
 
@@ -13,6 +14,9 @@ export async function GET(
   const { admin } = await getDiscoveryAdminState(request);
   const product = await getDiscoveryProduct(id, admin);
   if (!product) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!admin && !isUsableProductImage(product.productImageUrl)) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
   return NextResponse.json({ product, admin });
 }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDiscoveryAdminState } from "@/lib/discovery/server-auth";
+import { listPublicDiscoveryProducts } from "@/lib/discovery/public";
 import { listDiscoveryProducts, saveDiscoveryProduct } from "@/lib/discovery/store";
 import type { DiscoveryStatus } from "@/lib/discovery/types";
 
@@ -10,12 +11,12 @@ export async function GET(request: Request) {
   const status = url.searchParams.get("status");
   try {
     const { admin } = await getDiscoveryAdminState(request);
-    const products = await listDiscoveryProducts({
-      admin,
-      status: admin
-        ? ((status as DiscoveryStatus | "all") || "all")
-        : "approved",
-    });
+    const products = admin
+      ? await listDiscoveryProducts({
+          admin,
+          status: (status as DiscoveryStatus | "all") || "all",
+        })
+      : await listPublicDiscoveryProducts();
     return NextResponse.json({ products, admin });
   } catch (error) {
     return NextResponse.json(

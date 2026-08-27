@@ -139,11 +139,6 @@ async function resolveImage(officialUrl: string, sku: string, brand: string) {
     const og = extractOgImage(page.html, officialUrl);
     if (og && (await imageLooksReal(og))) return og;
   }
-  if (brand !== "MUJI") {
-    for (const candidate of mujiImageCandidates(sku)) {
-      if (await imageLooksReal(candidate)) return candidate;
-    }
-  }
   return null;
 }
 

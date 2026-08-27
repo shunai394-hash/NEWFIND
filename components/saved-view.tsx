@@ -6,6 +6,8 @@ import { PostCard } from "@/components/post-card";
 import { ProductCard } from "@/components/product-card";
 import { useApp } from "@/lib/app-context";
 import { fetchSavedProducts, fetchUserAlerts, patchUserAlert } from "@/lib/discovery/client-api";
+import { isUsableProductImage } from "@/lib/discovery/media";
+import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import { ALERT_TYPE_LABELS, type AlertType } from "@/lib/discovery/types";
 import { getStore } from "@/lib/store";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
@@ -45,8 +47,8 @@ export function SavedView() {
     ])
       .then(([savedPosts, savedProducts, userAlerts]) => {
         if (cancelled) return;
-        setPosts(savedPosts);
-        setProducts(savedProducts.products);
+        setPosts(savedPosts.filter(hasDisplayablePostMedia));
+        setProducts(savedProducts.products.filter((item) => isUsableProductImage(item.productImageUrl)));
         setAlerts(userAlerts);
       })
       .finally(() => {
@@ -93,7 +95,6 @@ export function SavedView() {
               <ProductCard
                 key={product.id}
                 product={product}
-                showPlaceholder
                 onUnsave={(id) => setProducts((prev) => prev.filter((item) => item.id !== id))}
               />
             ))}
@@ -141,6 +142,7 @@ export function SavedView() {
             key={post.id}
             post={post}
             onDeleted={(id) => setPosts((prev) => prev.filter((item) => item.id !== id))}
+            onUnavailable={(id) => setPosts((prev) => prev.filter((item) => item.id !== id))}
           />
         ))
       )}

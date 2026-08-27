@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { isAiPersonDiscoveryMedia } from "@/lib/products/discovery-filter";
+import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import type { Post } from "@/lib/types";
 
 export function MediaThumb({
@@ -11,32 +11,17 @@ export function MediaThumb({
 }) {
   const [failed, setFailed] = useState(false);
   const src = (post.thumbnailUrl || post.mediaUrl || "").trim();
-  const blocked = isAiPersonDiscoveryMedia(post.mediaUrl) || isAiPersonDiscoveryMedia(post.thumbnailUrl);
 
   useEffect(() => {
     setFailed(false);
   }, [src]);
 
-  if (blocked) {
-    return (
-      <span className="flex h-full w-full items-center justify-center bg-neutral-200 text-[11px] font-medium text-neutral-500">
-        NO IMAGE
-      </span>
-    );
-  }
+  if (!hasDisplayablePostMedia(post) || !src || failed) return null;
 
   if (post.mediaType === "video" && !post.thumbnailUrl) {
     return (
       <span className="flex h-full w-full items-center justify-center bg-neutral-800 text-xs font-bold text-white">
         ▶
-      </span>
-    );
-  }
-
-  if (!src || failed) {
-    return (
-      <span className="flex h-full w-full items-center justify-center bg-neutral-200 text-[11px] font-medium text-neutral-500">
-        {post.mediaType === "video" ? "VIDEO" : "NO IMAGE"}
       </span>
     );
   }

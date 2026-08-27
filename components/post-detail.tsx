@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PostCard } from "@/components/post-card";
 import { useApp } from "@/lib/app-context";
 import { getStore } from "@/lib/store";
+import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import type { PostView } from "@/lib/types";
 
 export function PostDetail({ id }: { id: string }) {
@@ -23,7 +24,7 @@ export function PostDetail({ id }: { id: string }) {
   if (loading) {
     return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;
   }
-  if (!post) {
+  if (!post || !hasDisplayablePostMedia(post)) {
     return <p className="px-4 py-16 text-center text-sm text-neutral-500">投稿が見つかりません</p>;
   }
   return (

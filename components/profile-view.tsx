@@ -10,6 +10,7 @@ import { useApp } from "@/lib/app-context";
 import { displayUrl, socialLinkEntries } from "@/lib/social-links";
 import { getStore } from "@/lib/store";
 import { normalizeUsername, usernamesMatch } from "@/lib/username";
+import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import type { FollowCounts, PostView, Profile } from "@/lib/types";
 
 type ViewState = "loading" | "success" | "not_found" | "error";
@@ -74,7 +75,7 @@ export function ProfileView({ username }: { username: string }) {
             store.getFollowCounts(found.id),
           ]);
           if (cancelled) return;
-          setPosts(userPosts);
+          setPosts(userPosts.filter(hasDisplayablePostMedia));
           setCounts(followCounts);
           if (session && found.id !== session.userId) {
             setFollowing(await store.isFollowing(session.userId, found.id));
@@ -254,7 +255,7 @@ export function ProfileView({ username }: { username: string }) {
       </div>
 
       <div className="grid grid-cols-3 gap-px bg-neutral-200">
-        {posts.map((post) => (
+        {posts.filter(hasDisplayablePostMedia).map((post) => (
           <div key={post.id} className="relative aspect-square bg-neutral-100">
             <Link href={`/p/${post.id}`} className="block h-full w-full">
               <MediaThumb post={post} />

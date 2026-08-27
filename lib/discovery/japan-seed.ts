@@ -137,6 +137,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4548076811879"),
     sku: "4548076811879",
     price: null,
+    imageUrl: mujiImg("4548076811879"),
   },
   {
     id: "jp-muji-4548076811862",
@@ -148,6 +149,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4548076811862"),
     sku: "4548076811862",
     price: null,
+    imageUrl: mujiImg("4548076811862"),
   },
   {
     id: "jp-muji-4550584404559",
@@ -159,6 +161,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550584404559"),
     sku: "4550584404559",
     price: null,
+    imageUrl: mujiImg("4550584404559"),
   },
   {
     id: "jp-muji-4550584404467",
@@ -170,6 +173,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550584404467"),
     sku: "4550584404467",
     price: null,
+    imageUrl: mujiImg("4550584404467"),
   },
   {
     id: "jp-muji-4550583361488",
@@ -181,6 +185,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550583361488"),
     sku: "4550583361488",
     price: null,
+    imageUrl: mujiImg("4550583361488"),
   },
   {
     id: "jp-muji-4550584902260",
@@ -192,6 +197,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550584902260"),
     sku: "4550584902260",
     price: null,
+    imageUrl: mujiImg("4550584902260"),
   },
   {
     id: "jp-muji-4550583931650",
@@ -203,6 +209,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550583931650"),
     sku: "4550583931650",
     price: null,
+    imageUrl: mujiImg("4550583931650"),
   },
   {
     id: "jp-muji-4550584316791",
@@ -214,6 +221,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550584316791"),
     sku: "4550584316791",
     price: null,
+    imageUrl: mujiImg("4550584316791"),
   },
   {
     id: "jp-muji-4550182932287",
@@ -225,6 +233,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550182932287"),
     sku: "4550182932287",
     price: null,
+    imageUrl: mujiImg("4550182932287"),
   },
   {
     id: "jp-muji-4550584437274",
@@ -248,6 +257,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550344593752"),
     sku: "4550344593752",
     price: null,
+    imageUrl: mujiImg("4550344593752"),
   },
   {
     id: "jp-muji-4550344593769",
@@ -259,6 +269,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550344593769"),
     sku: "4550344593769",
     price: null,
+    imageUrl: mujiImg("4550344593769"),
   },
   {
     id: "jp-muji-4550723112659",
@@ -270,6 +281,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550723112659"),
     sku: "4550723112659",
     price: null,
+    imageUrl: mujiImg("4550723112659"),
   },
   {
     id: "jp-muji-4550584334610",
@@ -281,6 +293,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550584334610"),
     sku: "4550584334610",
     price: null,
+    imageUrl: mujiImg("4550584334610"),
   },
   {
     id: "jp-muji-4550512076261",
@@ -292,6 +305,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550512076261"),
     sku: "4550512076261",
     price: null,
+    imageUrl: mujiImg("4550512076261"),
   },
   {
     id: "jp-muji-4548076742852",
@@ -303,6 +317,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4548076742852"),
     sku: "4548076742852",
     price: 3990,
+    imageUrl: mujiImg("4548076742852"),
   },
   {
     id: "jp-shiseido-ultimune-serum",
@@ -390,6 +405,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550182925944"),
     sku: "4550182925944",
     price: null,
+    imageUrl: mujiImg("4550182925944"),
   },
   {
     id: "jp-muji-4550344427392",
@@ -401,6 +417,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550344427392"),
     sku: "4550344427392",
     price: null,
+    imageUrl: mujiImg("4550344427392"),
   },
   {
     id: "jp-muji-4945247405217",
@@ -412,6 +429,7 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4945247405217"),
     sku: "4945247405217",
     price: null,
+    imageUrl: mujiImg("4945247405217"),
   },
   {
     id: "jp-muji-4550002469221",
@@ -423,12 +441,13 @@ export const JAPAN_SEED_SPECS: JapanSeedSpec[] = [
     officialUrl: mujiUrl("4550002469221"),
     sku: "4550002469221",
     price: null,
+    imageUrl: mujiImg("4550002469221"),
   },
 ];
 
 export function japanSeedProduct(
   spec: JapanSeedSpec,
-  imageUrl: string | null = spec.imageUrl ?? (spec.brand === "MUJI" ? mujiImg(spec.sku) : null),
+  imageUrl: string | null = spec.imageUrl ?? null,
 ): DiscoveryProductInput {
   const image = isUsableProductImage(imageUrl) ? imageUrl : null;
   const sellerName = spec.brand === "MUJI" ? "無印良品 公式ネットストア" : "SHISEIDO 公式";

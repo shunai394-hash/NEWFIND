@@ -46,11 +46,22 @@ export function isOverseasDemoUsername(username: string | null | undefined): boo
   return username.startsWith("nfdemo_") && !username.startsWith("nfdemo_jp_");
 }
 
+export function hasDisplayablePostMedia(
+  post: Pick<Post, "mediaUrl" | "thumbnailUrl" | "mediaType">,
+): boolean {
+  const media = (post.mediaUrl || "").trim();
+  const thumb = (post.thumbnailUrl || "").trim();
+  if (!media) return false;
+  if (isAiPersonDiscoveryMedia(media) || isAiPersonDiscoveryMedia(thumb)) return false;
+  return true;
+}
+
 export function isProductDiscoverySafePost(
-  post: Pick<Post, "mediaUrl" | "thumbnailUrl" | "visualKind" | "productUrl" | "sourceUrl"> & {
+  post: Pick<Post, "mediaUrl" | "thumbnailUrl" | "visualKind" | "productUrl" | "sourceUrl" | "mediaType"> & {
     author?: { username?: string } | null;
   },
 ): boolean {
+  if (!hasDisplayablePostMedia(post)) return false;
   if (isDummyUrl(post.productUrl) || isDummyUrl(post.sourceUrl)) return false;
   if (isOverseasDemoUsername(post.author?.username)) return false;
   return true;

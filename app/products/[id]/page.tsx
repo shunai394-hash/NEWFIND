@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/product-detail";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import { getDiscoveryProduct, listDiscoveryProducts } from "@/lib/discovery/store";
 import { siteUrl } from "@/lib/config";
 
@@ -12,9 +13,10 @@ export default async function ProductPage({
 }) {
   const { id } = await params;
   const product = await getDiscoveryProduct(id, false);
-  if (!product) notFound();
+  if (!product || !isUsableProductImage(product.productImageUrl)) notFound();
   const related = (await listDiscoveryProducts({ admin: false, status: "approved" }))
     .filter((item) => item.id !== product.id)
+    .filter((item) => isUsableProductImage(item.productImageUrl))
     .filter(
       (item) =>
         item.category === product.category ||

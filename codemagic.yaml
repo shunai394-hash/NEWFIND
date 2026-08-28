@@ -1,0 +1,38 @@
+﻿workflows:
+  ios-release:
+    name: NEWFIND iOS Release
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      node: 24.14.0
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: app.newfind.social
+
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+
+      - name: Set production Capacitor URL
+        script: |
+          export CAPACITOR_SERVER_URL="https://newfind-self.vercel.app"
+          export CAPACITOR_RELEASE="1"
+          npx cap sync ios
+
+      - name: Apply iOS signing
+        script: xcode-project use-profiles
+
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --project ios/App/App.xcodeproj \
+            --scheme App
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+
+    publishing:
+      app_store_connect:
+        auth: integration

@@ -36,6 +36,3 @@
     artifacts:
       - build/ios/ipa/*.ipa
 
-    publishing:
-      app_store_connect:
-        auth: integration

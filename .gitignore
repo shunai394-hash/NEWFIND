@@ -53,3 +53,33 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# NEWFIND local work files
+/tmp/
+/tmp-img/
+/www/
+*.bak
+
+# NEWFIND local screenshots
+/android/*.png
+/*.png
+
+# NEWFIND local verification scripts
+
+scripts/audit-foryou-sample.ts
+scripts/check-jp-db-images.ts
+scripts/check-overseas-db-media.ts
+scripts/check-overseas-media.ts
+scripts/ffprobe-jp-videos.ts
+scripts/probe-feed-latency.mjs
+scripts/probe-jp-media-live.mjs
+scripts/probe-jp-videos.ts
+scripts/profile-login-smoke.mjs
+scripts/profile-smoke.mjs
+scripts/test-feed-scroll.mjs
+scripts/test-feed-scroll-max.mjs
+scripts/test-feed-scroll-prod.mjs
+scripts/verify-jp-feed.ts
+scripts/verify-jp-hosted-images.ts
+scripts/verify-nav-fix.mjs
+scripts/auth-smoke.mjs

@@ -1,9 +1,8 @@
-﻿"use client";
+"use client";
 
 import { usePathname, useRouter } from "next/navigation";
 import { useRef } from "react";
 import {
-  BookmarkIcon,
   HomeIcon,
   PlusIcon,
   SearchIcon,
@@ -57,13 +56,6 @@ export function BottomNav() {
       icon: PlusIcon,
       label: "投稿",
       active: pathname.startsWith("/create"),
-    },
-    {
-      key: "saved",
-      href: "/saved",
-      icon: BookmarkIcon,
-      label: "保存",
-      active: pathname.startsWith("/saved"),
     },
     {
       key: "profile",
@@ -133,7 +125,7 @@ export function BottomNav() {
       style={{ touchAction: "manipulation" }}
     >
       <div className="mx-auto w-full max-w-[430px]">
-        <ul className="grid grid-cols-5">
+        <ul className="grid grid-cols-4">
           {items.map((item) => {
             const Icon = item.icon;
             return (

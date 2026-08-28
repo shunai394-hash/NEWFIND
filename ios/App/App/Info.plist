@@ -67,11 +67,13 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>日本で見つけた写真を投稿するためにフォトライブラリへアクセスします。</string>
+	<string>投稿する写真や動画を選ぶためにフォトライブラリへアクセスします。</string>
 	<key>NSCameraUsageDescription</key>
-	<string>日本で見つけたものを撮影して投稿するためにカメラを使います。</string>
+	<string>写真や動画を撮影して投稿するためにカメラを使います。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>動画を撮影して投稿するためにマイクを使います。</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

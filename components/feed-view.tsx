@@ -7,6 +7,7 @@ import { useApp } from "@/lib/app-context";
 import { FEED_CHANNELS, type FeedChannelId } from "@/lib/japan-context";
 import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
+import { isLocallyBlocked } from "@/lib/moderation/client";
 import type { PostView } from "@/lib/types";
 
 const PAGE_SIZE = 24;
@@ -60,6 +61,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
           for (const post of page.posts) {
             if (seen.has(post.id)) continue;
             if (!hasDisplayablePostMedia(post)) continue;
+            if (session && isLocallyBlocked(post.authorId)) continue;
             seen.add(post.id);
             collected.push(post);
           }

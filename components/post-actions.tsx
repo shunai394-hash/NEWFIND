@@ -26,8 +26,8 @@ export function PostActions({
   onShare: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-3 py-2">
-      <div className="flex min-w-0 items-center gap-4">
+    <div className="flex items-center justify-between px-3 py-2">
+      <div className="flex items-center gap-4">
         <ActionButton
           label="いいね"
           count={post.likeCount}
@@ -48,21 +48,18 @@ export function PostActions({
         <ActionButton label="コメント" count={post.commentCount} onClick={onComment}>
           <CommentIcon className="h-6 w-6" />
         </ActionButton>
-        <ActionButton label="Share" count={post.shareCount} onClick={onShare}>
+        <ActionButton label="シェア" count={post.shareCount} onClick={onShare}>
           <ShareIcon className="h-6 w-6" />
         </ActionButton>
       </div>
       <button
         type="button"
         onClick={onSave}
-        aria-label="保存"
+        aria-label={post.saved ? "保存解除" : "保存"}
         aria-pressed={post.saved}
-        className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${
-          post.saved ? "text-neutral-900" : "text-neutral-800"
-        }`}
+        className={`flex items-center ${post.saved ? "text-neutral-900" : "text-neutral-800"}`}
       >
         <BookmarkIcon className="h-6 w-6" filled={post.saved} />
-        <span>保存</span>
       </button>
     </div>
   );

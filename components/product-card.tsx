@@ -10,10 +10,8 @@ import type { DiscoveryProduct } from "@/lib/discovery/types";
 
 export function ProductCard({
   product,
-  onUnsave,
 }: {
   product: DiscoveryProduct;
-  onUnsave?: (productId: string) => void;
 }) {
   const [failed, setFailed] = useState(false);
   const imageUrl = isUsableProductImage(product.productImageUrl)
@@ -47,6 +45,9 @@ export function ProductCard({
               {signals[0].label}
             </span>
           ) : null}
+          <div className="absolute right-2 top-2" onClick={(event) => event.preventDefault()}>
+            <ProductSaveButton productId={product.id} compact />
+          </div>
         </div>
         <div className="px-2.5 py-2">
           <p className="text-[11px] font-semibold tracking-wide text-neutral-500">{product.brand}</p>
@@ -58,15 +59,6 @@ export function ProductCard({
           ) : null}
         </div>
       </Link>
-      <div className="flex items-center justify-end px-2.5 pb-2">
-        <ProductSaveButton
-          productId={product.id}
-          compact
-          onChange={(saved) => {
-            if (!saved) onUnsave?.(product.id);
-          }}
-        />
-      </div>
       {shopUrl ? (
         <div className="px-2.5 pb-3">
           <a

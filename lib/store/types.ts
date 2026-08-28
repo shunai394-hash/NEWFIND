@@ -7,6 +7,7 @@ import type {
   Profile,
   SearchResult,
   Session,
+  UpdatePostInput,
   UpdateProfileInput,
 } from "@/lib/types";
 import type { CategoryId } from "@/lib/types";
@@ -39,6 +40,7 @@ export type Store = {
   ): Promise<FeedPage>;
   getPost(id: string, viewerId: string | null): Promise<PostView | null>;
   createPost(authorId: string, input: CreatePostInput): Promise<PostView>;
+  updatePost(postId: string, userId: string, patch: UpdatePostInput): Promise<PostView>;
   uploadMedia(file: File): Promise<{ url: string; type: "photo" | "video" }>;
   toggleLike(postId: string, userId: string): Promise<boolean>;
   toggleWant(postId: string, userId: string): Promise<boolean>;
@@ -49,6 +51,7 @@ export type Store = {
   toggleFollow(followeeId: string, followerId: string): Promise<boolean>;
   isFollowing(followerId: string, followeeId: string): Promise<boolean>;
   getSaved(userId: string): Promise<PostView[]>;
+  getLiked(userId: string): Promise<PostView[]>;
   getUserPosts(userId: string, viewerId: string | null): Promise<PostView[]>;
   deletePost(postId: string, userId: string): Promise<{ warning?: string | null }>;
   deleteAccount(): Promise<{ warning?: string | null }>;

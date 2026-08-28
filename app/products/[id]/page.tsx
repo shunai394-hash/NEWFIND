@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/product-detail";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { getDiscoveryProduct, listDiscoveryProducts } from "@/lib/discovery/store";
-import { siteUrl } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +24,5 @@ export default async function ProductPage({
         ),
     )
     .slice(0, 6);
-  const shareUrl = `${siteUrl()}/products/${product.id}`;
-  return <ProductDetail product={product} related={related} shareUrl={shareUrl} />;
+  return <ProductDetail product={product} related={related} />;
 }

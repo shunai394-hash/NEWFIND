@@ -18,11 +18,9 @@ import type { DiscoveryOrigin, DiscoveryProduct } from "@/lib/discovery/types";
 export function ProductDetail({
   product,
   related,
-  shareUrl,
 }: {
   product: DiscoveryProduct;
   related: DiscoveryProduct[];
-  shareUrl: string;
 }) {
   const imageOk = isUsableProductImage(product.productImageUrl);
   const shopUrl = discoveryShopUrl(product);
@@ -40,22 +38,22 @@ export function ProductDetail({
         />
       ) : null}
       <div className="space-y-5 px-4 py-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
-              {product.brand}
-            </p>
-            <h1 className="mt-1 text-xl font-semibold leading-tight">{product.productName}</h1>
-            <p className="mt-2 text-sm text-neutral-500">
-              {product.subcategory}
-              {product.country ? ` · ${product.country}` : ""}
-            </p>
+        <div>
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
+            {product.brand}
+          </p>
+          <h1 className="mt-1 text-xl font-semibold leading-tight">{product.productName}</h1>
+          <p className="mt-2 text-sm text-neutral-500">
+            {product.subcategory}
+            {product.country ? ` · ${product.country}` : ""}
+          </p>
+          <div className="mt-4 flex gap-2">
+            <ProductSaveButton productId={product.id} />
+            <ProductShareButton
+              url={`/products/${product.id}`}
+              title={`${product.brand} ${product.productName}`}
+            />
           </div>
-          <ProductShareButton url={shareUrl} title={`${product.brand} ${product.productName}`} />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <ProductSaveButton productId={product.id} />
         </div>
 
         {product.price != null ? (

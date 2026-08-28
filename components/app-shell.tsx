@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AppMenu } from "@/components/app-menu";
 import { BottomNav } from "@/components/bottom-nav";
 import { BrandMark } from "@/components/brand-mark";
 
@@ -31,11 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <BrandMark className="h-7 w-7 shrink-0" />
                 NEWFIND
               </Link>
-              <div className="flex items-center gap-2">
-                <Link href="/settings" className="text-xs font-medium text-neutral-300">
-                  設定
-                </Link>
-              </div>
+              <AppMenu />
             </div>
           </header>
         )}
@@ -50,13 +47,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           }
         >
           {children}
-          {hideChrome ? null : (
-            <footer className="border-t border-neutral-200 px-4 py-4 text-center">
-              <Link href="/privacy" className="text-xs text-neutral-500">
-                プライバシーポリシー
-              </Link>
-            </footer>
-          )}
         </main>
         {showNav ? <BottomNav /> : null}
       </div>

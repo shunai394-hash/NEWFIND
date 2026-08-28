@@ -1,0 +1,188 @@
+{
+  "good": [
+    {
+      "theme": "flower-audio",
+      "url": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+      "codecs": "video:h264,audio:aac"
+    },
+    {
+      "theme": "samplelib",
+      "url": "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+      "codecs": "video:h264,audio:aac"
+    },
+    {
+      "theme": "w3-bbb",
+      "url": "https://www.w3schools.com/html/mov_bbb.mp4",
+      "codecs": "video:h264,audio:aac,audio:aac,data:bin_data"
+    },
+    {
+      "theme": "pexels-coffee",
+      "url": "https://videos.pexels.com/video-files/855281/855281-hd_1920_1080_25fps.mp4",
+      "codecs": "video:h264,audio:aac"
+    },
+    {
+      "theme": "pexels-travel",
+      "url": "https://videos.pexels.com/video-files/3571264/3571264-uhd_2560_1440_30fps.mp4",
+      "codecs": "video:h264,audio:aac"
+    }
+  ],
+  "silent": [
+    {
+      "theme": "makeup",
+      "url": "https://assets.mixkit.co/videos/43575/43575-720.mp4"
+    },
+    {
+      "theme": "fashion",
+      "url": "https://assets.mixkit.co/videos/34563/34563-720.mp4"
+    },
+    {
+      "theme": "fashion",
+      "url": "https://assets.mixkit.co/videos/34487/34487-720.mp4"
+    },
+    {
+      "theme": "fashion",
+      "url": "https://assets.mixkit.co/videos/39876/39876-720.mp4"
+    },
+    {
+      "theme": "shopping",
+      "url": "https://assets.mixkit.co/videos/4013/4013-720.mp4"
+    },
+    {
+      "theme": "nails",
+      "url": "https://assets.mixkit.co/videos/1171/1171-720.mp4"
+    },
+    {
+      "theme": "coffee",
+      "url": "https://assets.mixkit.co/videos/1199/1199-720.mp4"
+    },
+    {
+      "theme": "coffee",
+      "url": "https://assets.mixkit.co/videos/432/432-720.mp4"
+    },
+    {
+      "theme": "travel",
+      "url": "https://assets.mixkit.co/videos/3247/3247-720.mp4"
+    },
+    {
+      "theme": "city",
+      "url": "https://assets.mixkit.co/videos/41566/41566-720.mp4"
+    },
+    {
+      "theme": "bag",
+      "url": "https://assets.mixkit.co/videos/4303/4303-720.mp4"
+    },
+    {
+      "theme": "skincare",
+      "url": "https://assets.mixkit.co/videos/32458/32458-720.mp4"
+    },
+    {
+      "theme": "lipstick",
+      "url": "https://assets.mixkit.co/videos/34572/34572-720.mp4"
+    },
+    {
+      "theme": "mirror",
+      "url": "https://assets.mixkit.co/videos/34566/34566-720.mp4"
+    },
+    {
+      "theme": "outfit",
+      "url": "https://assets.mixkit.co/videos/42214/42214-720.mp4"
+    },
+    {
+      "theme": "street",
+      "url": "https://assets.mixkit.co/videos/4613/4613-720.mp4"
+    },
+    {
+      "theme": "tokyo",
+      "url": "https://assets.mixkit.co/videos/25155/25155-720.mp4"
+    },
+    {
+      "theme": "japan",
+      "url": "https://assets.mixkit.co/videos/25154/25154-720.mp4"
+    },
+    {
+      "theme": "room",
+      "url": "https://assets.mixkit.co/videos/5084/5084-720.mp4"
+    },
+    {
+      "theme": "pexels-fashion",
+      "url": "https://videos.pexels.com/video-files/3209298/3209298-uhd_2560_1440_25fps.mp4"
+    }
+  ],
+  "bad": [
+    {
+      "theme": "dessert",
+      "url": "https://assets.mixkit.co/videos/216/216-720.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "bbb-audio",
+      "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-makeup",
+      "url": "https://videos.pexels.com/video-files/7989424/7989424-hd_720_1280_25fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-city",
+      "url": "https://videos.pexels.com/video-files/3045163/3045163-uhd_2560_1440_25fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-nails",
+      "url": "https://videos.pexels.com/video-files/4057415/4057415-hd_1920_1080_25fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-lipstick",
+      "url": "https://videos.pexels.com/video-files/6754572/6754572-hd_1080_1920_25fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-outfit",
+      "url": "https://videos.pexels.com/video-files/4937398/4937398-hd_1080_1920_25fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-shopping",
+      "url": "https://videos.pexels.com/video-files/5585939/5585939-hd_1080_1920_25fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-dessert",
+      "url": "https://videos.pexels.com/video-files/4259254/4259254-uhd_2560_1440_25fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-mirror",
+      "url": "https://videos.pexels.com/video-files/4057322/4057322-hd_1080_1920_30fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-bag",
+      "url": "https://videos.pexels.com/video-files/3773486/3773486-hd_1920_1080_25fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-skincare",
+      "url": "https://videos.pexels.com/video-files/6461505/6461505-hd_1080_1920_25fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-japan",
+      "url": "https://videos.pexels.com/video-files/4056453/4056453-uhd_2560_1440_25fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-street",
+      "url": "https://videos.pexels.com/video-files/2491284/2491284-uhd_2560_1440_30fps.mp4",
+      "reason": "http 403"
+    },
+    {
+      "theme": "pexels-room",
+      "url": "https://videos.pexels.com/video-files/4057295/4057295-hd_1920_1080_30fps.mp4",
+      "reason": "http 403"
+    }
+  ]
+}

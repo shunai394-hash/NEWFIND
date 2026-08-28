@@ -139,6 +139,14 @@ export type CreatePostInput = {
   discoveryProductId?: string | null;
 };
 
+export type UpdatePostInput = {
+  caption?: string;
+  category?: CategoryId;
+  productUrl?: string | null;
+  productLabel?: string | null;
+  visualKind?: VisualKind | null;
+};
+
 export type UpdateProfileInput = {
   username?: string;
   displayName?: string;

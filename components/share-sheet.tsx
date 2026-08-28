@@ -101,15 +101,33 @@ export function ShareSheet({
             onClick={() => void nativeShare()}
             className="w-full rounded-xl bg-[#C6FF00] px-4 py-3 text-left text-sm font-semibold text-black"
           >
-            シェア
+            その他の共有先（LINE / Instagram / X など）
           </button>
         ) : null}
+        <a
+          href={`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => void notifyShared(onShared)}
+          className="block w-full rounded-xl bg-neutral-100 px-4 py-3 text-left text-sm font-medium"
+        >
+          LINE
+        </a>
+        <a
+          href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => void notifyShared(onShared)}
+          className="block w-full rounded-xl bg-neutral-100 px-4 py-3 text-left text-sm font-medium"
+        >
+          X
+        </a>
         <button
           type="button"
           onClick={() => void copy()}
           className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-left text-sm font-medium"
         >
-          {copied ? "URLをコピーしました" : "URLをコピー"}
+          {copied ? "リンクをコピーしました" : "リンクをコピー"}
         </button>
         {manual ? (
           <input

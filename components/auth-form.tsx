@@ -181,8 +181,8 @@ export function AuthForm() {
         </button>
       </p>
       <p className="mt-4 text-center text-xs text-neutral-500">
-        <Link href="/privacy" className="underline">
-          プライバシーポリシー
+        <Link href="/legal" className="underline">
+          規則とプライバシー
         </Link>
       </p>
     </div>

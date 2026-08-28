@@ -6,7 +6,7 @@ import { useApp } from "@/lib/app-context";
 import { toggleProductSaveApi, fetchProductSaveState } from "@/lib/discovery/client-api";
 
 function loginNext() {
-  if (typeof window === "undefined") return "/saved";
+  if (typeof window === "undefined") return "/";
   return `${window.location.pathname}${window.location.search}`;
 }
 

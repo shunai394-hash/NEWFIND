@@ -354,9 +354,7 @@ export function SettingsForm() {
       </div>
 
       <p className="pt-2 text-center text-xs text-neutral-500">
-        <Link href="/privacy" className="underline">
-          プライバシーポリシー
-        </Link>
+        利用規約とプライバシーポリシーは、画面右上のメニュー「規則とプライバシー」から確認できます。
       </p>
 
       {deleteOpen ? (
@@ -372,7 +370,7 @@ export function SettingsForm() {
           >
             <p className="text-sm font-semibold">アカウントを削除しますか？</p>
             <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-              削除すると、プロフィール、投稿、コメント、いいね、保存、フォローなどのデータは元に戻せません。他の人のアカウントは削除されません。
+              削除すると、プロフィール、投稿、コメント、いいね、フォローなどのデータは元に戻せません。他の人のアカウントは削除されません。
             </p>
             {deleteError ? <p className="mt-3 text-sm text-red-600">{deleteError}</p> : null}
             <div className="mt-4 grid grid-cols-2 gap-2">

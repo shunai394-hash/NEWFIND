@@ -30,6 +30,7 @@ import type {
   PostView,
   Profile,
   Session,
+  UpdatePostInput,
   UpdateProfileInput,
 } from "@/lib/types";
 
@@ -402,6 +403,20 @@ export const localStore: Store = {
     });
   },
 
+  async updatePost(postId, userId, patch: UpdatePostInput) {
+    return mutate((state) => {
+      const post = state.posts.find((item) => item.id === postId);
+      if (!post) throw new Error("投稿が見つかりません");
+      if (post.authorId !== userId) throw new Error("forbidden");
+      if (patch.caption !== undefined) post.caption = patch.caption;
+      if (patch.category !== undefined) post.category = patch.category;
+      if (patch.productUrl !== undefined) post.productUrl = patch.productUrl;
+      if (patch.productLabel !== undefined) post.productLabel = patch.productLabel;
+      if (patch.visualKind !== undefined) post.visualKind = patch.visualKind;
+      return toView(state, post, userId);
+    });
+  },
+
   async deletePost(postId, userId) {
     return mutate((state) => {
       const post = state.posts.find((item) => item.id === postId);
@@ -490,6 +505,16 @@ export const localStore: Store = {
   async getSaved(userId) {
     const state = load();
     return state.saves
+      .filter((s) => s.userId === userId)
+      .map((s) => state.posts.find((p) => p.id === s.postId))
+      .filter((p): p is Post => Boolean(p))
+      .map((p) => toView(state, p, userId))
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  },
+
+  async getLiked(userId) {
+    const state = load();
+    return state.likes
       .filter((s) => s.userId === userId)
       .map((s) => state.posts.find((p) => p.id === s.postId))
       .filter((p): p is Post => Boolean(p))

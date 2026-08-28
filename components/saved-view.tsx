@@ -95,7 +95,6 @@ export function SavedView() {
               <ProductCard
                 key={product.id}
                 product={product}
-                onUnsave={(id) => setProducts((prev) => prev.filter((item) => item.id !== id))}
               />
             ))}
           </div>

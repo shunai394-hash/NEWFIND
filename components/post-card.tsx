@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { CommentSheet } from "@/components/comment-sheet";
-import { MuteIcon, VolumeIcon } from "@/components/icons";
-import { DeletePostButton } from "@/components/delete-post-button";
+import { MoreIcon, MuteIcon, VolumeIcon } from "@/components/icons";
 import { PostActions } from "@/components/post-actions";
 import { ProductLinkButton } from "@/components/product-link-button";
+import { ReportSheet } from "@/components/report-sheet";
 import { ShareSheet } from "@/components/share-sheet";
 import { useApp } from "@/lib/app-context";
 import { categoryLabel } from "@/lib/categories";
@@ -17,6 +17,7 @@ import {
   inferVisualKind,
   visualKindLabel,
 } from "@/lib/japan-context";
+import { isLocallyBlocked } from "@/lib/moderation/client";
 import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
 import type { PostView } from "@/lib/types";
@@ -36,16 +37,20 @@ export function PostCard({
   const [post, setPost] = useState(initial);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [muted, setMuted] = useState(true);
   const [mediaFailed, setMediaFailed] = useState(false);
+  const [hidden, setHidden] = useState(isLocallyBlocked(initial.authorId));
   const videoRef = useRef<HTMLVideoElement>(null);
   const hideMedia = !hasDisplayablePostMedia(post);
+  const mine = me?.id === post.authorId;
 
   const notified = useRef(false);
 
   useEffect(() => {
     setPost(initial);
     setMediaFailed(false);
+    setHidden(isLocallyBlocked(initial.authorId));
     notified.current = false;
   }, [initial]);
 
@@ -108,22 +113,18 @@ export function PostCard({
   }
 
   async function onShared() {
-    try {
-      await getStore().sharePost(post.id, session?.userId ?? null);
-      await refresh();
-    } catch {
-      // Native/clipboard share already succeeded.
-    }
+    await getStore().sharePost(post.id, session?.userId ?? null);
+    await refresh();
   }
 
+  const worn = celebrityLine(post);
+  const visual = visualKindLabel(inferVisualKind(post));
   const shareUrl =
     typeof window === "undefined"
       ? `/p/${post.id}`
       : `${window.location.origin}/p/${post.id}`;
-  const worn = celebrityLine(post);
-  const visual = visualKindLabel(inferVisualKind(post));
 
-  if (hideMedia || mediaFailed) return null;
+  if (hidden || hideMedia || mediaFailed) return null;
 
   return (
     <article className="border-b border-neutral-200 bg-white">
@@ -140,14 +141,19 @@ export function PostCard({
             </p>
           </div>
         </Link>
-        {me?.id === post.authorId ? (
-          <DeletePostButton
-            postId={post.id}
-            userId={me.id}
-            onDeleted={onDeleted}
-            className="text-xs font-semibold text-red-600"
-          />
-        ) : null}
+        {mine ? null : (
+          <button
+            type="button"
+            aria-label="通報・ブロック"
+            onClick={() => {
+              if (needLogin()) return;
+              setReportOpen(true);
+            }}
+            className="p-2 text-neutral-500"
+          >
+            <MoreIcon className="h-5 w-5" />
+          </button>
+        )}
       </header>
 
       <div className="relative bg-neutral-200">
@@ -194,7 +200,7 @@ export function PostCard({
         onLike={onLike}
         onWant={onWant}
         onComment={() => setCommentsOpen(true)}
-        onSave={onSave}
+        onSave={() => void onSave()}
         onShare={() => setShareOpen(true)}
       />
 
@@ -240,9 +246,20 @@ export function PostCard({
       {shareOpen ? (
         <ShareSheet
           url={shareUrl}
-          title={post.caption?.slice(0, 80) || "NEWFIND"}
+          title={post.caption || "NEWFIND"}
           onClose={() => setShareOpen(false)}
-          onShared={onShared}
+          onShared={() => void onShared()}
+        />
+      ) : null}
+      {reportOpen ? (
+        <ReportSheet
+          postId={post.id}
+          targetUserId={post.authorId}
+          onClose={() => setReportOpen(false)}
+          onBlocked={() => {
+            setHidden(true);
+            onDeleted?.(post.id);
+          }}
         />
       ) : null}
     </article>

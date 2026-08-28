@@ -26,6 +26,26 @@ function logSupabaseError(scope: string, error: {
     ...extra,
   });
 }
+
+async function notifySocialEvent(payload: {
+  type: "like" | "follow" | "comment";
+  postId?: string;
+  targetUserId?: string;
+}) {
+  try {
+    const { authHeaders } = await import("@/lib/auth/client-headers");
+    await fetch("/api/notifications", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(await authHeaders()),
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Notification delivery should not block the user action.
+  }
+}
 import type {
   CategoryId,
   CommentView,
@@ -35,6 +55,7 @@ import type {
   PostView,
   Profile,
   Session,
+  UpdatePostInput,
   UpdateProfileInput,
   VisualKind,
 } from "@/lib/types";
@@ -748,6 +769,44 @@ export const supabaseStore: Store = {
     return view;
   },
 
+  async updatePost(postId, userId, patch: UpdatePostInput) {
+    const supabase = createClient();
+    const payload: Record<string, unknown> = {};
+    if (patch.caption !== undefined) payload.caption = patch.caption;
+    if (patch.category !== undefined) payload.category = patch.category;
+    if (patch.productUrl !== undefined) payload.product_url = patch.productUrl;
+    if (patch.productLabel !== undefined) payload.product_label = patch.productLabel;
+    if (patch.visualKind !== undefined) payload.visual_kind = patch.visualKind;
+    let { data, error } = await supabase
+      .from("posts")
+      .update(payload)
+      .eq("id", postId)
+      .eq("author_id", userId)
+      .select("*")
+      .single();
+    if (
+      error &&
+      patch.visualKind !== undefined &&
+      /visual_kind|schema cache|42703/i.test(error.message)
+    ) {
+      delete payload.visual_kind;
+      const retry = await supabase
+        .from("posts")
+        .update(payload)
+        .eq("id", postId)
+        .eq("author_id", userId)
+        .select("*")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("投稿が見つかりません");
+    const [view] = await hydratePosts(supabase, [mapPost(data as PostRow)], userId);
+    if (!view) throw new Error("投稿の更新に失敗しました");
+    return view;
+  },
+
   async uploadMedia(file) {
     const supabase = createClient();
     const type = mediaTypeFromFile(file);
@@ -777,7 +836,9 @@ export const supabaseStore: Store = {
   },
 
   async toggleLike(postId, userId) {
-    return toggleJoin("likes", postId, userId);
+    const liked = await toggleJoin("likes", postId, userId);
+    if (liked) void notifySocialEvent({ type: "like", postId });
+    return liked;
   },
 
   async toggleWant(postId, userId) {
@@ -809,6 +870,7 @@ export const supabaseStore: Store = {
     if (error) throw new Error(error.message);
     const profile = await this.getProfile(userId);
     if (!profile) throw new Error("プロフィールが見つかりません");
+    void notifySocialEvent({ type: "comment", postId });
     return {
       id: data.id,
       userId: data.user_id,
@@ -883,6 +945,7 @@ export const supabaseStore: Store = {
       .from("follows")
       .insert({ follower_id: followerId, followee_id: followeeId });
     if (error) throw new Error(error.message);
+    void notifySocialEvent({ type: "follow", targetUserId: followeeId });
     return true;
   },
 
@@ -890,6 +953,19 @@ export const supabaseStore: Store = {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("saves")
+      .select("post_id")
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    const ids = (data ?? []).map((r) => r.post_id);
+    if (ids.length === 0) return [];
+    const { data: posts } = await supabase.from("posts").select("*").in("id", ids);
+    return hydratePosts(supabase, ((posts ?? []) as PostRow[]).map(mapPost), userId);
+  },
+
+  async getLiked(userId) {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("likes")
       .select("post_id")
       .eq("user_id", userId);
     if (error) throw new Error(error.message);

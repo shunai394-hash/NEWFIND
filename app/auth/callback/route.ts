@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { isSupabaseConfigured, safeNextPath } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
 

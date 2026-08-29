@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SearchIcon } from "@/components/icons";
 import { PostCard } from "@/components/post-card";
 import { useApp } from "@/lib/app-context";
 import { FEED_CHANNELS, type FeedChannelId } from "@/lib/japan-context";
@@ -125,6 +126,16 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
 
   return (
     <div>
+      <div className="flex items-center justify-end border-b border-neutral-200 bg-white px-4 py-2">
+        <Link
+          href="/discover"
+          aria-label="検索"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-700 hover:bg-neutral-100"
+        >
+          <SearchIcon className="h-5 w-5" />
+        </Link>
+      </div>
+
       {kind === "foryou" ? (
         <div className="flex gap-2 overflow-x-auto border-b border-neutral-200 bg-white px-3 py-2.5 [scrollbar-width:none]">
           {FEED_CHANNELS.map((item) => (
@@ -184,7 +195,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
             ? "フォロー中の投稿はまだありません。Discoverからアカウントを探してください。"
             : channel === "today"
               ? "投稿はまだありません。"
-              : `${selected.hint}の投稿はまだありません。見つけたら投稿してください。`}
+              : `${selected.hint}の投稿はまだありません。見つけたら投稿してください.`}
         </p>
       ) : (
         <>
@@ -230,3 +241,4 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
     </div>
   );
 }
+

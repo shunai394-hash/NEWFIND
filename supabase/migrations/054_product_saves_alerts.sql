@@ -105,7 +105,6 @@ drop policy if exists notifications_update_own on public.notifications;
 create policy notifications_update_own on public.notifications
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-grant select, insert, update, delete on public.discovery_products to service_role;
 grant select, insert, delete on public.discovery_product_saves to authenticated, service_role;
 grant select, insert, update, delete on public.user_alerts to authenticated, service_role;
 grant select, insert, update on public.notifications to authenticated, service_role;

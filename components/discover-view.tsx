@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,10 +19,10 @@ type Tab = "products" | "search" | "posts";
 
 const PAGE_SIZE = 24;
 
-export function DiscoverView() {
+export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) {
   const { session } = useApp();
   const viewerId = session?.userId ?? null;
-  const [tab, setTab] = useState<Tab>("products");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryId>("fashion");
   const [posts, setPosts] = useState<PostView[]>([]);
@@ -288,3 +288,11 @@ export function DiscoverView() {
     </div>
   );
 }
+
+
+
+
+
+
+
+

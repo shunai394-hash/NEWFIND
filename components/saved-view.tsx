@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -102,7 +102,7 @@ export function SavedView() {
             <section className="border-t border-neutral-200 px-4 py-4">
               <h2 className="text-sm font-semibold">通知 / アラーム</h2>
               <p className="mt-1 text-xs text-neutral-500">
-                保存した商品のトレンド上昇や、同じブランドの新商品に備える設定です。自動通知の配信はまだ開始していません。
+                保存した商品のトレンド上昇や、同じブランドの新商品をチェックします。ONにすると条件を満たしたときに通知します。
               </p>
               <ul className="mt-3 space-y-2">
                 {alerts.map((alert) => (
@@ -148,3 +148,4 @@ export function SavedView() {
     </div>
   );
 }
+

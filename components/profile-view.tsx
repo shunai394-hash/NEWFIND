@@ -333,16 +333,6 @@ export function ProfileView({ username }: { username: string }) {
             </button>
           )}
         </div>
-        {mine ? (
-          <div className="mt-4">
-            <Link
-              href="/settings"
-              className="block rounded-lg bg-neutral-100 py-2 text-center text-sm font-semibold"
-            >
-              プロフィールを編集
-            </Link>
-          </div>
-        ) : null}
         {blocked ? (
           <div className="mt-4 rounded-xl bg-neutral-50 px-3 py-3">
             <p className="text-sm">このユーザーをブロックしています</p>

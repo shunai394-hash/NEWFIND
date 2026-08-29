@@ -1,13 +1,18 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { MenuIcon } from "@/components/icons";
 import { useApp } from "@/lib/app-context";
+import { getStore } from "@/lib/store";
 
 export function AppMenu() {
   const { session } = useApp();
+  const signOut = async () => {
+    await getStore().signOut();
+    setOpen(false);
+  };
   const [open, setOpen] = useState(false);
   const [legalOpen, setLegalOpen] = useState(false);
 
@@ -50,6 +55,13 @@ export function AppMenu() {
                       className="block border-t border-neutral-100 px-4 py-3.5 text-sm"
                     >
                       プライバシーポリシー
+                    </Link>
+                    <Link
+                      href="/community-guidelines"
+                      onClick={() => setOpen(false)}
+                      className="block border-t border-neutral-100 px-4 py-3.5 text-sm"
+                    >
+                      コミュニティガイドライン
                     </Link>
                     <button
                       type="button"
@@ -94,6 +106,15 @@ export function AppMenu() {
                     >
                       規則とプライバシー
                     </button>
+                    {session ? (
+                      <button
+                        type="button"
+                        onClick={() => void signOut()}
+                        className="block w-full border-t border-neutral-100 px-4 py-3.5 text-left text-sm font-semibold"
+                      >
+                        ログアウト
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => setOpen(false)}
@@ -111,3 +132,5 @@ export function AppMenu() {
     </>
   );
 }
+
+

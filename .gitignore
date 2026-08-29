@@ -83,3 +83,8 @@ scripts/verify-jp-feed.ts
 scripts/verify-jp-hosted-images.ts
 scripts/verify-nav-fix.mjs
 scripts/auth-smoke.mjs
+
+# Apple signing private files
+NEWFIND_Distribution.key
+NEWFIND_Distribution.csr
+android/.idea/

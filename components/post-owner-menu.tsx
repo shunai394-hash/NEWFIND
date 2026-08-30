@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
@@ -61,8 +61,7 @@ export function PostOwnerMenu({
                   href={`/p/${postId}/edit`}
                   className="block w-full px-4 py-3.5 text-center text-sm font-semibold"
                 >
-                  編集
-                </a>
+                  編集                </a>
                 <button
                   type="button"
                   disabled={busy}
@@ -86,3 +85,6 @@ export function PostOwnerMenu({
     </>
   );
 }
+
+
+

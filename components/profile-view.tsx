@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -199,13 +199,13 @@ export function ProfileView({ username }: { username: string }) {
   }, [mine, session?.userId]);
 
   if (state === "loading") {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-400">隱ｭ縺ｿ霎ｼ縺ｿ荳ｭ...</p>;
   }
   if (state === "not_found") {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-500">ユーザーが見つかりません</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-500">繝ｦ繝ｼ繧ｶ繝ｼ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ</p>;
   }
   if (state === "error" || !profile) {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-500">プロフィールを表示できません</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-500">繝励Ο繝輔ぅ繝ｼ繝ｫ繧定｡ｨ遉ｺ縺ｧ縺阪∪縺帙ｓ</p>;
   }
 
   const socials = socialLinkEntries({
@@ -252,10 +252,10 @@ export function ProfileView({ username }: { username: string }) {
         <div className="flex items-center gap-5">
           <Avatar profile={profile} size={78} />
           <div className="flex flex-1 justify-around text-center text-sm">
-            <Stat label="投稿" value={visiblePosts.length} />
+            <Stat label="謚慕ｨｿ" value={visiblePosts.length} />
             {mine ? (
               <Stat
-                label="フォロー"
+                label="繝輔か繝ｭ繝ｼ"
                 value={counts.following}
                 onClick={() => setFollowSheet("following")}
               />
@@ -267,12 +267,12 @@ export function ProfileView({ username }: { username: string }) {
               >
                 <p className="font-semibold">{counts.following.toLocaleString("ja-JP")}</p>
                 <p className={`text-xs ${following ? "text-neutral-400" : "font-semibold text-black"}`}>
-                  {following ? "フォロー中" : "フォロー"}
+                  {following ? "繝輔か繝ｭ繝ｼ荳ｭ" : "繝輔か繝ｭ繝ｼ"}
                 </p>
               </button>
             )}
             <Stat
-              label="フォロワー"
+              label="繝輔か繝ｭ繝ｯ繝ｼ"
               value={counts.followers}
               onClick={() => setFollowSheet("followers")}
             />
@@ -284,8 +284,7 @@ export function ProfileView({ username }: { username: string }) {
             <p className="text-xs text-neutral-400">@{profile.username}</p>
             {profile.accountType === "business" ? (
               <p className="mt-1 text-xs font-semibold text-neutral-500">
-                ビジネスアカウント
-                {profile.companyName ? ` · ${profile.companyName}` : ""}
+                繝薙ず繝阪せ繧｢繧ｫ繧ｦ繝ｳ繝・                {profile.companyName ? ` ﾂｷ ${profile.companyName}` : ""}
               </p>
             ) : null}
             {profile.bio ? <p className="mt-2 text-sm">{profile.bio}</p> : null}
@@ -319,7 +318,7 @@ export function ProfileView({ username }: { username: string }) {
           {mine ? null : (
             <button
               type="button"
-              aria-label="通報・ブロック"
+              aria-label="騾壼ｱ繝ｻ繝悶Ο繝・け"
               onClick={() => {
                 if (!session) {
                   window.location.href = `/login?next=/u/${encodeURIComponent(normalizeUsername(username))}`;
@@ -341,7 +340,7 @@ export function ProfileView({ username }: { username: string }) {
               onClick={() => void unblock()}
               className="mt-2 text-sm font-semibold"
             >
-              ブロック解除
+              繝悶Ο繝・け隗｣髯､
             </button>
           </div>
         ) : null}
@@ -351,8 +350,8 @@ export function ProfileView({ username }: { username: string }) {
         <div className="grid grid-cols-3 border-b border-neutral-200 bg-white text-sm font-semibold">
           {(
             [
-              ["posts", "投稿"],
-              ["saved", "保存"],
+              ["posts", "謚慕ｨｿ"],
+              ["saved", "保存済み"],
               ["liked", "いいね"],
             ] as const
           ).map(([id, label]) => (
@@ -369,10 +368,10 @@ export function ProfileView({ username }: { username: string }) {
       ) : null}
 
       {blocked && !mine ? (
-        <p className="px-4 py-16 text-center text-sm text-neutral-500">ブロック中のため投稿は表示しません</p>
+        <p className="px-4 py-16 text-center text-sm text-neutral-500">繝悶Ο繝・け荳ｭ縺ｮ縺溘ａ謚慕ｨｿ縺ｯ陦ｨ遉ｺ縺励∪縺帙ｓ</p>
       ) : !mine || tab === "posts" ? (
         visiblePosts.length === 0 ? (
-          <p className="px-4 py-16 text-center text-sm text-neutral-500">投稿はまだありません</p>
+          <p className="px-4 py-16 text-center text-sm text-neutral-500">謚慕ｨｿ縺ｯ縺ｾ縺縺ゅｊ縺ｾ縺帙ｓ</p>
         ) : (
           <div className="grid grid-cols-3 gap-px bg-neutral-200">
             {visiblePosts.map((post) => (
@@ -402,7 +401,7 @@ export function ProfileView({ username }: { username: string }) {
           }}
         />
       ) : likedPosts.length === 0 ? (
-        <p className="px-4 py-16 text-center text-sm text-neutral-500">いいねした投稿はまだありません</p>
+        <p className="px-4 py-16 text-center text-sm text-neutral-500">縺・＞縺ｭ縺励◆謚慕ｨｿ縺ｯ縺ｾ縺縺ゅｊ縺ｾ縺帙ｓ</p>
       ) : (
         <div className="grid grid-cols-3 gap-px bg-neutral-200">
           {likedPosts.map((post) => (
@@ -456,7 +455,7 @@ function SavedTab({
   onAlertToggle: (id: string, next: boolean) => Promise<void>;
 }) {
   if (posts.length === 0 && products.length === 0) {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-500">保存した投稿・商品はまだありません</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-500">菫晏ｭ倥＠縺滓兜遞ｿ繝ｻ蝠・刀縺ｯ縺ｾ縺縺ゅｊ縺ｾ縺帙ｓ</p>;
   }
   return (
     <div>
@@ -478,16 +477,15 @@ function SavedTab({
       ) : null}
       {alerts.length > 0 ? (
         <section className="border-t border-neutral-200 px-4 py-4">
-          <h2 className="text-sm font-semibold">通知 / アラーム</h2>
+          <h2 className="text-sm font-semibold">騾夂衍 / 繧｢繝ｩ繝ｼ繝</h2>
           <p className="mt-1 text-xs text-neutral-500">
-            保存した商品の注目度が上がると、アプリ内の通知に表示されます。
-          </p>
+            菫晏ｭ倥＠縺溷膚蜩√・豕ｨ逶ｮ蠎ｦ縺御ｸ翫′繧九→縲√い繝励Μ蜀・・騾夂衍縺ｫ陦ｨ遉ｺ縺輔ｌ縺ｾ縺吶・          </p>
           <ul className="mt-3 space-y-2">
             {alerts.map((alert) => (
               <li key={alert.id} className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-neutral-50 px-3 py-2">
                 <span className="text-sm">
                   {ALERT_TYPE_LABELS[alert.alertType as AlertType] ?? alert.alertType}
-                  {alert.brand ? ` · ${alert.brand}` : ""}
+                  {alert.brand ? ` ﾂｷ ${alert.brand}` : ""}
                 </span>
                 <button
                   type="button"
@@ -535,3 +533,6 @@ function Stat({
     </div>
   );
 }
+
+
+

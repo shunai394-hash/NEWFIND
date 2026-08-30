@@ -25,7 +25,7 @@
           npx cap sync ios
 
       - name: Apply iOS signing
-        script: xcode-project use-profiles --project ios/App/App.xcodeproj --warn-only
+        script: xcode-project use-profiles --project ios/App/App.xcodeproj
 
       - name: Build IPA
         script: |
@@ -39,3 +39,4 @@
     publishing:
       app_store_connect:
         auth: integration
+

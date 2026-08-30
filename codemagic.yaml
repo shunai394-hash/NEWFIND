@@ -11,8 +11,10 @@
       node: 24.14.0
       xcode: latest
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: app.newfind.social
+        provisioning_profiles:
+          - NEWFIND-App-Store３
+        certificates:
+          - NEWFIND-Distribution
 
     scripts:
       - name: Install dependencies
@@ -39,4 +41,5 @@
     publishing:
       app_store_connect:
         auth: integration
+
 

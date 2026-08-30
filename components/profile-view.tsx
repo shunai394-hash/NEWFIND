@@ -1,65 +1,28 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { FollowListSheet } from "@/components/follow-list-sheet";
 import { MediaThumb } from "@/components/media-thumb";
-import { MoreIcon } from "@/components/icons";
-import { PostOwnerMenu } from "@/components/post-owner-menu";
-import { ProductCard } from "@/components/product-card";
-import { ReportSheet } from "@/components/report-sheet";
+import { DeletePostButton } from "@/components/delete-post-button";
 import { useApp } from "@/lib/app-context";
-import { fetchSavedProducts, fetchUserAlerts, patchUserAlert } from "@/lib/discovery/client-api";
-import { isUsableProductImage } from "@/lib/discovery/media";
-import { ALERT_TYPE_LABELS, type AlertType } from "@/lib/discovery/types";
-import { addLocalBlock, isLocallyBlocked, removeLocalBlock } from "@/lib/moderation/client";
 import { displayUrl, socialLinkEntries } from "@/lib/social-links";
 import { getStore } from "@/lib/store";
 import { normalizeUsername, usernamesMatch } from "@/lib/username";
-import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
-import { authHeaders } from "@/lib/auth/client-headers";
-import type { DiscoveryProduct } from "@/lib/discovery/types";
 import type { FollowCounts, PostView, Profile } from "@/lib/types";
 
 type ViewState = "loading" | "success" | "not_found" | "error";
 type FollowSheetMode = "followers" | "following" | null;
-type ProfileTab = "posts" | "saved" | "liked";
 
 export function ProfileView({ username }: { username: string }) {
   const { ready, session, me, refresh } = useApp();
-  const searchParams = useSearchParams();
-  const requestedTab = searchParams.get("tab");
   const [state, setState] = useState<ViewState>("loading");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<PostView[]>([]);
-  const [savedPosts, setSavedPosts] = useState<PostView[]>([]);
-  const [likedPosts, setLikedPosts] = useState<PostView[]>([]);
-  const [savedProducts, setSavedProducts] = useState<DiscoveryProduct[]>([]);
-  const [alerts, setAlerts] = useState<
-    Array<{
-      id: string;
-      alertType: string;
-      productId: string | null;
-      brand: string | null;
-      isEnabled: boolean;
-    }>
-  >([]);
   const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
   const [following, setFollowing] = useState(false);
   const [followSheet, setFollowSheet] = useState<FollowSheetMode>(null);
-  const [tab, setTab] = useState<ProfileTab>(
-    requestedTab === "saved" || requestedTab === "liked" ? requestedTab : "posts",
-  );
-  const [reportOpen, setReportOpen] = useState(false);
-  const [blocked, setBlocked] = useState(false);
-
-  useEffect(() => {
-    if (requestedTab === "saved" || requestedTab === "liked" || requestedTab === "posts") {
-      setTab(requestedTab);
-    }
-  }, [requestedTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +65,6 @@ export function ProfileView({ username }: { username: string }) {
 
         if (!cancelled) {
           setProfile(found);
-          setBlocked(isLocallyBlocked(found.id));
           setState("success");
         }
 
@@ -112,7 +74,7 @@ export function ProfileView({ username }: { username: string }) {
             store.getFollowCounts(found.id),
           ]);
           if (cancelled) return;
-          setPosts(userPosts.filter(hasDisplayablePostMedia));
+          setPosts(userPosts);
           setCounts(followCounts);
           if (session && found.id !== session.userId) {
             setFollowing(await store.isFollowing(session.userId, found.id));
@@ -145,6 +107,7 @@ export function ProfileView({ username }: { username: string }) {
     };
   }, [ready, username, session?.userId, me?.id, me?.username]);
 
+  // Keep own profile SNS/avatar in sync after settings save without a full remount race.
   useEffect(() => {
     if (!me) return;
     setProfile((prev) => {
@@ -176,38 +139,17 @@ export function ProfileView({ username }: { username: string }) {
     me?.displayName,
   ]);
 
-  const mine = Boolean(me && profile && me.id === profile.id);
-
-  useEffect(() => {
-    if (!mine || !session) return;
-    let cancelled = false;
-    Promise.all([
-      getStore().getSaved(session.userId),
-      getStore().getLiked(session.userId),
-      fetchSavedProducts().catch(() => ({ products: [] as DiscoveryProduct[] })),
-      fetchUserAlerts().catch(() => []),
-    ]).then(([saved, liked, products, userAlerts]) => {
-      if (cancelled) return;
-      setSavedPosts(saved.filter(hasDisplayablePostMedia));
-      setLikedPosts(liked.filter(hasDisplayablePostMedia));
-      setSavedProducts(products.products.filter((item) => isUsableProductImage(item.productImageUrl)));
-      setAlerts(userAlerts);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [mine, session?.userId]);
-
   if (state === "loading") {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-400">隱ｭ縺ｿ霎ｼ縺ｿ荳ｭ...</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;
   }
   if (state === "not_found") {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-500">繝ｦ繝ｼ繧ｶ繝ｼ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-500">ユーザーが見つかりません</p>;
   }
   if (state === "error" || !profile) {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-500">繝励Ο繝輔ぅ繝ｼ繝ｫ繧定｡ｨ遉ｺ縺ｧ縺阪∪縺帙ｓ</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-500">プロフィールを表示できません</p>;
   }
 
+  const mine = me?.id === profile.id;
   const socials = socialLinkEntries({
     instagramUrl: profile.instagramUrl,
     xUrl: profile.xUrl,
@@ -233,184 +175,101 @@ export function ProfileView({ username }: { username: string }) {
     setCounts(await getStore().getFollowCounts(profile.id));
   }
 
-  async function unblock() {
-    if (!profile) return;
-    removeLocalBlock(profile.id);
-    await fetch("/api/blocks", {
-      method: "POST",
-      headers: { "content-type": "application/json", ...(await authHeaders()) },
-      body: JSON.stringify({ userId: profile.id, blocked: false }),
-    }).catch(() => undefined);
-    setBlocked(false);
-  }
-
-  const visiblePosts = posts.filter(hasDisplayablePostMedia);
-
   return (
     <div>
       <div className="bg-white px-4 py-5">
         <div className="flex items-center gap-5">
           <Avatar profile={profile} size={78} />
           <div className="flex flex-1 justify-around text-center text-sm">
-            <Stat label="謚慕ｨｿ" value={visiblePosts.length} />
-            {mine ? (
-              <Stat
-                label="繝輔か繝ｭ繝ｼ"
-                value={counts.following}
-                onClick={() => setFollowSheet("following")}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => void onFollow()}
-                className="min-w-[4.5rem] rounded-md px-1 py-0.5"
-              >
-                <p className="font-semibold">{counts.following.toLocaleString("ja-JP")}</p>
-                <p className={`text-xs ${following ? "text-neutral-400" : "font-semibold text-black"}`}>
-                  {following ? "繝輔か繝ｭ繝ｼ荳ｭ" : "繝輔か繝ｭ繝ｼ"}
-                </p>
-              </button>
-            )}
+            <Stat label="投稿" value={posts.length} />
             <Stat
-              label="繝輔か繝ｭ繝ｯ繝ｼ"
+              label="フォロワー"
               value={counts.followers}
               onClick={() => setFollowSheet("followers")}
             />
+            <Stat
+              label="フォロー"
+              value={counts.following}
+              onClick={() => setFollowSheet("following")}
+            />
           </div>
         </div>
-        <div className="mt-4 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">{profile.displayName}</p>
-            <p className="text-xs text-neutral-400">@{profile.username}</p>
-            {profile.accountType === "business" ? (
-              <p className="mt-1 text-xs font-semibold text-neutral-500">
-                繝薙ず繝阪せ繧｢繧ｫ繧ｦ繝ｳ繝・                {profile.companyName ? ` ﾂｷ ${profile.companyName}` : ""}
-              </p>
-            ) : null}
-            {profile.bio ? <p className="mt-2 text-sm">{profile.bio}</p> : null}
-            {profile.companyWebsite ? (
-              <a
-                href={profile.companyWebsite}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1 inline-block text-sm text-sky-600"
-              >
-                {displayUrl(profile.companyWebsite)}
-              </a>
-            ) : null}
-            {socials.length > 0 ? (
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {socials.map((item) => (
-                  <li key={item.platform}>
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-sky-700"
-                    >
-                      {item.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-          {mine ? null : (
+        <div className="mt-4">
+          <p className="text-sm font-semibold">{profile.displayName}</p>
+          <p className="text-xs text-neutral-400">@{profile.username}</p>
+          {profile.accountType === "business" ? (
+            <p className="mt-1 text-xs font-semibold text-neutral-500">
+              ビジネスアカウント
+              {profile.companyName ? ` · ${profile.companyName}` : ""}
+            </p>
+          ) : null}
+          {profile.bio ? <p className="mt-2 text-sm">{profile.bio}</p> : null}
+          {profile.companyWebsite ? (
+            <a
+              href={profile.companyWebsite}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block text-sm text-sky-600"
+            >
+              {displayUrl(profile.companyWebsite)}
+            </a>
+          ) : null}
+          {socials.length > 0 ? (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {socials.map((item) => (
+                <li key={item.platform}>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-sky-700"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+        <div className="mt-4">
+          {mine ? (
+            <Link
+              href="/settings"
+              className="block rounded-lg bg-neutral-100 py-2 text-center text-sm font-semibold"
+            >
+              プロフィールを編集
+            </Link>
+          ) : (
             <button
               type="button"
-              aria-label="騾壼ｱ繝ｻ繝悶Ο繝・け"
-              onClick={() => {
-                if (!session) {
-                  window.location.href = `/login?next=/u/${encodeURIComponent(normalizeUsername(username))}`;
-                  return;
-                }
-                setReportOpen(true);
-              }}
-              className="p-1 text-neutral-500"
+              onClick={onFollow}
+              className={`w-full rounded-lg py-2 text-sm font-semibold ${
+                following ? "bg-neutral-100 text-neutral-700" : "bg-neutral-900 text-white"
+              }`}
             >
-              <MoreIcon className="h-5 w-5" />
+              {following ? "フォロー中" : "フォロー"}
             </button>
           )}
         </div>
-        {blocked ? (
-          <div className="mt-4 rounded-xl bg-neutral-50 px-3 py-3">
-            <p className="text-sm">このユーザーをブロックしています</p>
-            <button
-              type="button"
-              onClick={() => void unblock()}
-              className="mt-2 text-sm font-semibold"
-            >
-              繝悶Ο繝・け隗｣髯､
-            </button>
-          </div>
-        ) : null}
       </div>
 
-      {mine ? (
-        <div className="grid grid-cols-3 border-b border-neutral-200 bg-white text-sm font-semibold">
-          {(
-            [
-              ["posts", "謚慕ｨｿ"],
-              ["saved", "保存済み"],
-              ["liked", "いいね"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={`min-h-11 py-3 ${tab === id ? "border-b-2 border-black" : "text-neutral-400"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {blocked && !mine ? (
-        <p className="px-4 py-16 text-center text-sm text-neutral-500">繝悶Ο繝・け荳ｭ縺ｮ縺溘ａ謚慕ｨｿ縺ｯ陦ｨ遉ｺ縺励∪縺帙ｓ</p>
-      ) : !mine || tab === "posts" ? (
-        visiblePosts.length === 0 ? (
-          <p className="px-4 py-16 text-center text-sm text-neutral-500">謚慕ｨｿ縺ｯ縺ｾ縺縺ゅｊ縺ｾ縺帙ｓ</p>
-        ) : (
-          <div className="grid grid-cols-3 gap-px bg-neutral-200">
-            {visiblePosts.map((post) => (
-              <div key={post.id} className="relative aspect-square bg-neutral-100">
-                <Link href={`/p/${post.id}`} className="block h-full w-full">
-                  <MediaThumb post={post} />
-                </Link>
-                {mine && session ? (
-                  <PostOwnerMenu
-                    postId={post.id}
-                    userId={session.userId}
-                    onDeleted={(id) => setPosts((prev) => prev.filter((item) => item.id !== id))}
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )
-      ) : tab === "saved" ? (
-        <SavedTab
-          posts={savedPosts}
-          products={savedProducts}
-          alerts={alerts}
-          onAlertToggle={async (id, next) => {
-            await patchUserAlert(id, next).catch(() => null);
-            setAlerts((prev) => prev.map((item) => (item.id === id ? { ...item, isEnabled: next } : item)));
-          }}
-        />
-      ) : likedPosts.length === 0 ? (
-        <p className="px-4 py-16 text-center text-sm text-neutral-500">縺・＞縺ｭ縺励◆謚慕ｨｿ縺ｯ縺ｾ縺縺ゅｊ縺ｾ縺帙ｓ</p>
-      ) : (
-        <div className="grid grid-cols-3 gap-px bg-neutral-200">
-          {likedPosts.map((post) => (
-            <Link key={post.id} href={`/p/${post.id}`} className="relative aspect-square bg-neutral-100">
+      <div className="grid grid-cols-3 gap-px bg-neutral-200">
+        {posts.map((post) => (
+          <div key={post.id} className="relative aspect-square bg-neutral-100">
+            <Link href={`/p/${post.id}`} className="block h-full w-full">
               <MediaThumb post={post} />
             </Link>
-          ))}
-        </div>
-      )}
+            {mine && session ? (
+              <DeletePostButton
+                postId={post.id}
+                userId={session.userId}
+                onDeleted={(id) => setPosts((prev) => prev.filter((item) => item.id !== id))}
+                className="absolute right-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+              />
+            ) : null}
+          </div>
+        ))}
+      </div>
 
       {followSheet ? (
         <FollowListSheet
@@ -422,82 +281,6 @@ export function ProfileView({ username }: { username: string }) {
           onClose={() => setFollowSheet(null)}
           onCountsChanged={() => void refreshCounts()}
         />
-      ) : null}
-      {reportOpen ? (
-        <ReportSheet
-          targetUserId={profile.id}
-          onClose={() => setReportOpen(false)}
-          onBlocked={(userId) => {
-            addLocalBlock(userId);
-            setBlocked(true);
-          }}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function SavedTab({
-  posts,
-  products,
-  alerts,
-  onAlertToggle,
-}: {
-  posts: PostView[];
-  products: DiscoveryProduct[];
-  alerts: Array<{
-    id: string;
-    alertType: string;
-    productId: string | null;
-    brand: string | null;
-    isEnabled: boolean;
-  }>;
-  onAlertToggle: (id: string, next: boolean) => Promise<void>;
-}) {
-  if (posts.length === 0 && products.length === 0) {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-500">菫晏ｭ倥＠縺滓兜遞ｿ繝ｻ蝠・刀縺ｯ縺ｾ縺縺ゅｊ縺ｾ縺帙ｓ</p>;
-  }
-  return (
-    <div>
-      {products.length > 0 ? (
-        <div className="grid grid-cols-2 gap-px bg-neutral-200">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      ) : null}
-      {posts.length > 0 ? (
-        <div className="grid grid-cols-3 gap-px bg-neutral-200">
-          {posts.map((post) => (
-            <Link key={post.id} href={`/p/${post.id}`} className="relative aspect-square bg-neutral-100">
-              <MediaThumb post={post} />
-            </Link>
-          ))}
-        </div>
-      ) : null}
-      {alerts.length > 0 ? (
-        <section className="border-t border-neutral-200 px-4 py-4">
-          <h2 className="text-sm font-semibold">騾夂衍 / 繧｢繝ｩ繝ｼ繝</h2>
-          <p className="mt-1 text-xs text-neutral-500">
-            菫晏ｭ倥＠縺溷膚蜩√・豕ｨ逶ｮ蠎ｦ縺御ｸ翫′繧九→縲√い繝励Μ蜀・・騾夂衍縺ｫ陦ｨ遉ｺ縺輔ｌ縺ｾ縺吶・          </p>
-          <ul className="mt-3 space-y-2">
-            {alerts.map((alert) => (
-              <li key={alert.id} className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-neutral-50 px-3 py-2">
-                <span className="text-sm">
-                  {ALERT_TYPE_LABELS[alert.alertType as AlertType] ?? alert.alertType}
-                  {alert.brand ? ` ﾂｷ ${alert.brand}` : ""}
-                </span>
-                <button
-                  type="button"
-                  className="touch-manipulation text-xs font-semibold"
-                  onClick={() => void onAlertToggle(alert.id, !alert.isEnabled)}
-                >
-                  {alert.isEnabled ? "ON" : "OFF"}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
       ) : null}
     </div>
   );
@@ -522,7 +305,7 @@ function Stat({
         className="min-w-[4.5rem] cursor-pointer rounded-md px-1 py-0.5 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
       >
         <p className="font-semibold">{formatted}</p>
-        <p className="text-xs text-neutral-400">{label}</p>
+        <p className="text-xs text-neutral-400 underline-offset-2 group-hover:underline">{label}</p>
       </button>
     );
   }
@@ -533,6 +316,3 @@ function Stat({
     </div>
   );
 }
-
-
-

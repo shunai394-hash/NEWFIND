@@ -88,3 +88,5 @@ scripts/auth-smoke.mjs
 NEWFIND_Distribution.key
 NEWFIND_Distribution.csr
 android/.idea/
+
+distribution.cer

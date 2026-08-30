@@ -1,0 +1,14 @@
+[Version]
+Signature=" NT$"
+
+[NewRequest]
+Subject = "CN=NEWFIND"
+KeyLength = 2048
+KeySpec = 1
+KeyUsage = 0xA0
+MachineKeySet = FALSE
+Exportable = TRUE
+ProviderName = "Microsoft Enhanced Cryptographic Provider v1.0"
+ProviderType = 1
+RequestType = PKCS10
+HashAlgorithm = sha256

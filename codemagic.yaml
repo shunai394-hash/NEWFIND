@@ -14,7 +14,7 @@
         provisioning_profiles:
           - NEWFIND-App-Store３
         certificates:
-          - NEWFIND-Distribution
+          - NEWFIND-Distribution-2026
 
     scripts:
       - name: Install dependencies

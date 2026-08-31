@@ -12,6 +12,8 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready || !sessionResolved) return;
     if (!session) {
+      // No session means the gate must explicitly leave the loading state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAdmin(false);
       return;
     }

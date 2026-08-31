@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -65,6 +65,9 @@ export function SettingsForm() {
     };
   }, [ready, session, me, refresh]);
 
+  // This effect intentionally hydrates editable form state from the loaded profile.
+  // The form fields are local draft state and must not be derived directly during render.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!session || !me) return;
 
@@ -84,20 +87,11 @@ export function SettingsForm() {
     setWebsiteUrl(me.websiteUrl ?? "");
     setAvatarFailed(false);
   }, [session, me]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  useEffect(() => {
-    if (!avatarFile) {
-      setAvatarPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(avatarFile);
-    setAvatarPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [avatarFile]);
 
   useEffect(() => {
     if (!session) {
-      setIsAdmin(false);
       return;
     }
     let cancelled = false;
@@ -182,6 +176,10 @@ export function SettingsForm() {
 
       setAvatarUrl(nextAvatarUrl);
       setAvatarFile(null);
+      setAvatarPreview((previous) => {
+        if (previous) URL.revokeObjectURL(previous);
+        return null;
+      });
       await refresh();
       router.push(profilePath(username.trim()));
     } catch (err) {
@@ -246,7 +244,12 @@ export function SettingsForm() {
               className="hidden"
               onChange={(e) => {
                 setAvatarFailed(false);
-                setAvatarFile(e.target.files?.[0] ?? null);
+                const file = e.target.files?.[0] ?? null;
+                setAvatarFile(file);
+                setAvatarPreview((previous) => {
+                  if (previous) URL.revokeObjectURL(previous);
+                  return file ? URL.createObjectURL(file) : null;
+                });
               }}
             />
           </label>

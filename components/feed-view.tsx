@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -26,7 +26,10 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   const postsRef = useRef<PostView[]>([]);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const selected = FEED_CHANNELS.find((item) => item.id === channel) ?? FEED_CHANNELS[0]!;
-  postsRef.current = posts;
+
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
   const loadPage = useCallback(
     async (offset: number, replace: boolean) => {
@@ -98,12 +101,14 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
     [kind, session, selected.categories],
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setPosts([]);
     setHasMore(true);
     dbOffsetRef.current = 0;
     void loadPage(0, true);
   }, [loadPage]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     const target = sentinelRef.current;

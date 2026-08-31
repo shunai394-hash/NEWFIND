@@ -10,13 +10,9 @@ export function Avatar({
   profile: Pick<Profile, "displayName" | "avatarUrl">;
   size?: number;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const initial = (profile.displayName || "?").slice(0, 1).toUpperCase();
-  const showImage = Boolean(profile.avatarUrl) && !failed;
-
-  useEffect(() => {
-    setFailed(false);
-  }, [profile.avatarUrl]);
+  const showImage = Boolean(profile.avatarUrl) && failedUrl !== profile.avatarUrl;
 
   return (
     <span
@@ -30,7 +26,7 @@ export function Avatar({
           src={profile.avatarUrl!}
           alt=""
           className="h-full w-full bg-neutral-200 object-cover"
-          onError={() => setFailed(true)}
+          onError={() => setFailedUrl(profile.avatarUrl ?? null)}
         />
       ) : (
         initial

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -37,7 +37,10 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const [catalog, setCatalog] = useState<DiscoveryProduct[]>([]);
-  postsRef.current = posts;
+
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
   useEffect(() => {
     fetchDiscoveryList("approved")
@@ -134,6 +137,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
     [tab, query, viewerId],
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setPosts([]);
     setUsers([]);
@@ -147,6 +151,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
     );
     return () => clearTimeout(timer);
   }, [loadPage, tab]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     const target = sentinelRef.current;

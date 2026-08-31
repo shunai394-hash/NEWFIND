@@ -583,6 +583,7 @@ export const supabaseStore: Store = {
 
   async getProfileByUsername(username) {
     const key = username.trim();
+    console.log("[DEBUG getProfileByUsername]", { username, key });
     if (!key) return null;
     const supabase = createClient();
     const exact = await supabase.from("profiles").select("*").eq("username", key).maybeSingle();

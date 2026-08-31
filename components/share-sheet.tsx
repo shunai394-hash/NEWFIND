@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 
 function isAbortError(error: unknown) {
@@ -51,13 +51,9 @@ export function ShareSheet({
 }) {
   const [copied, setCopied] = useState(false);
   const [manual, setManual] = useState(false);
-  const [canNativeShare, setCanNativeShare] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    setCanNativeShare(typeof navigator.share === "function");
-  }, []);
+  const canNativeShare =
+    typeof navigator !== "undefined" &&
+    typeof navigator.share === "function";
 
   async function copy() {
     try {
@@ -83,7 +79,7 @@ export function ShareSheet({
     await copy();
   }
 
-  if (!mounted) return null;
+  if (typeof document === "undefined") return null;
 
   return createPortal(
     <div

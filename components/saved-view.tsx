@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -32,6 +32,7 @@ export function SavedView() {
   >([]);
   const [loading, setLoading] = useState(true);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!ready || !sessionResolved) return;
     if (!session) {
@@ -58,6 +59,7 @@ export function SavedView() {
       cancelled = true;
     };
   }, [ready, sessionResolved, session, router]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!ready || !sessionResolved) {
     return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;

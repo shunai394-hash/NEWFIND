@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   createContext,
@@ -59,9 +59,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
 
-    void refresh().catch((err) => {
-      console.error("[auth] boot refresh failed", err);
-      if (mounted) setSessionResolved(true);
+    queueMicrotask(() => {
+      void refresh().catch((err) => {
+        console.error("[auth] boot refresh failed", err);
+        if (mounted) setSessionResolved(true);
+      });
     });
 
     if (storeMode() === "supabase") {

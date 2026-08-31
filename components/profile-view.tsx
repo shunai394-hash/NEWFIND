@@ -1,4 +1,5 @@
-﻿"use client";
+"use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -28,7 +29,7 @@ type FollowSheetMode = "followers" | "following" | null;
 type ProfileTab = "posts" | "saved" | "liked";
 
 export function ProfileView({ username }: { username: string }) {
-  const { ready, session, me, refresh } = useApp();
+  const { ready, session, me } = useApp();
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
   const [state, setState] = useState<ViewState>("loading");
@@ -143,7 +144,7 @@ export function ProfileView({ username }: { username: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, username, session?.userId, me?.id, me?.username]);
+  }, [ready, username, session, me]);
 
   useEffect(() => {
     if (!me) return;
@@ -179,7 +180,7 @@ export function ProfileView({ username }: { username: string }) {
   const mine = Boolean(session && profile && session.userId === profile.id);
 
   useEffect(() => {
-    if (!mine || !session) return;
+    if (!mine || !session?.userId) return;
     let cancelled = false;
     Promise.all([
       getStore().getSaved(session.userId),
@@ -199,13 +200,13 @@ export function ProfileView({ username }: { username: string }) {
   }, [mine, session?.userId]);
 
   if (state === "loading") {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-400">髫ｱ・ｭ邵ｺ・ｿ髴趣ｽｼ邵ｺ・ｿ闕ｳ・ｭ...</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;
   }
   if (state === "not_found") {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-500">郢晢ｽｦ郢晢ｽｼ郢ｧ・ｶ郢晢ｽｼ邵ｺ迹夲ｽｦ荵昶命邵ｺ荵晢ｽ顔ｸｺ・ｾ邵ｺ蟶呻ｽ・</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-500">ユーザーが見つかりません。</p>;
   }
   if (state === "error" || !profile) {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-500">郢晏干ﾎ溽ｹ晁ｼ斐≦郢晢ｽｼ郢晢ｽｫ郢ｧ螳夲ｽ｡・ｨ驕会ｽｺ邵ｺ・ｧ邵ｺ髦ｪ竏ｪ邵ｺ蟶呻ｽ・</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-500">プロフィールの読み込みに失敗しました。</p>;
   }
 
   const socials = socialLinkEntries({
@@ -225,7 +226,6 @@ export function ProfileView({ username }: { username: string }) {
     const next = await getStore().toggleFollow(profile!.id, session.userId);
     setFollowing(next);
     setCounts(await getStore().getFollowCounts(profile!.id));
-    await refresh();
   }
 
   async function refreshCounts() {
@@ -252,10 +252,10 @@ export function ProfileView({ username }: { username: string }) {
         <div className="flex items-center gap-5">
           <Avatar profile={profile} size={78} />
           <div className="flex flex-1 justify-around text-center text-sm">
-            <Stat label="隰壽・・ｨ・ｿ" value={visiblePosts.length} />
+            <Stat label="📷 投稿" value={visiblePosts.length} />
             {mine ? (
               <Stat
-                label="郢晁ｼ斐°郢晢ｽｭ郢晢ｽｼ"
+                label="フォロー"
                 value={counts.following}
                 onClick={() => setFollowSheet("following")}
               />
@@ -267,12 +267,12 @@ export function ProfileView({ username }: { username: string }) {
               >
                 <p className="font-semibold">{counts.following.toLocaleString("ja-JP")}</p>
                 <p className={`text-xs ${following ? "text-neutral-400" : "font-semibold text-black"}`}>
-                  {following ? "郢晁ｼ斐°郢晢ｽｭ郢晢ｽｼ闕ｳ・ｭ" : "郢晁ｼ斐°郢晢ｽｭ郢晢ｽｼ"}
+                  {following ? "フォロー中" : "フォロー"}
                 </p>
               </button>
             )}
             <Stat
-              label="郢晁ｼ斐°郢晢ｽｭ郢晢ｽｯ郢晢ｽｼ"
+              label="フォロワー"
               value={counts.followers}
               onClick={() => setFollowSheet("followers")}
             />
@@ -284,8 +284,8 @@ export function ProfileView({ username }: { username: string }) {
             <p className="text-xs text-neutral-400">@{profile.username}</p>
             {profile.accountType === "business" ? (
               <p className="mt-1 text-xs font-semibold text-neutral-500">
-                郢晁侭縺夂ｹ晞亂縺帷ｹｧ・｢郢ｧ・ｫ郢ｧ・ｦ郢晢ｽｳ郢昴・
-                {profile.companyName ? ` ・ゑｽｷ ${profile.companyName}` : ""}
+                ビジネスアカウント
+                {profile.companyName ? `  ・  ${profile.companyName}` : ""}
               </p>
             ) : null}
             {profile.bio ? <p className="mt-2 text-sm">{profile.bio}</p> : null}
@@ -341,7 +341,7 @@ export function ProfileView({ username }: { username: string }) {
               onClick={() => void unblock()}
               className="mt-2 text-sm font-semibold"
             >
-              郢晄じﾎ溽ｹ昴・縺鷹囓・｣鬮ｯ・､
+              ブロックを解除
             </button>
           </div>
         ) : null}
@@ -351,9 +351,9 @@ export function ProfileView({ username }: { username: string }) {
         <div className="grid grid-cols-3 border-b border-neutral-200 bg-white text-sm font-semibold">
           {(
             [
-              ["posts", "隰壽・・ｨ・ｿ"],
+              ["posts", "投稿"],
               ["saved", "保存"],
-              ["liked", "邵ｺ繝ｻ・樒ｸｺ・ｭ"],
+              ["liked", "いいね"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -369,10 +369,10 @@ export function ProfileView({ username }: { username: string }) {
       ) : null}
 
       {blocked && !mine ? (
-        <p className="px-4 py-16 text-center text-sm text-neutral-500">郢晄じﾎ溽ｹ昴・縺題叉・ｭ邵ｺ・ｮ邵ｺ貅假ｽ∬ｬ壽・・ｨ・ｿ邵ｺ・ｯ髯ｦ・ｨ驕会ｽｺ邵ｺ蜉ｱ竏ｪ邵ｺ蟶呻ｽ・</p>
+        <p className="px-4 py-16 text-center text-sm text-neutral-500">このユーザーの投稿は表示されません。</p>
       ) : !mine || tab === "posts" ? (
         visiblePosts.length === 0 ? (
-          <p className="px-4 py-16 text-center text-sm text-neutral-500">隰壽・・ｨ・ｿ邵ｺ・ｯ邵ｺ・ｾ邵ｺ・ｰ邵ｺ繧・ｽ顔ｸｺ・ｾ邵ｺ蟶呻ｽ・</p>
+          <p className="px-4 py-16 text-center text-sm text-neutral-500">投稿はありません。</p>
         ) : (
           <div className="grid grid-cols-3 gap-px bg-neutral-200">
             {visiblePosts.map((post) => (
@@ -402,7 +402,7 @@ export function ProfileView({ username }: { username: string }) {
           }}
         />
       ) : likedPosts.length === 0 ? (
-        <p className="px-4 py-16 text-center text-sm text-neutral-500">邵ｺ繝ｻ・樒ｸｺ・ｭ邵ｺ蜉ｱ笳・ｬ壽・・ｨ・ｿ邵ｺ・ｯ邵ｺ・ｾ邵ｺ・ｰ邵ｺ繧・ｽ顔ｸｺ・ｾ邵ｺ蟶呻ｽ・</p>
+        <p className="px-4 py-16 text-center text-sm text-neutral-500">いいねした投稿はありません。</p>
       ) : (
         <div className="grid grid-cols-3 gap-px bg-neutral-200">
           {likedPosts.map((post) => (
@@ -456,7 +456,7 @@ function SavedTab({
   onAlertToggle: (id: string, next: boolean) => Promise<void>;
 }) {
   if (posts.length === 0 && products.length === 0) {
-    return <p className="px-4 py-16 text-center text-sm text-neutral-500">闖ｫ譎擾ｽｭ蛟･・邵ｺ貊灘・驕橸ｽｿ郢晢ｽｻ陜繝ｻ蛻邵ｺ・ｯ邵ｺ・ｾ邵ｺ・ｰ邵ｺ繧・ｽ顔ｸｺ・ｾ邵ｺ蟶呻ｽ・</p>;
+    return <p className="px-4 py-16 text-center text-sm text-neutral-500">保存データの読み込みに失敗しました。</p>;
   }
   return (
     <div>
@@ -478,16 +478,16 @@ function SavedTab({
       ) : null}
       {alerts.length > 0 ? (
         <section className="border-t border-neutral-200 px-4 py-4">
-          <h2 className="text-sm font-semibold">鬨ｾ螟り｡・/ 郢ｧ・｢郢晢ｽｩ郢晢ｽｼ郢晢｣ｰ</h2>
+          <h2 className="text-sm font-semibold">通知 / アラート</h2>
           <p className="mt-1 text-xs text-neutral-500">
-            闖ｫ譎擾ｽｭ蛟･・邵ｺ貅ｷ閹夊惓竏壹・雎包ｽｨ騾ｶ・ｮ陟趣ｽｦ邵ｺ蠕｡・ｸ鄙ｫ窶ｲ郢ｧ荵昶・邵ｲ竏壹＞郢晏干ﾎ懆怙繝ｻ繝ｻ鬨ｾ螟り｡咲ｸｺ・ｫ髯ｦ・ｨ驕会ｽｺ邵ｺ霈費ｽ檎ｸｺ・ｾ邵ｺ蜷ｶﾂ繝ｻ
+            保存した商品についての通知・アラートを設定できます。
           </p>
           <ul className="mt-3 space-y-2">
             {alerts.map((alert) => (
               <li key={alert.id} className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-neutral-50 px-3 py-2">
                 <span className="text-sm">
                   {ALERT_TYPE_LABELS[alert.alertType as AlertType] ?? alert.alertType}
-                  {alert.brand ? ` ・ゑｽｷ ${alert.brand}` : ""}
+                  {alert.brand ? `  ・  ${alert.brand}` : ""}
                 </span>
                 <button
                   type="button"
@@ -535,4 +535,3 @@ function Stat({
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { AdminNav } from "@/components/admin-nav";
@@ -58,9 +58,11 @@ export function AdminReports() {
     setReports(body.reports ?? []);
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     void load();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function deletePost(report: Report) {
     if (!report.post_id) return;

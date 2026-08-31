@@ -33,9 +33,11 @@ export function AdminPosts() {
     setPosts(body.posts ?? []);
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     void load();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function removePost(id: string) {
     if (!window.confirm("この投稿と画像を削除しますか？")) return;

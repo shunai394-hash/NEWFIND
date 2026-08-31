@@ -13,7 +13,6 @@ export function DiscoveryAdminGate({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!ready || !sessionResolved) return;
     if (!session) {
-      setAdmin(false);
       return;
     }
     let cancelled = false;

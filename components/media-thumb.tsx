@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import type { Post } from "@/lib/types";
 
@@ -9,12 +9,9 @@ export function MediaThumb({
 }: {
   post: Pick<Post, "mediaType" | "mediaUrl" | "thumbnailUrl">;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const src = (post.thumbnailUrl || post.mediaUrl || "").trim();
-
-  useEffect(() => {
-    setFailed(false);
-  }, [src]);
+  const failed = failedSrc === src;
 
   if (!hasDisplayablePostMedia(post) || !src || failed) return null;
 
@@ -32,7 +29,7 @@ export function MediaThumb({
       src={src}
       alt=""
       className="h-full w-full bg-neutral-200 object-cover"
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
     />
   );
 }

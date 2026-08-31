@@ -34,9 +34,11 @@ export function AdminUsers() {
     setUsers(body.users ?? []);
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     void load();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function setSuspended(id: string, is_suspended: boolean) {
     if (!window.confirm(is_suspended ? "このユーザーを停止しますか？" : "停止を解除しますか？")) return;

@@ -1,4 +1,4 @@
-import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
+﻿import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
 import { mediaTypeFromFile } from "@/lib/media";
 import {
   EMPTY_SOCIAL_LINKS,
@@ -778,6 +778,9 @@ export const supabaseStore: Store = {
     if (patch.productUrl !== undefined) payload.product_url = patch.productUrl;
     if (patch.productLabel !== undefined) payload.product_label = patch.productLabel;
     if (patch.visualKind !== undefined) payload.visual_kind = patch.visualKind;
+    if (patch.mediaUrl !== undefined) payload.media_url = patch.mediaUrl;
+    if (patch.mediaType !== undefined) payload.media_type = patch.mediaType;
+    if (patch.thumbnailUrl !== undefined) payload.thumbnail_url = patch.thumbnailUrl;
     let { data, error } = await supabase
       .from("posts")
       .update(payload)
@@ -1196,3 +1199,4 @@ async function toggleJoin(
   if (error) throw new Error(error.message);
   return true;
 }
+

@@ -111,24 +111,53 @@ export function CreateForm() {
       <div>
         <h1 className="text-lg font-semibold">投稿する</h1>
       </div>
-      <label className="block rounded-2xl border border-dashed border-neutral-300 bg-white p-4 text-center">
-        <input
-          type="file"
-          accept="image/*,video/*"
-          className="hidden"
-          onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-        />
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <label className="cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-center text-sm font-semibold">
+            <input
+              type="file"
+              accept="image/*,video/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+            />
+            📷 カメラで撮影
+          </label>
+
+          <label className="cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-center text-sm font-semibold">
+            <input
+              type="file"
+              accept="image/*,video/*"
+              className="hidden"
+              onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+            />
+            🖼️ 写真・動画を選択
+          </label>
+        </div>
+
         {preview ? (
           mediaType === "video" ? (
-            <video src={preview} className="mx-auto max-h-72 rounded-xl" controls />
+            <video
+              src={preview}
+              className="mx-auto max-h-72 rounded-xl"
+              controls
+            />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview} alt="" className="mx-auto max-h-72 rounded-xl object-cover" />
+            <img
+              src={preview}
+              alt=""
+              className="mx-auto max-h-72 rounded-xl object-cover"
+            />
           )
         ) : (
-          <span className="text-sm text-neutral-500">画像または動画を選択</span>
+          <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-6 text-center">
+            <span className="text-sm text-neutral-500">
+              写真または動画を追加してください
+            </span>
+          </div>
         )}
-      </label>
+      </div>
 
       <input
         value={mediaUrl}
@@ -226,6 +255,7 @@ export function CreateForm() {
     </form>
   );
 }
+
 
 
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -6,7 +6,11 @@ import { useApp } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { isHttpUrl } from "@/lib/media";
 import { getStore } from "@/lib/store";
-import { type CategoryId, type VisualKind } from "@/lib/types";
+import {
+  type CategoryId,
+  type MediaType,
+  type VisualKind,
+} from "@/lib/types";
 
 const VISUAL_OPTIONS: Array<{ id: VisualKind | ""; label: string }> = [
   { id: "", label: "ビジュアル（任意）" },
@@ -28,8 +32,11 @@ export function EditPostForm({ postId }: { postId: string }) {
   const [visualKind, setVisualKind] = useState<VisualKind | "">("");
   const [productUrl, setProductUrl] = useState("");
   const [productLabel, setProductLabel] = useState("商品を見る");
+
   const [preview, setPreview] = useState("");
-  const [mediaType, setMediaType] = useState<"photo" | "video">("photo");
+  const [mediaType, setMediaType] = useState<MediaType>("photo");
+  const [file, setFile] = useState<File | null>(null);
+
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -86,6 +93,15 @@ export function EditPostForm({ postId }: { postId: string }) {
     };
   }, [postId, session]);
 
+  function onFile(next: File | null) {
+    setFile(next);
+
+    if (!next) return;
+
+    setMediaType(next.type.startsWith("video/") ? "video" : "photo");
+    setPreview(URL.createObjectURL(next));
+  }
+
   if (!ready || !sessionResolved || loading) {
     return (
       <p className="px-4 py-16 text-center text-sm text-neutral-400">
@@ -106,12 +122,25 @@ export function EditPostForm({ postId }: { postId: string }) {
         throw new Error("商品リンクは http(s) のURLにしてください");
       }
 
-      await getStore().updatePost(postId, session!.userId, {
+      const store = getStore();
+
+      let mediaUrl: string | undefined;
+      let nextMediaType: MediaType | undefined;
+
+      if (file) {
+        const uploaded = await store.uploadMedia(file);
+        mediaUrl = uploaded.url;
+        nextMediaType = uploaded.type;
+      }
+
+      await store.updatePost(postId, session!.userId, {
         caption: caption.trim(),
         category,
         productUrl: productUrl.trim() || null,
         productLabel: productLabel.trim() || null,
         visualKind: visualKind || null,
+        mediaUrl,
+        mediaType: nextMediaType,
       });
 
       router.replace(`/p/${postId}`);
@@ -130,22 +159,39 @@ export function EditPostForm({ postId }: { postId: string }) {
     <form onSubmit={submit} className="space-y-4 px-4 py-4">
       <h1 className="text-lg font-semibold">投稿を編集</h1>
 
-      {preview ? (
-        mediaType === "video" ? (
-          <video
-            src={preview}
-            className="mx-auto max-h-72 rounded-xl"
-            controls
-          />
+      <label className="block rounded-2xl border border-dashed border-neutral-300 bg-white p-4 text-center">
+        <input
+          type="file"
+          accept="image/*,video/*"
+          className="hidden"
+          onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+        />
+
+        {preview ? (
+          mediaType === "video" ? (
+            <video
+              src={preview}
+              className="mx-auto max-h-72 rounded-xl"
+              controls
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={preview}
+              alt=""
+              className="mx-auto max-h-72 rounded-xl object-cover"
+            />
+          )
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={preview}
-            alt=""
-            className="mx-auto max-h-72 rounded-xl object-cover"
-          />
-        )
-      ) : null}
+          <span className="text-sm text-neutral-500">
+            画像または動画を選択
+          </span>
+        )}
+
+        <span className="mt-3 block text-sm font-semibold">
+          画像・動画を変更
+        </span>
+      </label>
 
       <textarea
         value={caption}
@@ -209,3 +255,4 @@ export function EditPostForm({ postId }: { postId: string }) {
     </form>
   );
 }
+

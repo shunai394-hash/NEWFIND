@@ -351,9 +351,9 @@ export function ProfileView({ username }: { username: string }) {
         <div className="grid grid-cols-3 border-b border-neutral-200 bg-white text-sm font-semibold">
           {(
             [
-              ["posts", "投稿"],
-              ["saved", "保存"],
-              ["liked", "いいね"],
+              ["posts", "📷 投稿"],
+              ["saved", "🔖 保存"],
+              ["liked", "❤️ いいね"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -535,3 +535,5 @@ function Stat({
     </div>
   );
 }
+
+

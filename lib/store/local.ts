@@ -1,4 +1,4 @@
-import { fileToStoredUrl } from "@/lib/media";
+﻿import { fileToStoredUrl } from "@/lib/media";
 import { rankForYouFeed, engagementScore } from "@/lib/feed-rank";
 import {
   SEED_COMMENTS,
@@ -413,6 +413,9 @@ export const localStore: Store = {
       if (patch.productUrl !== undefined) post.productUrl = patch.productUrl;
       if (patch.productLabel !== undefined) post.productLabel = patch.productLabel;
       if (patch.visualKind !== undefined) post.visualKind = patch.visualKind;
+      if (patch.mediaUrl !== undefined) post.mediaUrl = patch.mediaUrl;
+      if (patch.mediaType !== undefined) post.mediaType = patch.mediaType;
+      if (patch.thumbnailUrl !== undefined) post.thumbnailUrl = patch.thumbnailUrl;
       return toView(state, post, userId);
     });
   },
@@ -651,3 +654,6 @@ function togglePair(
   rows.push({ userId, postId });
   return true;
 }
+
+
+

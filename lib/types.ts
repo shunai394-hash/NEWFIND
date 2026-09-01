@@ -1,4 +1,4 @@
-export type AccountType = "personal" | "business";
+﻿export type AccountType = "personal" | "business";
 export type MediaType = "photo" | "video";
 export type PostSource = "user" | "brandbridge";
 
@@ -145,6 +145,9 @@ export type UpdatePostInput = {
   productUrl?: string | null;
   productLabel?: string | null;
   visualKind?: VisualKind | null;
+  mediaUrl?: string;
+  mediaType?: MediaType;
+  thumbnailUrl?: string | null;
 };
 
 export type UpdateProfileInput = {
@@ -162,3 +165,4 @@ export type UpdateProfileInput = {
   youtubeUrl?: string | null;
   websiteUrl?: string | null;
 };
+

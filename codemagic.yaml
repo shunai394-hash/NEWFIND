@@ -12,7 +12,7 @@
       xcode: latest
       ios_signing:
         provisioning_profiles:
-          - NEWFIND-App-Store-2026-09-01
+          - NEWFINDAppStoreFINAL2026
         certificates:
           - NEWFIND-Distribution-2026
     scripts:
@@ -49,7 +49,7 @@
             DEVELOPMENT_TEAM="R35GA3276S" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             CODE_SIGN_STYLE="Manual" \
-            PROVISIONING_PROFILE_SPECIFIER="NEWFIND-App-Store-2026-09-01" \
+            PROVISIONING_PROFILE_SPECIFIER="NEWFINDAppStoreFINAL2026" \
             archive
 
           echo "=== CREATE EXPORT OPTIONS ==="
@@ -68,7 +68,7 @@
               <key>provisioningProfiles</key>
               <dict>
                   <key>app.newfind.social</key>
-                  <string>NEWFIND-App-Store-2026-09-01</string>
+                  <string>NEWFINDAppStoreFINAL2026</string>
               </dict>
           </dict>
           </plist>
@@ -92,6 +92,7 @@
     publishing:
       app_store_connect:
         auth: integration
+
 
 
 

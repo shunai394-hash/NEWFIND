@@ -20,6 +20,15 @@
       - name: Install dependencies
         script: npm ci
 
+      - name: Check iOS signing files
+        script: |
+          echo "=== PROVISIONING PROFILES ==="
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" || true
+          echo "=== CERTIFICATES ==="
+          ls -la "$HOME/Library/MobileDevice/Certificates/" || true
+          echo "=== KEYCHAIN ==="
+          security find-identity -v -p codesigning || true
+
       - name: Set production Capacitor URL
         script: |
           export CAPACITOR_SERVER_URL="https://newfind-self.vercel.app"
@@ -41,5 +50,7 @@
     publishing:
       app_store_connect:
         auth: integration
+
+
 
 

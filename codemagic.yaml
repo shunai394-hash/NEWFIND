@@ -36,15 +36,22 @@
 
       - name: Build IPA
         script: |
-          xcode-project build-ipa \
-            --project ios/App/App.xcodeproj \
-            --scheme App
+          echo "=== SIGNING PROFILES ==="
+          find "$HOME/Library/MobileDevice/Provisioning Profiles" -type f -maxdepth 1 -print || true
+          echo "=== XCODE IDENTITIES ==="
+          security find-identity -v -p codesigning || true
+          echo "=== BUILD SETTINGS ==="
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -showBuildSettings | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_IDENTITY|CODE_SIGN_STYLE|PROVISIONING_PROFILE"
     artifacts:
       - build/ios/ipa/*.ipa
 
     publishing:
       app_store_connect:
         auth: integration
+
 
 
 

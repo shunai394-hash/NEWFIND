@@ -10,12 +10,6 @@
     environment:
       node: 24.14.0
       xcode: latest
-      ios_signing:
-        provisioning_profiles:
-          - NEWFIND-App-Store３
-        certificates:
-          - NEWFIND-App-Store
-
     scripts:
       - name: Install dependencies
         script: npm ci
@@ -35,9 +29,6 @@
           export CAPACITOR_RELEASE="1"
           npx cap sync ios
 
-      - name: Apply iOS signing
-        script: xcode-project use-profiles --project ios/App/App.xcodeproj
-
       - name: Build IPA
         script: |
           xcode-project build-ipa \
@@ -50,6 +41,9 @@
     publishing:
       app_store_connect:
         auth: integration
+
+
+
 
 
 

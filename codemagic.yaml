@@ -12,7 +12,7 @@
       xcode: latest
       ios_signing:
         provisioning_profiles:
-          - NEWFIND-App-Store３
+          - NEWFIND-App-Store
         certificates:
           - NEWFIND-Distribution-2026
 

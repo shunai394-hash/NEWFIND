@@ -380,7 +380,7 @@ export function ProfileView({ username }: { username: string }) {
                 <Link href={`/p/${post.id}`} className="block h-full w-full">
                   <MediaThumb post={post} />
                 </Link>
-                {mine && session ? (
+                {session ? (
                   <PostOwnerMenu
                     postId={post.id}
                     userId={session.userId}

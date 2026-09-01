@@ -1,4 +1,4 @@
-﻿import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
+import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
 import { mediaTypeFromFile } from "@/lib/media";
 import {
   EMPTY_SOCIAL_LINKS,
@@ -199,7 +199,9 @@ async function hydrateProfile(
   supabase: ReturnType<typeof createClient>,
   row: ProfileRow,
 ): Promise<Profile> {
+  console.log("[DEBUG hydrateProfile] START", row.id, row.username);
   const hasCols = await detectSocialColumns(supabase);
+  console.log("[DEBUG hydrateProfile] detectSocialColumns", hasCols);
   const mapped = mapProfile(row);
   if (hasCols) {
     const hasDbSocial = Boolean(
@@ -211,6 +213,7 @@ async function hydrateProfile(
     );
     if (hasDbSocial) return mapped;
     // Migration just applied: keep reading older Storage fallback until DB is filled.
+    console.log("[DEBUG hydrateProfile] loading social fallback");
     const social = await loadSocialFallback(supabase, row.id);
     return mapProfile(row, social);
   }

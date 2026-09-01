@@ -12,9 +12,9 @@
       xcode: latest
       ios_signing:
         provisioning_profiles:
-          - NEWFIND-App-Store
+          - NEWFIND-App-Store３
         certificates:
-          - NEWFIND-Distribution-2026
+          - NEWFIND-App-Store
 
     scripts:
       - name: Install dependencies

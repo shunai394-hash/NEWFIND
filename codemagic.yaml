@@ -34,10 +34,6 @@
           export CAPACITOR_RELEASE="1"
           npx cap sync ios
 
-      - name: Apply iOS signing profiles
-        script: |
-          xcode-project use-profiles
-
       - name: Build IPA
         script: |
           xcode-project build-ipa \
@@ -49,6 +45,7 @@
     publishing:
       app_store_connect:
         auth: integration
+
 
 
 

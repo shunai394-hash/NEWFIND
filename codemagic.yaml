@@ -10,6 +10,11 @@
     environment:
       node: 24.14.0
       xcode: latest
+      ios_signing:
+        provisioning_profiles:
+          - NEWFIND-App-Store-2026-09-01
+        certificates:
+          - NEWFIND-Distribution-2026
     scripts:
       - name: Install dependencies
         script: npm ci
@@ -34,13 +39,17 @@
           xcode-project build-ipa \
             --project ios/App/App.xcodeproj \
             --scheme App
-
     artifacts:
       - build/ios/ipa/*.ipa
 
     publishing:
       app_store_connect:
         auth: integration
+
+
+
+
+
 
 
 

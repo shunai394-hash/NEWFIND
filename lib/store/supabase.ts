@@ -933,12 +933,13 @@ export const supabaseStore: Store = {
   async toggleFollow(followeeId, followerId) {
     if (followeeId === followerId) throw new Error("自分はフォローできません");
     const supabase = createClient();
-    const { data } = await supabase
+    const { data, error: lookupError } = await supabase
       .from("follows")
       .select("follower_id")
       .eq("follower_id", followerId)
       .eq("followee_id", followeeId)
       .maybeSingle();
+    if (lookupError) throw new Error(lookupError.message);
     if (data) {
       const { error } = await supabase
         .from("follows")

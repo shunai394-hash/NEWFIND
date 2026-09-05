@@ -177,7 +177,11 @@ export function ProfileView({ username }: { username: string }) {
     me?.displayName,
   ]);
 
-  const mine = Boolean(session && profile && session.userId === profile.id);
+  const mine = Boolean(
+    session &&
+    profile &&
+    (session.userId === profile.id || me?.id === profile.id)
+  );
 
   useEffect(() => {
     if (!mine || !session?.userId) return;
@@ -265,7 +269,7 @@ export function ProfileView({ username }: { username: string }) {
                 onClick={() => void onFollow()}
                 className="min-w-[4.5rem] rounded-md px-1 py-0.5"
               >
-                <p className="font-semibold">{counts.following.toLocaleString("ja-JP")}</p>
+                <p className="font-semibold">{counts.followers.toLocaleString("ja-JP")}</p>
                 <p className={`text-xs ${following ? "text-neutral-400" : "font-semibold text-black"}`}>
                   {following ? "フォロー中" : "フォロー"}
                 </p>

@@ -1,4 +1,4 @@
-﻿workflows:
+workflows:
   ios-release:
     name: NEWFIND iOS Release
     instance_type: mac_mini_m2
@@ -37,6 +37,9 @@
       - name: Build IPA
         script: |
           set -e
+
+          echo "=== SET BUILD NUMBER ==="
+          agvtool new-version -all 7
 
           echo "=== ARCHIVE ==="
 

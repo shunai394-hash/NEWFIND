@@ -1,4 +1,4 @@
-﻿import { fileToStoredUrl } from "@/lib/media";
+import { fileToStoredUrl } from "@/lib/media";
 import { rankForYouFeed, engagementScore } from "@/lib/feed-rank";
 import {
   SEED_COMMENTS,
@@ -590,7 +590,9 @@ export const localStore: Store = {
     return {
       followers: state.follows.filter((f) => f.followeeId === userId).length,
       following: state.follows.filter((f) => f.followerId === userId).length,
-    };
+      likes: state.likes.filter((like) =>
+        state.posts.some((post) => post.id === like.postId && post.authorId === userId)
+      ).length,    };
   },
 
   async listFollowers(userId, viewerId) {

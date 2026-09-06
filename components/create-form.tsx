@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
-import { isHttpUrl } from "@/lib/media";
+import { isHttpUrl, mediaTypeFromFile } from "@/lib/media";
 import { getStore } from "@/lib/store";
 import { type CategoryId, type MediaType, type PostSource, type VisualKind } from "@/lib/types";
 
@@ -19,6 +19,130 @@ const VISUAL_OPTIONS: Array<{ id: VisualKind | ""; label: string }> = [
   { id: "brand", label: "ブランドビジュアル" },
 ];
 
+async function createVideoThumbnail(file: File): Promise<File> {
+  if (mediaTypeFromFile(file) !== "video") {
+    throw new Error("動画ファイルではありません");
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const video = document.createElement("video");
+
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.src = objectUrl;
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        cleanup();
+        reject(new Error("動画の読み込みがタイムアウトしました"));
+      }, 15000);
+
+      const cleanup = () => {
+        window.clearTimeout(timeout);
+        video.removeEventListener("error", onError);
+      };
+
+      const onError = () => {
+        cleanup();
+        reject(new Error("動画の読み込みに失敗しました"));
+      };
+
+      video.addEventListener("error", onError, { once: true });
+
+      video.addEventListener(
+        "loadedmetadata",
+        () => {
+          if (!video.videoWidth || !video.videoHeight) {
+            cleanup();
+            reject(new Error("動画のサイズを取得できませんでした"));
+            return;
+          }
+
+          const targetTime =
+            Number.isFinite(video.duration) && video.duration > 0.2
+              ? Math.min(0.2, video.duration - 0.05)
+              : 0;
+
+          const captureFrame = () => {
+            cleanup();
+            resolve();
+          };
+
+          if ("requestVideoFrameCallback" in video) {
+            video
+              .play()
+              .then(() => {
+                (
+                  video as HTMLVideoElement & {
+                    requestVideoFrameCallback?: (
+                      callback: () => void,
+                    ) => number;
+                  }
+                ).requestVideoFrameCallback?.(() => captureFrame());
+              })
+              .catch(() => {
+                (video as HTMLVideoElement).currentTime = targetTime;
+                (video as HTMLVideoElement).addEventListener("seeked", captureFrame, { once: true });
+              });
+          } else {
+            (video as HTMLVideoElement).currentTime = targetTime;
+            (video as HTMLVideoElement).addEventListener("seeked", captureFrame, { once: true });
+          }
+        },
+        { once: true },
+      );
+
+      video.load();
+    });
+
+    if (!video.videoWidth || !video.videoHeight) {
+      throw new Error("動画のフレームを取得できませんでした");
+    }
+
+    const canvas = document.createElement("canvas");
+
+    const maxWidth = 720;
+    const scale = Math.min(1, maxWidth / video.videoWidth);
+
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      throw new Error("サムネイル生成用Canvasを取得できませんでした");
+    }
+
+    context.drawImage(
+      video,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.85);
+    });
+
+    if (!blob || blob.size === 0) {
+      throw new Error("動画フレームから画像を生成できませんでした");
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, "");
+
+    return new File(
+      [blob],
+      `${baseName}-thumbnail.jpg`,
+      { type: "image/jpeg" },
+    );
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
 export function CreateForm() {
   const router = useRouter();
   const { ready, sessionResolved, session, me } = useApp();
@@ -67,7 +191,18 @@ export function CreateForm() {
       let url = mediaUrl.trim();
       let type: MediaType = mediaType;
 
+      let thumbnailUrl: string | null = null;
+
       if (file) {
+        if (mediaTypeFromFile(file) === "video") {
+          const thumbnailFile = await createVideoThumbnail(file);
+
+          if (thumbnailFile) {
+            const uploadedThumbnail = await store.uploadMedia(thumbnailFile);
+            thumbnailUrl = uploadedThumbnail.url;
+          }
+        }
+
         const uploaded = await store.uploadMedia(file);
         url = uploaded.url;
         type = uploaded.type;
@@ -88,6 +223,7 @@ export function CreateForm() {
       const created = await store.createPost(session!.userId, {
         mediaType: type,
         mediaUrl: url,
+        thumbnailUrl,
         caption: caption.trim(),
         category,
         productUrl: productUrl.trim() || null,
@@ -255,6 +391,17 @@ export function CreateForm() {
     </form>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

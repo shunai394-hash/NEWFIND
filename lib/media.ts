@@ -1,4 +1,4 @@
-import type { MediaType } from "@/lib/types";
+﻿import type { MediaType } from "@/lib/types";
 
 export function mediaTypeFromFile(file: File): MediaType {
   return file.type.startsWith("video/") ? "video" : "photo";
@@ -24,7 +24,7 @@ export async function fileToStoredUrl(file: File): Promise<{
 function readAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("ファイルを読み込めませんでした"));
+    reader.onerror = () => reject(new Error("繝輔ぃ繧､繝ｫ繧定ｪｭ縺ｿ霎ｼ繧√∪縺帙ｓ縺ｧ縺励◆"));
     reader.onload = () => resolve(String(reader.result));
     reader.readAsDataURL(file);
   });
@@ -50,7 +50,7 @@ function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("画像を読み込めませんでした"));
+    image.onerror = () => reject(new Error("逕ｻ蜒上ｒ隱ｭ縺ｿ霎ｼ繧√∪縺帙ｓ縺ｧ縺励◆"));
     image.src = src;
   });
 }
@@ -63,3 +63,4 @@ export function isHttpUrl(value: string) {
     return false;
   }
 }
+

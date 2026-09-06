@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import Link from "next/link";
@@ -133,7 +133,7 @@ export function PostCard({
         <Link href={`/u/${post.author.username}`} className="flex min-w-0 items-center gap-2">
           <Avatar profile={post.author} size={34} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{post.author.username}</p>
+            <p className="truncate text-sm font-semibold">{post.author.displayName}</p>
             <p className="truncate text-[11px] text-neutral-400">
               {categoryLabel(post.category)}
               {visual ? ` · ${visual}` : ""}
@@ -219,7 +219,7 @@ export function PostCard({
         {post.caption ? (
           <p className="text-sm">
             <Link href={`/u/${post.author.username}`} className="font-semibold">
-              {post.author.username}
+              {post.author.displayName}
             </Link>{" "}
             {post.caption}
           </p>
@@ -266,3 +266,4 @@ export function PostCard({
     </article>
   );
 }
+

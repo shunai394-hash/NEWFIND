@@ -47,7 +47,7 @@ export function ProfileView({ username }: { username: string }) {
       isEnabled: boolean;
     }>
   >([]);
-  const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
+  const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0, likes: 0 });
   const [following, setFollowing] = useState(false);
   const [followSheet, setFollowSheet] = useState<FollowSheetMode>(null);
   const [tab, setTab] = useState<ProfileTab>(
@@ -128,7 +128,7 @@ export function ProfileView({ username }: { username: string }) {
           });
           if (!cancelled) {
             setPosts([]);
-            setCounts({ followers: 0, following: 0 });
+            setCounts({ followers: 0, following: 0, likes: 0 });
           }
         }
       } catch (err) {
@@ -256,10 +256,9 @@ export function ProfileView({ username }: { username: string }) {
         <div className="flex items-center gap-5">
           <Avatar profile={profile} size={78} />
           <div className="flex flex-1 justify-around text-center text-sm">
-            <Stat label="📷 投稿" value={visiblePosts.length} />
             {mine ? (
               <Stat
-                label="フォロー"
+                label="フォロー中"
                 value={counts.following}
                 onClick={() => setFollowSheet("following")}
               />
@@ -269,7 +268,6 @@ export function ProfileView({ username }: { username: string }) {
                 onClick={() => void onFollow()}
                 className="min-w-[4.5rem] rounded-md px-1 py-0.5"
               >
-                <p className="font-semibold">{counts.followers.toLocaleString("ja-JP")}</p>
                 <p className={`text-xs ${following ? "text-neutral-400" : "font-semibold text-black"}`}>
                   {following ? "フォロー中" : "フォロー"}
                 </p>
@@ -280,6 +278,7 @@ export function ProfileView({ username }: { username: string }) {
               value={counts.followers}
               onClick={() => setFollowSheet("followers")}
             />
+            <Stat label="いいね" value={counts.likes} />
           </div>
         </div>
         <div className="mt-4 flex items-start justify-between gap-3">
@@ -539,5 +538,3 @@ function Stat({
     </div>
   );
 }
-
-

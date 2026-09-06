@@ -180,7 +180,7 @@ export function FollowListSheet({
                           : "bg-neutral-900 text-white"
                       }`}
                     >
-                      {entry.following ? "フォロー中" : "フォロー"}
+                      {entry.following ? "フォロー中" : (mode === "followers" ? "フォロー返し" : "フォロー")}
                     </button>
                   ) : null}
                 </div>

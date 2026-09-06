@@ -1,4 +1,4 @@
-import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
+﻿import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
 import { mediaTypeFromFile } from "@/lib/media";
 import {
   EMPTY_SOCIAL_LINKS,
@@ -1068,15 +1068,37 @@ export const supabaseStore: Store = {
 
   async getFollowCounts(userId) {
     const supabase = createClient();
-    const [followers, following] = await Promise.all([
+
+    const [followers, following, posts] = await Promise.all([
       supabase.from("follows").select("follower_id", { count: "exact", head: true }).eq("followee_id", userId),
       supabase.from("follows").select("followee_id", { count: "exact", head: true }).eq("follower_id", userId),
+      supabase.from("posts").select("id").eq("author_id", userId),
     ]);
+
     if (followers.error) logSupabaseError("getFollowCounts.followers", followers.error);
     if (following.error) logSupabaseError("getFollowCounts.following", following.error);
+    if (posts.error) logSupabaseError("getFollowCounts.posts", posts.error);
+
+    const postIds = (posts.data ?? []).map((post) => post.id);
+    let likes = 0;
+
+    if (postIds.length > 0) {
+      const likesResult = await supabase
+        .from("likes")
+        .select("post_id", { count: "exact", head: true })
+        .in("post_id", postIds);
+
+      if (likesResult.error) {
+        logSupabaseError("getFollowCounts.likes", likesResult.error);
+      } else {
+        likes = likesResult.count ?? 0;
+      }
+    }
+
     return {
       followers: followers.count ?? 0,
       following: following.count ?? 0,
+      likes,
     };
   },
 
@@ -1188,19 +1210,42 @@ async function toggleJoin(
   userId: string,
 ) {
   const supabase = createClient();
-  const { data } = await supabase
+
+  const { data, error: lookupError } = await supabase
     .from(table)
     .select("user_id")
     .eq("user_id", userId)
     .eq("post_id", postId)
     .maybeSingle();
+
+  if (lookupError) {
+    throw new Error(lookupError.message);
+  }
+
   if (data) {
-    const { error } = await supabase.from(table).delete().eq("user_id", userId).eq("post_id", postId);
-    if (error) throw new Error(error.message);
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq("user_id", userId)
+      .eq("post_id", postId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
     return false;
   }
-  const { error } = await supabase.from(table).insert({ user_id: userId, post_id: postId });
-  if (error) throw new Error(error.message);
+
+  const { error } = await supabase
+    .from(table)
+    .insert({ user_id: userId, post_id: postId });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
   return true;
 }
+
+
 

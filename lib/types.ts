@@ -108,6 +108,7 @@ export type CommentView = Comment & {
 export type FollowCounts = {
   followers: number;
   following: number;
+  likes: number;
 };
 
 export type FollowListEntry = {
@@ -165,4 +166,5 @@ export type UpdateProfileInput = {
   youtubeUrl?: string | null;
   websiteUrl?: string | null;
 };
+
 

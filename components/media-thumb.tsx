@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
@@ -9,54 +9,58 @@ export function MediaThumb({
 }: {
   post: Pick<Post, "mediaType" | "mediaUrl" | "thumbnailUrl">;
 }) {
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [mediaFailed, setMediaFailed] = useState(false);
+  const mediaUrl = (post.mediaUrl || "").trim();
+  const thumbnailUrl = (post.thumbnailUrl || "").trim();
 
-  const mediaSrc = (post.mediaUrl || "").trim();
-  const thumbnailSrc = (post.thumbnailUrl || "").trim();
+  if (!hasDisplayablePostMedia(post) || !mediaUrl) return null;
 
-  if (!hasDisplayablePostMedia(post) || (!mediaSrc && !thumbnailSrc)) {
-    return null;
-  }
-
+  // iOS/WKWebView: use the actual video element for video posts.
   if (post.mediaType === "video") {
-    if (thumbnailSrc && failedSrc !== thumbnailSrc) {
-      return (
+    if (mediaFailed) {
+      if (thumbnailUrl) {
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={thumbnailSrc}
-          alt=""
-          className="h-full w-full bg-neutral-200 object-cover"
-          onError={() => setFailedSrc(thumbnailSrc)}
-        />
+        return (
+          <img
+            src={thumbnailUrl}
+            alt=""
+            className="h-full w-full bg-neutral-200 object-cover"
+          />
+        );
+      }
+
+      return (
+        <span className="flex h-full w-full items-center justify-center bg-neutral-800 text-xs font-bold text-white">
+          ▶
+        </span>
       );
     }
 
-    if (!mediaSrc || failedSrc === mediaSrc) return null;
-
     return (
       <video
-        src={mediaSrc}
-        className="h-full w-full bg-neutral-200 object-cover"
+        src={mediaUrl}
+        poster={thumbnailUrl || undefined}
         muted
-        playsInline
         loop
+        playsInline
+        autoPlay
         preload="metadata"
-        controls={false}
-        onError={() => setFailedSrc(mediaSrc)}
+        className="h-full w-full bg-neutral-200 object-cover"
+        aria-label="動画"
+        onError={() => setMediaFailed(true)}
       />
     );
   }
 
-  const src = thumbnailSrc || mediaSrc;
-  if (!src || failedSrc === src) return null;
+  const imageSrc = thumbnailUrl || mediaUrl;
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src}
+      src={imageSrc}
       alt=""
       className="h-full w-full bg-neutral-200 object-cover"
-      onError={() => setFailedSrc(src)}
+      onError={() => setMediaFailed(true)}
     />
   );
 }

@@ -8,6 +8,7 @@ import {
   NATIVE_OAUTH_CALLBACK, isCapacitorNative,
 } from "@/lib/capacitor/platform";
 import { createClient } from "@/lib/supabase/client";
+import { listDiscoveryProductsByIdsFromDb } from "@/lib/discovery/db";
 import type { Store } from "@/lib/store/types";
 
 function logSupabaseError(scope: string, error: {
@@ -350,6 +351,8 @@ async function hydratePostsLight(
         wanted: false,
         saved: false,
         followingAuthor: false,
+        trendScore: 0,
+        confidenceScore: 0,
       },
     ];
   });
@@ -363,6 +366,13 @@ async function hydratePosts(
   if (posts.length === 0) return [];
   const ids = posts.map((p) => p.id);
   const authorIds = [...new Set(posts.map((p) => p.authorId))];
+  const discoveryProductIds = [
+    ...new Set(
+      posts
+        .map((p) => p.discoveryProductId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
 
   const [
     profilesRows,
@@ -374,6 +384,7 @@ async function hydratePosts(
     viewerLikes,
     viewerWants,
     viewerSaves,
+    discoveryProducts,
   ] = await Promise.all([
     selectByIds<ProfileRow>(supabase, "profiles", "*", authorIds, "id"),
     countByPostIds(supabase, "likes", ids),
@@ -384,7 +395,12 @@ async function hydratePosts(
     viewerId ? viewerJoinedPostIds(supabase, "likes", viewerId, ids) : Promise.resolve(new Set<string>()),
     viewerId ? viewerJoinedPostIds(supabase, "wants", viewerId, ids) : Promise.resolve(new Set<string>()),
     viewerId ? viewerJoinedPostIds(supabase, "saves", viewerId, ids) : Promise.resolve(new Set<string>()),
+    listDiscoveryProductsByIdsFromDb(discoveryProductIds),
   ]);
+
+  const discoveryProductsById = new Map(
+    discoveryProducts.map((product) => [product.id, product]),
+  );
 
   let following = new Set<string>();
   if (viewerId && authorIds.length > 0) {
@@ -407,6 +423,11 @@ async function hydratePosts(
   return posts.flatMap((post) => {
     const author = profiles.get(post.authorId);
     if (!author) return [];
+
+    const discoveryProduct = post.discoveryProductId
+      ? discoveryProductsById.get(post.discoveryProductId)
+      : undefined;
+
     return [
       {
         ...post,
@@ -420,11 +441,12 @@ async function hydratePosts(
         wanted: viewerId ? viewerWants.has(post.id) : false,
         saved: viewerId ? viewerSaves.has(post.id) : false,
         followingAuthor: viewerId ? following.has(post.authorId) : false,
+        trendScore: discoveryProduct?.trendScore ?? 0,
+        confidenceScore: discoveryProduct?.confidenceScore ?? 0,
       },
     ];
   });
 }
-
 async function countByPostIds(
   supabase: ReturnType<typeof createClient>,
   table: "likes" | "wants" | "saves" | "comments" | "shares",
@@ -660,12 +682,19 @@ export const supabaseStore: Store = {
 
   async getFeed(kind, viewerId, offset = 0, pageLimit = 24) {
     const supabase = createClient();
-    const fetchLimit = pageLimit;
+    const isForYou = kind === "foryou";
+
+    // For You ranks a growing candidate window, while the UI still shows 24 posts per page.
+    const candidateLimit = isForYou
+      ? Math.max(100, offset + pageLimit)
+      : pageLimit;
+    const fetchOffset = isForYou ? 0 : offset;
+
     let query = supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false })
-      .range(offset, offset + fetchLimit - 1);
+      .range(fetchOffset, fetchOffset + candidateLimit - 1);
 
     if (kind === "following") {
       if (!viewerId) {
@@ -687,9 +716,11 @@ export const supabaseStore: Store = {
       logSupabaseError("getFeed", error);
       throw new Error(error.message);
     }
+
     const posts = ((data ?? []) as PostRow[]).map(mapPost);
     const light = await hydratePostsLight(supabase, posts, viewerId);
     let views = light;
+
     try {
       views = await Promise.race([
         hydratePosts(supabase, posts, viewerId),
@@ -700,14 +731,26 @@ export const supabaseStore: Store = {
     } catch (err) {
       console.warn("[getFeed] using light hydrate", err);
     }
-    const ranked = kind === "foryou" ? rankForYouFeed(views) : views;
+
+    if (!isForYou) {
+      return {
+        posts: views,
+        hasMore: posts.length === pageLimit,
+        nextOffset: offset + posts.length,
+      };
+    }
+
+    const ranked = rankForYouFeed(views);
+    const page = ranked.slice(offset, offset + pageLimit);
+    const hasMore =
+      ranked.length > offset + pageLimit || posts.length === candidateLimit;
+
     return {
-      posts: ranked,
-      hasMore: posts.length === fetchLimit,
-      nextOffset: offset + posts.length,
+      posts: page,
+      hasMore,
+      nextOffset: offset + page.length,
     };
   },
-
   async getPost(id, viewerId) {
     const supabase = createClient();
     const { data } = await supabase.from("posts").select("*").eq("id", id).maybeSingle();

@@ -154,6 +154,8 @@ function toView(state: LocalState, post: Post, viewerId: string | null): PostVie
     liked: viewerId ? state.likes.some((x) => x.postId === post.id && x.userId === viewerId) : false,
     wanted: viewerId ? state.wants.some((x) => x.postId === post.id && x.userId === viewerId) : false,
     saved: viewerId ? state.saves.some((x) => x.postId === post.id && x.userId === viewerId) : false,
+    trendScore: 0,
+    confidenceScore: 0,
     followingAuthor: viewerId
       ? state.follows.some((x) => x.followerId === viewerId && x.followeeId === post.authorId)
       : false,

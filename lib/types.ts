@@ -99,6 +99,8 @@ export type PostView = Post & {
   wanted: boolean;
   saved: boolean;
   followingAuthor: boolean;
+  trendScore: number;
+  confidenceScore: number;
 };
 
 export type CommentView = Comment & {

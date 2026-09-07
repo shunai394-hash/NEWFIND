@@ -1,12 +1,45 @@
 import type { PostView } from "@/lib/types";
 
+function normalize(value: number, min: number, max: number) {
+  if (max <= min) return 0.5;
+  return (value - min) / (max - min);
+}
+
+function freshnessScore(view: PostView, now: number) {
+  const created = Date.parse(view.createdAt);
+  if (!Number.isFinite(created)) return 0;
+
+  const ageHours = Math.max(0, (now - created) / (1000 * 60 * 60));
+
+  // Fresh posts are favored, but older posts can still surface.
+  return Math.exp(-ageHours / 72);
+}
+
 export function engagementScore(view: PostView) {
   return (
-    Date.parse(view.createdAt) / 60000 +
     view.likeCount * 8 +
     view.wantCount * 12 +
     view.saveCount * 6 +
-    view.commentCount * 4
+    view.commentCount * 4 +
+    view.shareCount * 8
+  );
+}
+
+function forYouScore(view: PostView, now: number, engagementMin: number, engagementMax: number) {
+  const freshness = freshnessScore(view, now);
+  const engagement = normalize(
+    engagementScore(view),
+    engagementMin,
+    engagementMax,
+  );
+  const trend = Math.max(0, Math.min(100, view.trendScore)) / 100;
+  const confidence = Math.max(0, Math.min(100, view.confidenceScore)) / 100;
+
+  return (
+    freshness * 0.4 +
+    engagement * 0.25 +
+    trend * 0.25 +
+    confidence * 0.1
   );
 }
 
@@ -72,6 +105,18 @@ export function diversifyByOrigin(views: PostView[], maxStreak = 2): PostView[] 
 }
 
 export function rankForYouFeed(views: PostView[]): PostView[] {
-  const scored = [...views].sort((a, b) => engagementScore(b) - engagementScore(a));
+  if (views.length <= 1) return views;
+
+  const now = Date.now();
+  const engagementScores = views.map(engagementScore);
+  const engagementMin = Math.min(...engagementScores);
+  const engagementMax = Math.max(...engagementScores);
+
+  const scored = [...views].sort(
+    (a, b) =>
+      forYouScore(b, now, engagementMin, engagementMax) -
+      forYouScore(a, now, engagementMin, engagementMax),
+  );
+
   return diversifyByOrigin(diversifyByAuthor(scored, 1), 2);
 }

@@ -1,6 +1,6 @@
 import { safeNextPath } from "@/lib/config";
 import { createClient } from "@/lib/supabase/client";
-import { isAndroidCapacitor } from "@/lib/capacitor/platform";
+import { isCapacitorNative } from "@/lib/capacitor/platform";
 
 const processedCodes = new Set<string>();
 let inFlightCode: string | null = null;
@@ -22,7 +22,7 @@ function oauthErrorMessage(url: URL): string | null {
 }
 
 /**
- * Handle an OAuth return URL on Android Capacitor.
+ * Handle an OAuth return URL on Capacitor iOS / Android.
  * Uses the native localStorage PKCE client + exchangeCodeForSession.
  * Does not touch the Next.js /auth/callback route (web keeps that path).
  */
@@ -98,11 +98,11 @@ export async function handleOAuthReturnUrl(rawUrl: string): Promise<boolean> {
 }
 
 /**
- * Register Android deep-link listeners for OAuth return.
- * Safe to call once from a client component; no-ops on web / iOS.
+ * Register native deep-link listeners for OAuth return.
+ * Safe to call once from a client component; no-ops on web.
  */
-export async function startAndroidOAuthReturnListener(): Promise<() => void> {
-  if (typeof window === "undefined" || started || !isAndroidCapacitor()) {
+export async function startNativeOAuthReturnListener(): Promise<() => void> {
+  if (typeof window === "undefined" || started || !isCapacitorNative()) {
     return () => {};
   }
 

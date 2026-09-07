@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { startAndroidOAuthReturnListener } from "@/lib/capacitor/oauth-return";
+import { startNativeOAuthReturnListener } from "@/lib/capacitor/oauth-return";
 
 /**
- * Android Capacitor only: listen for OAuth deep-link returns (Google / Apple).
+ * Capacitor iOS / Android: listen for OAuth deep-link returns (Google / Apple).
  * No UI; mounts once under AppProvider.
  */
 export function OAuthReturnListener() {
@@ -12,7 +12,7 @@ export function OAuthReturnListener() {
     let cancelled = false;
     let stop: (() => void) | undefined;
 
-    void startAndroidOAuthReturnListener().then((cleanup) => {
+    void startNativeOAuthReturnListener().then((cleanup) => {
       if (cancelled) {
         cleanup();
         return;

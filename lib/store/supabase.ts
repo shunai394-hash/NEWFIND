@@ -1,12 +1,11 @@
-﻿import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
+import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
 import { mediaTypeFromFile } from "@/lib/media";
 import {
   EMPTY_SOCIAL_LINKS,
   type SocialLinks,
 } from "@/lib/social-links";
 import {
-  ANDROID_OAUTH_CALLBACK,
-  isAndroidCapacitor,
+  NATIVE_OAUTH_CALLBACK, isCapacitorNative,
 } from "@/lib/capacitor/platform";
 import { createClient } from "@/lib/supabase/client";
 import type { Store } from "@/lib/store/types";
@@ -529,11 +528,8 @@ export const supabaseStore: Store = {
 
   async signInOAuth(provider, next = "/") {
     const supabase = createClient();
-    // Android Capacitor: custom scheme so the system browser can return into the app.
-    // Web / iOS keep the same-origin /auth/callback route (server exchangeCodeForSession).
-    const redirectTo = isAndroidCapacitor()
-      ? new URL(ANDROID_OAUTH_CALLBACK)
-      : new URL("/auth/callback", window.location.origin);
+    // Capacitor iOS / Android: custom scheme so the system browser can return into the app. Web uses the same-origin /auth/callback route.
+    const redirectTo = isCapacitorNative() ? new URL(NATIVE_OAUTH_CALLBACK) : new URL("/auth/callback", window.location.origin);
     if (next.startsWith("/") && !next.startsWith("//")) {
       redirectTo.searchParams.set("next", next);
     }
@@ -717,6 +713,7 @@ export const supabaseStore: Store = {
     const { data } = await supabase.from("posts").select("*").eq("id", id).maybeSingle();
     if (!data) return null;
     const [view] = await hydratePosts(supabase, [mapPost(data as PostRow)], viewerId);
+    console.log("[DEBUG getPost AUTHOR]", view?.author);
     return view ?? null;
   },
 
@@ -931,6 +928,11 @@ export const supabaseStore: Store = {
   },
 
   async toggleFollow(followeeId, followerId) {
+    console.log("[FOLLOW DEBUG] toggleFollow", {
+      followeeId,
+      followerId,
+      time: new Date().toISOString(),
+    });
     if (followeeId === followerId) throw new Error("自分はフォローできません");
     const supabase = createClient();
     const { data, error: lookupError } = await supabase
@@ -1246,6 +1248,10 @@ async function toggleJoin(
 
   return true;
 }
+
+
+
+
 
 
 

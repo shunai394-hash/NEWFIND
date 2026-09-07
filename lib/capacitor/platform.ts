@@ -59,5 +59,7 @@ export function isIosCapacitor(): boolean {
  * Custom URL scheme for Android OAuth return.
  * Must match AndroidManifest intent-filter and Supabase Redirect URLs.
  */
-export const ANDROID_OAUTH_CALLBACK =
+export const NATIVE_OAUTH_CALLBACK =
   "app.newfind.social://auth/callback";
+
+export const ANDROID_OAUTH_CALLBACK = NATIVE_OAUTH_CALLBACK;

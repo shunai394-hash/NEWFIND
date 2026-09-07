@@ -40,7 +40,7 @@ workflows:
 
           echo "=== SET BUILD NUMBER ==="
           cd ios/App
-          agvtool new-version -all 7
+          agvtool new-version -all 8
           cd ../..
 
           echo "=== ARCHIVE ==="

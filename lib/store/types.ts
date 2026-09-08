@@ -46,7 +46,7 @@ export type Store = {
   toggleWant(postId: string, userId: string): Promise<boolean>;
   toggleSave(postId: string, userId: string): Promise<boolean>;
   sharePost(postId: string, userId: string | null): Promise<void>;
-  addComment(postId: string, userId: string, body: string): Promise<CommentView>;
+  addComment(postId: string, userId: string, body: string, parentCommentId?: string | null): Promise<CommentView>;
   listComments(postId: string): Promise<CommentView[]>;
   toggleFollow(followeeId: string, followerId: string): Promise<boolean>;
   isFollowing(followerId: string, followeeId: string): Promise<boolean>;

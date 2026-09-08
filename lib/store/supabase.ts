@@ -907,11 +907,11 @@ export const supabaseStore: Store = {
     }
   },
 
-  async addComment(postId, userId, body) {
+  async addComment(postId, userId, body, parentCommentId = null) {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("comments")
-      .insert({ post_id: postId, user_id: userId, body: body.trim() })
+      .insert({ post_id: postId, user_id: userId, body: body.trim(), parent_comment_id: parentCommentId })
       .select("*")
       .single();
     if (error) throw new Error(error.message);
@@ -923,6 +923,7 @@ export const supabaseStore: Store = {
       userId: data.user_id,
       postId: data.post_id,
       body: data.body,
+      parentCommentId: data.parent_comment_id ?? null,
       createdAt: data.created_at,
       author: profile,
     } satisfies CommentView;
@@ -951,6 +952,7 @@ export const supabaseStore: Store = {
               userId: row.user_id,
               postId: row.post_id,
               body: row.body,
+              parentCommentId: row.parent_comment_id ?? null,
               createdAt: row.created_at,
               author,
             },

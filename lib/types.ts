@@ -1,4 +1,4 @@
-﻿export type AccountType = "personal" | "business";
+export type AccountType = "personal" | "business";
 export type MediaType = "photo" | "video";
 export type PostSource = "user" | "brandbridge";
 
@@ -80,6 +80,7 @@ export type Comment = {
   userId: string;
   postId: string;
   body: string;
+  parentCommentId: string | null;
   createdAt: string;
 };
 

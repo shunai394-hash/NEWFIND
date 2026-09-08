@@ -1,4 +1,4 @@
-import type { AccountType, CategoryId, Comment, Post, Profile } from "@/lib/types";
+﻿import type { AccountType, CategoryId, Comment, Post, Profile } from "@/lib/types";
 
 /** Demo rows are identifiable so they can be upserted or removed without touching real users. */
 export const DEMO_USERNAME_PREFIX = "nfdemo_";
@@ -604,6 +604,7 @@ function buildReactions(profiles: Profile[], posts: Post[]) {
         userId: user.id,
         postId: post.id,
         body: COMMENT_BODIES[(commentN + i) % COMMENT_BODIES.length]!,
+        parentCommentId: null,
         createdAt: post.createdAt,
       });
       commentN += 1;
@@ -621,3 +622,7 @@ export const SEED_LIKES = reactions.likes;
 export const SEED_WANTS = reactions.wants;
 export const SEED_SAVES = reactions.saves;
 export const SEED_COMMENTS: Comment[] = reactions.comments;
+
+
+
+

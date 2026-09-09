@@ -1,4 +1,4 @@
-export type AccountType = "personal" | "business";
+﻿export type AccountType = "personal" | "business";
 export type MediaType = "photo" | "video";
 export type PostSource = "user" | "brandbridge";
 
@@ -169,5 +169,19 @@ export type UpdateProfileInput = {
   youtubeUrl?: string | null;
   websiteUrl?: string | null;
 };
-
-
+export type AIPostView = {
+  id: string;
+  personaId: string;
+  personaName: string;
+  author: Profile;
+  mediaType: MediaType;
+  mediaUrl: string;
+  thumbnailUrl: string | null;
+  caption: string;
+  category: CategoryId;
+  productUrl: string | null;
+  productLabel: string | null;
+  status: "draft" | "published" | "hidden";
+  createdAt: string;
+  publishedAt: string | null;
+};

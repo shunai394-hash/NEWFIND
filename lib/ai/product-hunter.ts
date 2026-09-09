@@ -195,15 +195,16 @@ export async function evaluateProductCandidates(
     "1. 検索結果に実際に存在する商品だけを選ぶ。",
     "2. 存在しない商品名、ブランド、URLを作らない。",
     "3. productUrlには検索結果に実際に存在するURLだけを使用する。",
-    "4. URLを推測したり生成したりしない。",
-    "5. 商品だと判断できない記事や一般情報は候補にしない。",
-    "6. 確信度が低い商品は候補から除外する。",
-    "7. 同じ商品が複数結果にある場合は1件にまとめる。",
-    "8. 最大5商品まで。",
-    "9. trendScoreはトレンド性だけを評価する。",
-    "10. confidenceScoreは商品情報とURLの確実性を評価する。",
-    "11. attentionReasonには、このAI住民自身がなぜ注目したのかを書く。",
-    "12. AI住民の性格・興味・目的を評価に反映する。",
+    "4. officialUrlを指定する場合も、検索結果に実際に存在するURLだけを使用する。",
+    "5. URLを推測したり生成したりしない。",
+    "6. 商品だと判断できない記事や一般情報は候補にしない。",
+    "7. 確信度が低い商品は候補から除外する。",
+    "8. 同じ商品が複数結果にある場合は1件にまとめる。",
+    "9. 最大5商品まで。",
+    "10. trendScoreはトレンド性だけを評価する。",
+    "11. confidenceScoreは商品情報とURLの確実性を評価する。",
+    "12. attentionReasonには、このAI住民自身がなぜ注目したのかを書く。",
+    "13. AI住民の性格・興味・目的を評価に反映する。",
     "",
     "カテゴリー:",
     "fashion / beauty / accessories / fragrance / japan_brand / celebrity_style / anime_culture / lifestyle / food / travel / home / tech / sports / other",
@@ -309,21 +310,46 @@ export async function evaluateProductCandidates(
         continue;
       }
 
-      const officialUrl = safeString(
+      const officialUrlCandidate = safeString(
         candidate.officialUrl,
       );
 
       if (
-        officialUrl &&
-        !isValidHttpUrl(officialUrl)
+        officialUrlCandidate &&
+        !isValidHttpUrl(officialUrlCandidate)
       ) {
         console.log(
           "PRODUCT HUNTER: invalid official URL:",
-          officialUrl,
+          officialUrlCandidate,
         );
 
         continue;
       }
+
+      const officialSource =
+        officialUrlCandidate
+          ? sourceUrlMap.get(
+              normalizeUrl(officialUrlCandidate),
+            )
+          : null;
+
+      if (
+        officialUrlCandidate &&
+        !officialSource
+      ) {
+        console.log(
+          "PRODUCT HUNTER: official URL not found in search results:",
+          officialUrlCandidate,
+        );
+
+        continue;
+      }
+
+      const officialUrl =
+        officialSource?.url ??
+        (source?.sourceType === "brand_official"
+          ? source.url
+          : null);
 
       const confidenceScore = safeScore(
         candidate.confidenceScore,
@@ -362,11 +388,7 @@ export async function evaluateProductCandidates(
           candidate.description,
         ),
         productUrl: canonicalSourceUrl,
-        officialUrl:
-          officialUrl ||
-          (source?.sourceType === "brand_official"
-            ? source.url
-            : null),
+        officialUrl,
         currency:
           safeString(candidate.currency) || "USD",
         price: safePrice(candidate.price),

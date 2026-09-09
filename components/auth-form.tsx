@@ -4,10 +4,16 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
+import { SignupTermsConsent } from "@/components/signup-terms-consent";
 import { startAppleSignIn } from "@/lib/apple/client";
 import { useApp } from "@/lib/app-context";
 import { safeNextPath } from "@/lib/config";
 import { getStore, storeMode } from "@/lib/store";
+import {
+  markSignupTermsCookie,
+  needsSignupTermsConsent,
+  signupConsentPath,
+} from "@/lib/terms/consent";
 
 function oauthErrorLabel(code: string) {
   if (code === "apple_not_configured") {
@@ -32,11 +38,16 @@ export function AuthForm() {
   );
   const [busy, setBusy] = useState(false);
   const [appleBusy, setAppleBusy] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const next = safeNextPath(params.get("next"));
   const local = storeMode() === "local";
 
   useEffect(() => {
     if (ready && sessionResolved && session && me) {
+      if (needsSignupTermsConsent(me)) {
+        router.replace(signupConsentPath(next));
+        return;
+      }
       router.replace(next);
     }
   }, [ready, sessionResolved, session, me, next, router]);
@@ -48,7 +59,12 @@ export function AuthForm() {
     try {
       const store = getStore();
       if (mode === "signup") {
-        await store.signUpEmail(email, password, displayName);
+        if (!termsAccepted) {
+          throw new Error("利用規約とプライバシーポリシーへの同意が必要です。");
+        }
+        await store.signUpEmail(email, password, displayName, {
+          termsAccepted: true,
+        });
       } else {
         await store.signInEmail(email, password);
       }
@@ -68,6 +84,13 @@ export function AuthForm() {
 
   async function oauthGoogle() {
     setError("");
+    if (mode === "signup") {
+      if (!termsAccepted) {
+        setError("利用規約とプライバシーポリシーへの同意が必要です。");
+        return;
+      }
+      markSignupTermsCookie();
+    }
     try {
       await getStore().signInOAuth("google", next);
     } catch (err) {
@@ -77,6 +100,13 @@ export function AuthForm() {
 
   async function oauthApple() {
     setError("");
+    if (mode === "signup") {
+      if (!termsAccepted) {
+        setError("利用規約とプライバシーポリシーへの同意が必要です。");
+        return;
+      }
+      markSignupTermsCookie();
+    }
     setAppleBusy(true);
     try {
       await startAppleSignIn(next);
@@ -130,10 +160,16 @@ export function AuthForm() {
           minLength={6}
           className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900"
         />
+        {mode === "signup" ? (
+          <SignupTermsConsent
+            accepted={termsAccepted}
+            onChange={setTermsAccepted}
+          />
+        ) : null}
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || (mode === "signup" && !termsAccepted)}
           className="w-full rounded-lg bg-[#C6FF00] py-2.5 text-sm font-semibold text-black disabled:opacity-50"
         >
           {mode === "signup" ? "登録する" : "ログイン"}
@@ -150,14 +186,15 @@ export function AuthForm() {
         <button
           type="button"
           onClick={() => void oauthGoogle()}
-          className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold"
+          disabled={mode === "signup" && !termsAccepted}
+          className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold disabled:opacity-50"
         >
           Googleで続ける
         </button>
         <button
           type="button"
           onClick={() => void oauthApple()}
-          disabled={appleBusy}
+          disabled={appleBusy || (mode === "signup" && !termsAccepted)}
           className="w-full rounded-lg border border-neutral-200 bg-black py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           {appleBusy ? "Apple に接続中..." : "Appleでログイン"}
@@ -174,7 +211,11 @@ export function AuthForm() {
         {mode === "login" ? "アカウントがない場合" : "すでにアカウントがある場合"}{" "}
         <button
           type="button"
-          onClick={() => setMode(mode === "login" ? "signup" : "login")}
+          onClick={() => {
+            setMode(mode === "login" ? "signup" : "login");
+            setTermsAccepted(false);
+            setError("");
+          }}
           className="font-semibold text-neutral-900"
         >
           {mode === "login" ? "登録する" : "ログイン"}

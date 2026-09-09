@@ -6,6 +6,7 @@ import {
   isIosCapacitor,
 } from "@/lib/capacitor/platform";
 import { createClient } from "@/lib/supabase/client";
+import { signupConsentPath } from "@/lib/terms/consent";
 
 function randomNonce() {
   const bytes = new Uint8Array(24);
@@ -32,7 +33,7 @@ async function completeWithTicket(tokenHash: string) {
   if (error) throw new Error(error.message);
 }
 
-async function nativeIosAppleSignIn() {
+async function nativeIosAppleSignIn(next: string) {
   const rawNonce = randomNonce();
   const hashedNonce = await sha256Hex(rawNonce);
   const result = await NativeAppleSignIn.authorize({
@@ -52,18 +53,26 @@ async function nativeIosAppleSignIn() {
       familyName: result.familyName,
     }),
   });
-  const json = (await res.json()) as { tokenHash?: string; error?: string };
+  const json = (await res.json()) as {
+    tokenHash?: string;
+    created?: boolean;
+    error?: string;
+  };
   if (!res.ok || !json.tokenHash) {
     throw new Error(json.error || "Apple ログインに失敗しました");
   }
   await completeWithTicket(json.tokenHash);
+  if (json.created) {
+    window.location.replace(signupConsentPath(next));
+    return;
+  }
+  window.location.replace(next.startsWith("/") ? next : "/");
 }
 
 export async function startAppleSignIn(next = "/") {
   if (isIosCapacitor()) {
     try {
-      await nativeIosAppleSignIn();
-      window.location.replace(next.startsWith("/") ? next : "/");
+      await nativeIosAppleSignIn(next);
       return;
     } catch (err) {
       const message = err instanceof Error ? err.message : "";

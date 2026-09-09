@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { AppProvider } from "@/lib/app-context";
+import { SignupConsentGate } from "@/components/signup-consent-gate";
 import "./globals.css";
 
 const geist = Geist({
@@ -40,6 +41,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AppProvider>
+          <SignupConsentGate />
           <AppShell>{children}</AppShell>
         </AppProvider>
       </body>

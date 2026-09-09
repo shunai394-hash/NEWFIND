@@ -26,6 +26,7 @@ export type Store = {
     email: string,
     password: string,
     displayName: string,
+    options?: { termsAccepted?: boolean },
   ): Promise<Session>;
   signInOAuth(provider: "google" | "apple", next?: string): Promise<void>;
   signOut(): Promise<void>;

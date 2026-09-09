@@ -183,7 +183,10 @@ export const localStore: Store = {
     return state.session;
   },
 
-  async signUpEmail(email, password, displayName) {
+  async signUpEmail(email, password, displayName, options) {
+    if (!options?.termsAccepted) {
+      throw new Error("利用規約とプライバシーポリシーへの同意が必要です。");
+    }
     const hash = await hashPassword(password);
     return mutate((state) => {
       if (state.users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
@@ -210,6 +213,8 @@ export const localStore: Store = {
         tiktokUrl: null,
         youtubeUrl: null,
         websiteUrl: null,
+        termsAcceptedAt: new Date().toISOString(),
+        termsVersion: "2026-09-10",
         createdAt: new Date().toISOString(),
       });
       state.session = { userId: id, email };

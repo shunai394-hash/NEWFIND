@@ -9,6 +9,7 @@ import {
 } from "@/lib/apple/verify";
 import { isSupabaseConfigured, safeNextPath } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
+import { postAuthRedirectPath } from "@/lib/terms/post-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -131,6 +132,9 @@ async function completeAppleLogin(request: Request) {
     });
     const tokenHash = await issueAppleLoginTicket(user.email);
     const next = safeNextPath(state.next);
+    const destination = await postAuthRedirectPath(user.userId, next, {
+      created: user.created,
+    });
 
     if (state.platform === "android") {
       const deep = new URL(ANDROID_OAUTH_CALLBACK);
@@ -138,6 +142,7 @@ async function completeAppleLogin(request: Request) {
       deep.searchParams.set("type", "magiclink");
       deep.searchParams.set("provider", "apple");
       deep.searchParams.set("next", next);
+      if (user.created) deep.searchParams.set("created", "1");
       return NextResponse.redirect(deep.toString());
     }
 
@@ -149,7 +154,7 @@ async function completeAppleLogin(request: Request) {
     if (error) {
       throw new Error(error.message);
     }
-    return NextResponse.redirect(`${origin}${next}`, 303);
+    return NextResponse.redirect(`${origin}${destination}`, 303);
   } catch (err) {
     return loginError(
       origin,

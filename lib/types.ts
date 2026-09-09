@@ -50,6 +50,8 @@ export type Profile = {
   websiteUrl: string | null;
   isAdmin?: boolean;
   isSuspended?: boolean;
+  termsAcceptedAt?: string | null;
+  termsVersion?: string | null;
   createdAt: string;
 };
 

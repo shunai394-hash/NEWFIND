@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import { isSupabaseConfigured, safeNextPath } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
+import { postAuthRedirectPath } from "@/lib/terms/post-auth";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -15,7 +16,12 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      const { data } = await supabase.auth.getUser();
+      const userId = data.user?.id;
+      const destination = userId
+        ? await postAuthRedirectPath(userId, next)
+        : next;
+      return NextResponse.redirect(`${origin}${destination}`);
     }
     return NextResponse.redirect(
       `${origin}/login?error=oauth&detail=${encodeURIComponent(error.message)}`,

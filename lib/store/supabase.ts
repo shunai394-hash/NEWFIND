@@ -10,6 +10,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { listDiscoveryProductsByIdsFromDb } from "@/lib/discovery/db";
 import type { Store } from "@/lib/store/types";
+import { TERMS_VERSION } from "@/lib/terms/consent";
 
 function logSupabaseError(scope: string, error: {
   message?: string;
@@ -83,6 +84,8 @@ type ProfileRow = {
   website_url?: string | null;
   is_admin?: boolean | null;
   is_suspended?: boolean | null;
+  terms_accepted_at?: string | null;
+  terms_version?: string | null;
   created_at: string;
 };
 
@@ -128,6 +131,8 @@ function mapProfile(row: ProfileRow, social?: SocialLinks | null): Profile {
     websiteUrl: row.website_url ?? social?.websiteUrl ?? null,
     isAdmin: Boolean(row.is_admin),
     isSuspended: Boolean(row.is_suspended),
+    termsAcceptedAt: row.terms_accepted_at ?? null,
+    termsVersion: row.terms_version ?? null,
     createdAt: row.created_at,
   };
 }
@@ -246,6 +251,49 @@ function mapPost(row: PostRow): Post {
   };
 }
 
+async function saveSignupTermsConsent(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+) {
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      terms_accepted_at: new Date().toISOString(),
+      terms_version: TERMS_VERSION,
+    })
+    .eq("id", userId);
+
+  if (error) {
+    const msg = `${error.message} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
+    if (/terms_accepted_at|terms_version|42703|schema cache/i.test(msg)) {
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+async function maybeApplyMetadataTerms(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  row: ProfileRow,
+) {
+  if (row.terms_accepted_at) return;
+  if (row.terms_version === "legacy") return;
+
+  try {
+    const { data } = await supabase.auth.getUser();
+    const meta = data.user?.user_metadata as
+      | { terms_accepted?: boolean; terms_version?: string }
+      | undefined;
+    if (!meta?.terms_accepted) return;
+    await saveSignupTermsConsent(supabase, userId);
+    row.terms_accepted_at = new Date().toISOString();
+    row.terms_version = TERMS_VERSION;
+  } catch {
+    // Existing login must not fail because of consent metadata.
+  }
+}
+
 async function ensureProfile(
   supabase: ReturnType<typeof createClient>,
   userId: string,
@@ -264,6 +312,7 @@ async function ensureProfile(
       await supabase.auth.signOut();
       throw new Error("Account suspended");
     }
+    await maybeApplyMetadataTerms(supabase, userId, row);
     return hydrateProfile(supabase, row);
   }
 
@@ -297,10 +346,16 @@ async function ensureProfile(
         status: (retry as { status?: number }).status ?? null,
       });
     }
-    if (retry.data) return hydrateProfile(supabase, retry.data as ProfileRow);
+    if (retry.data) {
+      const retryRow = retry.data as ProfileRow;
+      await maybeApplyMetadataTerms(supabase, userId, retryRow);
+      return hydrateProfile(supabase, retryRow);
+    }
     throw new Error(inserted.error.message);
   }
-  return hydrateProfile(supabase, inserted.data as ProfileRow);
+  const createdRow = inserted.data as ProfileRow;
+  await maybeApplyMetadataTerms(supabase, userId, createdRow);
+  return hydrateProfile(supabase, createdRow);
 }
 
 async function selectByIds<T>(
@@ -532,20 +587,34 @@ export const supabaseStore: Store = {
     return { userId: user.id, email: user.email ?? email };
   },
 
-  async signUpEmail(email, password, displayName) {
+  async signUpEmail(email, password, displayName, options) {
+    if (!options?.termsAccepted) {
+      throw new Error("利用規約とプライバシーポリシーへの同意が必要です。");
+    }
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName } },
+      options: {
+        data: {
+          display_name: displayName,
+          terms_accepted: true,
+          terms_version: TERMS_VERSION,
+        },
+      },
     });
     if (error) throw new Error(error.message);
     if (!data.session?.user) {
       throw new Error(
-        "遒ｺ隱阪Γ繝ｼ繝ｫ繧帝∽ｿ｡メール内のリンクを開いてからログインしてください。",
+        "確認メールを送信しました。メール内のリンクを開いてからログインしてください。",
       );
     }
     const user = data.session.user;
+    try {
+      await saveSignupTermsConsent(supabase, user.id);
+    } catch {
+      // Profile row may not exist yet; ensureMyProfile records consent next.
+    }
     return { userId: user.id, email: user.email ?? email };
   },
 

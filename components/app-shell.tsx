@@ -11,7 +11,9 @@ const NAV_HEIGHT_PX = 56;
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hideChrome =
-    pathname.startsWith("/login") || pathname.startsWith("/auth");
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/signup");
   const isAdmin = pathname.startsWith("/admin");
   const showNav = !hideChrome && !isAdmin;
 

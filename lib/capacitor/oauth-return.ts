@@ -1,6 +1,10 @@
 import { safeNextPath } from "@/lib/config";
 import { createClient } from "@/lib/supabase/client";
 import { isCapacitorNative } from "@/lib/capacitor/platform";
+import {
+  needsSignupTermsConsent,
+  signupConsentPath,
+} from "@/lib/terms/consent";
 
 const processedCodes = new Set<string>();
 let inFlightCode: string | null = null;
@@ -19,6 +23,26 @@ function oauthErrorMessage(url: URL): string | null {
   const error = url.searchParams.get("error");
   if (!error) return null;
   return url.searchParams.get("error_description") || error;
+}
+
+async function destinationAfterNativeSession(next: string): Promise<string> {
+  try {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return next;
+    const profile = await supabase
+      .from("profiles")
+      .select("terms_accepted_at, terms_version")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    if (profile.error || !profile.data) return next;
+    if (needsSignupTermsConsent(profile.data)) {
+      return signupConsentPath(next);
+    }
+  } catch {
+    return next;
+  }
+  return next;
 }
 
 /**
@@ -64,6 +88,10 @@ export async function handleOAuthReturnUrl(rawUrl: string): Promise<boolean> {
       }
       processedCodes.add(tokenHash);
       const next = safeNextPath(url.searchParams.get("next"));
+      if (url.searchParams.get("created") === "1") {
+        window.location.replace(signupConsentPath(next));
+        return true;
+      }
       window.location.replace(next);
       return true;
     } finally {
@@ -90,7 +118,7 @@ export async function handleOAuthReturnUrl(rawUrl: string): Promise<boolean> {
 
     processedCodes.add(code);
     const next = safeNextPath(url.searchParams.get("next"));
-    window.location.replace(next);
+    window.location.replace(await destinationAfterNativeSession(next));
     return true;
   } finally {
     if (inFlightCode === code) inFlightCode = null;

@@ -1,4 +1,5 @@
-import type {
+﻿import type {
+  AIPostView,
   CommentView,
   CreatePostInput,
   FollowCounts,
@@ -32,6 +33,7 @@ export type Store = {
   getProfileByUsername(username: string): Promise<Profile | null>;
   ensureMyProfile(session: Session): Promise<Profile>;
   updateProfile(id: string, patch: UpdateProfileInput): Promise<Profile>;
+  getAIPosts(offset?: number, limit?: number): Promise<AIPostView[]>;
   getFeed(
     kind: "foryou" | "following",
     viewerId: string | null,
@@ -76,3 +78,4 @@ export type Store = {
   listFollowers(userId: string, viewerId: string | null): Promise<FollowListEntry[]>;
   listFollowing(userId: string, viewerId: string | null): Promise<FollowListEntry[]>;
 };
+

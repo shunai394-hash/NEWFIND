@@ -250,6 +250,8 @@ export type DiscoveryProduct = {
   trendScore: number;
   confidenceScore: number;
   discoverySource: string | null;
+  discoveredByResidentId?: string | null;
+  discoveredByResidentName?: string | null;
   discoveredAt: string | null;
   attentionReason: string;
   status: DiscoveryStatus;

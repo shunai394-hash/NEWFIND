@@ -43,6 +43,11 @@ export function ProductDetail({
             {product.brand}
           </p>
           <h1 className="mt-1 text-xl font-semibold leading-tight">{product.productName}</h1>
+          {product.discoveredByResidentName ? (
+            <div className="mt-3 inline-flex items-center rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700">
+              Discovered by {product.discoveredByResidentName}
+            </div>
+          ) : null}
           <p className="mt-2 text-sm text-neutral-500">
             {product.subcategory}
             {product.country ? ` · ${product.country}` : ""}

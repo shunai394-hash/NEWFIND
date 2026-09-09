@@ -36,6 +36,7 @@ type ProductRow = {
   trend_score: number | null;
   confidence_score: number | null;
   discovery_source: string | null;
+  discovered_by_resident_id: string | null;
   status: string;
   normalized_brand: string | null;
   normalized_product_name: string | null;
@@ -146,6 +147,7 @@ function mapProduct(
   people: DiscoveryPerson[],
   sales: DiscoverySale[],
   tags: TrendTag[],
+  discoveredByResidentName: string | null,
 ): DiscoveryProduct {
   return {
     id: row.id,
@@ -164,6 +166,8 @@ function mapProduct(
     trendScore: row.trend_score ?? 0,
     confidenceScore: row.confidence_score ?? 0,
     discoverySource: row.discovery_source,
+    discoveredByResidentId: row.discovered_by_resident_id,
+    discoveredByResidentName,
     status: row.status as DiscoveryStatus,
     normalizedBrand: row.normalized_brand ?? normalizeBrand(row.brand),
     normalizedProductName: row.normalized_product_name ?? normalizeProductName(row.product_name),
@@ -184,21 +188,49 @@ async function hydrate(
 ): Promise<DiscoveryProduct[]> {
   if (rows.length === 0) return [];
   const ids = rows.map((row) => row.id);
-  const [sourcesRes, peopleRes, salesRes, tagsRes] = await Promise.all([
-    supabase.from("discovery_sources").select("*").in("product_id", ids),
-    supabase.from("discovery_product_people").select("*").in("product_id", ids),
-    supabase.from("discovery_product_sales").select("*").in("product_id", ids),
-    supabase.from("discovery_product_tags").select("product_id, tag").in("product_id", ids),
-  ]);
+  const residentIds = [
+    ...new Set(
+      rows
+        .map((row) => row.discovered_by_resident_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const [sourcesRes, peopleRes, salesRes, tagsRes, residentsRes] =
+    await Promise.all([
+      supabase.from("discovery_sources").select("*").in("product_id", ids),
+      supabase.from("discovery_product_people").select("*").in("product_id", ids),
+      supabase.from("discovery_product_sales").select("*").in("product_id", ids),
+      supabase
+        .from("discovery_product_tags")
+        .select("product_id, tag")
+        .in("product_id", ids),
+      residentIds.length > 0
+        ? supabase
+            .from("ai_personas_public")
+            .select("id, persona_name")
+            .in("id", residentIds)
+            .eq("is_active", true)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
   if (sourcesRes.error) throw new Error(sourcesRes.error.message);
   if (peopleRes.error) throw new Error(peopleRes.error.message);
   if (salesRes.error) throw new Error(salesRes.error.message);
   if (tagsRes.error) throw new Error(tagsRes.error.message);
+  if (residentsRes.error) throw new Error(residentsRes.error.message);
 
   const sources = (sourcesRes.data ?? []) as SourceRow[];
   const people = (peopleRes.data ?? []) as PersonRow[];
   const sales = (salesRes.data ?? []) as SaleRow[];
   const tags = (tagsRes.data ?? []) as TagRow[];
+  const residents = (residentsRes.data ?? []) as Array<{
+    id: string;
+    persona_name: string;
+  }>;
+
+  const residentNameById = new Map(
+    residents.map((resident) => [resident.id, resident.persona_name]),
+  );
 
   return rows.map((row) =>
     mapProduct(
@@ -207,6 +239,7 @@ async function hydrate(
       people.filter((item) => item.product_id === row.id).map(mapPerson),
       sales.filter((item) => item.product_id === row.id).map(mapSale),
       tags.filter((item) => item.product_id === row.id).map((item) => item.tag as TrendTag),
+      residentNameById.get(row.discovered_by_resident_id ?? "") ?? null,
     ),
   );
 }
@@ -305,6 +338,7 @@ export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
     trend_score: input.trendScore ?? 0,
     confidence_score: input.confidenceScore ?? 0,
     discovery_source: input.discoverySource,
+    discovered_by_resident_id: input.discoveredByResidentId ?? null,
     status: input.status,
     normalized_brand: normalizeBrand(input.brand),
     normalized_product_name: normalizeProductName(input.productName),

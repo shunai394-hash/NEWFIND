@@ -1,4 +1,4 @@
-import type { AccountType, CategoryId, Comment, Post, Profile } from "@/lib/types";
+﻿import type { AccountType, CategoryId, Comment, Post, Profile } from "@/lib/types";
 import {
   assertJpImageUniqueness,
   JP_IMAGES_BY_CATEGORY,
@@ -6,7 +6,7 @@ import {
   type JpImageAsset,
 } from "@/lib/seed-jp-images";
 
-/** Japan youth demo rows — separate ID space from overseas nfdemo_*. */
+/** Japan youth demo rows 窶・separate ID space from overseas nfdemo_*. */
 export const DEMO_JP_USERNAME_PREFIX = "nfdemo_jp_";
 export const DEMO_JP_PROFILE_ID_PREFIX = "a1000000-0000-4000-8000-";
 export const DEMO_JP_REACTOR_ID_PREFIX = "a1100000-0000-4000-8000-";
@@ -90,79 +90,75 @@ function demoAvatar(seed: string, label: string) {
   return `https://ui-avatars.com/api/?name=${name}&background=${bg}&color=fff&size=200&bold=true&format=png`;
 }
 
-/** Mix photo avatars with initials — not all AI, not all the same face. */
+/** Mix photo avatars with initials 窶・not all AI, not all the same face. */
 
 const PERSONAL: Array<Omit<ProfileDef, "n" | "avatarUrl" | "accountType"> & { interest: Interest }> = [
-  { slug: "mei", displayName: "めい", bio: "大学生。淡色コーデと韓国っぽシルエットが好き。デモ用アカウント。", interest: "fashion" },
-  { slug: "yuna", displayName: "ゆな", bio: "通学コーデと白スニーカー集め。足元から整える派。", interest: "fashion" },
-  { slug: "rina", displayName: "りな", bio: "きれいめカジュアル。ジャケットとスラックス研究中。", interest: "fashion" },
-  { slug: "akari", displayName: "あかり", bio: "ストリート寄りの休日コーデ。レイヤード多め。", interest: "fashion" },
-  { slug: "mio", displayName: "みお", bio: "デートコーデとミニバッグ記録。カバン沼。", interest: "fashion" },
-  { slug: "hina", displayName: "ひな", bio: "オフィスカジュアル練習中。時計は細ベルト派。", interest: "fashion" },
-  { slug: "sakura", displayName: "さくら", bio: "ワンピースと帽子。季節感のある服が好き。", interest: "fashion" },
-  { slug: "ayaka", displayName: "あやか", bio: "デニムとトップスの組み合わせ。シンプルが落ち着く。", interest: "fashion" },
-  { slug: "nana", displayName: "なな", bio: "夏コーデとアクセサリー。ピアスとリング多め。", interest: "fashion" },
-  { slug: "reina", displayName: "れいな", bio: "大人カジュアル。時計と革小物を少しずつ。", interest: "fashion" },
-  { slug: "koharu", displayName: "こはる", bio: "ガーリーコーデとリボン靴。淡色多め。", interest: "fashion" },
-  { slug: "sora", displayName: "そら", bio: "韓国系ファッションをゆるく。オーバーサイズ好き。", interest: "fashion" },
-  { slug: "momo", displayName: "もも", bio: "ショルダーバッグとスニーカー沼。実用重視。", interest: "fashion" },
-  { slug: "ichika", displayName: "いちか", bio: "きれいめ休日服。アクセは最小限。", interest: "fashion" },
-  { slug: "himari", displayName: "ひまり", bio: "帽子とワンピの季節感。サンダル選びが長い。", interest: "fashion" },
-  { slug: "aoi", displayName: "あおい", bio: "リップとチークの色見本。ナチュラル寄り。", interest: "beauty" },
-  { slug: "emi", displayName: "えみ", bio: "プチプラコスメ購入品メモ。ドラッグストア巡り。", interest: "beauty" },
-  { slug: "risa", displayName: "りさ", bio: "韓国コスメとスキンケア。ベースが勝負。", interest: "beauty" },
-  { slug: "mika", displayName: "みか", bio: "アイシャドウとマスカラ。目元の色だけ冒険。", interest: "beauty" },
-  { slug: "yui", displayName: "ゆい", bio: "ファンデーションと下地。崩れにくい組み合わせ探し。", interest: "beauty" },
-  { slug: "saki", displayName: "さき", bio: "ネイルとヘアケア。短めネイル派。", interest: "beauty" },
-  { slug: "honoka", displayName: "ほのか", bio: "日焼け止めと美容液。朝のスキンケア最短ルート。", interest: "beauty" },
-  { slug: "kotone", displayName: "ことね", bio: "香水とポーチの中身。香りは軽めが好き。", interest: "beauty" },
-  { slug: "noa", displayName: "のあ", bio: "デパコスもたまに試す。リップだけ奮発しがち。", interest: "beauty" },
-  { slug: "fuka", displayName: "ふうか", bio: "アイライナー細引き派。涙袋も薄く。", interest: "beauty" },
-  { slug: "chika", displayName: "ちか", bio: "GRWMと今日のメイク。学校メイク寄り。", interest: "beauty" },
-  { slug: "misa", displayName: "みさ", bio: "ティントリップ多め。落ちにくい色探し。", interest: "beauty" },
-  { slug: "yume", displayName: "ゆめ", bio: "チークの位置研究。血色感だけ足す。", interest: "beauty" },
-  { slug: "airi", displayName: "あいり", bio: "カフェとコンビニスイーツ。席の光が大事。", interest: "food" },
-  { slug: "an", displayName: "あん", bio: "東京カフェ巡り。ラテアートより空間派。", interest: "food" },
-  { slug: "nagi", displayName: "なぎ", bio: "抹茶と韓国フード。新大久保多め。", interest: "food" },
-  { slug: "miku", displayName: "みく", bio: "ランチとスイーツ記録。甘さ控えめで探す。", interest: "food" },
-  { slug: "hinata", displayName: "ひなた", bio: "週末ブランチ。カフェの窓際が好き。", interest: "food" },
-  { slug: "suzuka", displayName: "すずか", bio: "部屋と休日の朝。雑貨を少しずつ入れ替え。", interest: "lifestyle" },
-  { slug: "toha", displayName: "とは", bio: "推し活とバッグの中身。小物の色合わせ。", interest: "lifestyle" },
-  { slug: "kokona", displayName: "ここな", bio: "大学生活と購入品。欲しいものリスト公開。", interest: "lifestyle" },
-  { slug: "maho", displayName: "まほ", bio: "大人カジュアルと休日スナップ。バッグ記録多め。", interest: "fashion" },
-  { slug: "eri", displayName: "えり", bio: "フェミニン寄りのワンピと靴。カフェコーデ好き。", interest: "fashion" },
-  { slug: "kaho", displayName: "かほ", bio: "時計好き。細ベルトとオフィスカジュアル。", interest: "fashion" },
-  { slug: "sara", displayName: "さら", bio: "デスク周りとインテリア。収納を整える係。", interest: "home" },
-  { slug: "moe", displayName: "もえ", bio: "プチプラファッションと雑貨。GU・しまむら多め。", interest: "fashion" },
-  { slug: "asuka", displayName: "あすか", bio: "オフィスカジュアル挑戦中。時計で引き締め。", interest: "fashion" },
-  { slug: "riko", displayName: "りこ", bio: "アクセと帽子の組み合わせ。金属はゴールド寄り。", interest: "fashion" },
-  { slug: "nanami", displayName: "ななみ", bio: "韓国メイク薄め版。ティント中心。", interest: "beauty" },
-  { slug: "yuina", displayName: "ゆいな", bio: "ヘアケアとネイル。香り付きオイル好き。", interest: "beauty" },
-  { slug: "miyu", displayName: "みゆ", bio: "カフェの席と光。スイーツはシェア前提。", interest: "food" },
-  { slug: "ruka", displayName: "るか", bio: "購入品と休日。バッグと靴の記録。", interest: "lifestyle" },
-  { slug: "shiori", displayName: "しおり", bio: "モード寄りの黒コーデ。靴選びが長い。", interest: "fashion" },
-  { slug: "haruka", displayName: "はるか", bio: "ウェルネスと朝のスキンケア。薄いメイク派。", interest: "beauty" },
-  { slug: "ayane", displayName: "あやね", bio: "部屋の角だけ整える係。照明と雑貨。", interest: "home" },
-  { slug: "ninon", displayName: "にのん", bio: "ミニマル寄りの今日の服。色数は3色まで。", interest: "fashion" },
-  { slug: "remi", displayName: "れみ", bio: "リップとグロスの沼。香水は重ねづけ。", interest: "beauty" },
-  { slug: "kanon", displayName: "かのん", bio: "スイーツよりドリンク派。抹茶ラテ定番。", interest: "food" },
-  { slug: "tsumugi", displayName: "つむぎ", bio: "推し色の小物集め。アクセとポーチ。", interest: "lifestyle" },
-  { slug: "io", displayName: "いお", bio: "夏コーデとサンダル。足首のアクセ多め。", interest: "fashion" },
-  { slug: "riho", displayName: "りほ", bio: "スキンケアの順番メモ。美容液は季節で変える。", interest: "beauty" },
-  { slug: "ume", displayName: "うめ", bio: "抹茶ラテと和菓子寄りスイーツ。", interest: "food" },
-  { slug: "kota", displayName: "こた", bio: "バッグ好き。小さめショルダーを集めてる。デモ用。", interest: "fashion" },
+  { slug: "mei", displayName: "めい", bio: "大学生。シンプルで大人っぽいファッションが好き。", interest: "fashion" },
+  { slug: "yuna", displayName: "ゆな", bio: "通学コーデとカフェ巡りが好き。お気に入りを紹介しています。", interest: "fashion" },
+  { slug: "rina", displayName: "りな", bio: "きれいめカジュアル中心。ジャケットとスラックスが好き。", interest: "fashion" },
+  { slug: "akari", displayName: "あかり", bio: "ストリートと韓国ファッションが好き。", interest: "fashion" },
+  { slug: "mio", displayName: "みお", bio: "トレンドアイテムやバッグをチェックしています。", interest: "fashion" },
+  { slug: "saki", displayName: "さき", bio: "休日はカフェとショッピング。淡色コーデが好き。", interest: "fashion" },
+  { slug: "hina", displayName: "ひな", bio: "毎日のコーデと最近買ってよかったもの。", interest: "fashion" },
+  { slug: "nana", displayName: "なな", bio: "ヴィンテージと古着をミックスしたスタイルが好き。", interest: "fashion" },
+  { slug: "yui", displayName: "ゆい", bio: "シンプルだけど少し個性のある服が好きです。", interest: "fashion" },
+  { slug: "misaki", displayName: "みさき", bio: "仕事でも休日でも使えるアイテムを紹介。", interest: "fashion" },
+  { slug: "eri", displayName: "えり", bio: "美容とファッション。長く使えるものを選びたい。", interest: "beauty" },
+  { slug: "kana", displayName: "かな", bio: "スキンケアとコスメを中心に投稿しています。", interest: "beauty" },
+  { slug: "ayaka", displayName: "あやか", bio: "新作コスメを試すのが好き。お気に入りを紹介します。", interest: "beauty" },
+  { slug: "momoka", displayName: "ももか", bio: "肌をきれいに見せるメイクを研究中。", interest: "beauty" },
+  { slug: "noa", displayName: "のあ", bio: "ナチュラルメイクと香りのアイテムが好き。", interest: "beauty" },
+  { slug: "haruka", displayName: "はるか", bio: "毎日の美容習慣とお気に入りアイテム。", interest: "beauty" },
+  { slug: "chihiro", displayName: "ちひろ", bio: "コスメと美容家電を中心に紹介しています。", interest: "beauty" },
+  { slug: "maho", displayName: "まほ", bio: "自分に合うスキンケアを探すのが好き。", interest: "beauty" },
+  { slug: "rio", displayName: "りお", bio: "ヘアケアとボディケアも大切にしています。", interest: "beauty" },
+  { slug: "ami", displayName: "あみ", bio: "美容好き。買ってよかったものを正直にレビュー。", interest: "beauty" },
+  { slug: "kotoha", displayName: "ことは", bio: "カフェ、スイーツ、気になる新商品をチェック。", interest: "food" },
+  { slug: "mai", displayName: "まい", bio: "おいしいものを探して街を歩くのが好き。", interest: "food" },
+  { slug: "sena", displayName: "せな", bio: "カフェ巡りと写真が好きです。", interest: "food" },
+  { slug: "koharu", displayName: "こはる", bio: "休日は新しいカフェやスイーツを探しています。", interest: "food" },
+  { slug: "manami", displayName: "まなみ", bio: "気になるグルメとお気に入りのお店を紹介。", interest: "food" },
+  { slug: "yuka", displayName: "ゆか", bio: "パンとコーヒーが好き。東京のカフェを開拓中。", interest: "food" },
+  { slug: "ayano", displayName: "あやの", bio: "お取り寄せグルメや話題のスイーツを紹介。", interest: "food" },
+  { slug: "tomoka", displayName: "ともか", bio: "ランチとカフェ。写真を撮るのも好きです。", interest: "food" },
+  { slug: "shiori", displayName: "しおり", bio: "季節限定のスイーツを見つけると嬉しくなります。", interest: "food" },
+  { slug: "riko", displayName: "りこ", bio: "食べ歩き好き。お気に入りをシェアしています。", interest: "food" },
+  { slug: "nao", displayName: "なお", bio: "暮らしを少し楽しくする雑貨が好き。", interest: "lifestyle" },
+  { slug: "madoka", displayName: "まどか", bio: "インテリアと暮らしのアイテムを紹介。", interest: "lifestyle" },
+  { slug: "yukari", displayName: "ゆかり", bio: "便利な生活雑貨やお気に入りの小物。", interest: "lifestyle" },
+  { slug: "satomi", displayName: "さとみ", bio: "部屋づくりと暮らしの記録。", interest: "lifestyle" },
+  { slug: "kaori", displayName: "かおり", bio: "毎日使うものこそ、気に入ったものを選びたい。", interest: "lifestyle" },
+  { slug: "fumika", displayName: "ふみか", bio: "整理収納とシンプルな暮らしが好き。", interest: "lifestyle" },
+  { slug: "reina", displayName: "れいな", bio: "暮らしの中で見つけた便利アイテムを紹介。", interest: "lifestyle" },
+  { slug: "sayaka", displayName: "さやか", bio: "おしゃれな雑貨とインテリアを探しています。", interest: "lifestyle" },
+  { slug: "yoshino", displayName: "よしの", bio: "旅行とホテル、旅先で見つけたものが好き。", interest: "travel" },
+  { slug: "natsuki", displayName: "なつき", bio: "週末旅行と写真。おすすめスポットを紹介。", interest: "travel" },
+  { slug: "madoka2", displayName: "まどか", bio: "国内旅行が好き。次の旅先を探しています。", interest: "travel" },
+  { slug: "suzune", displayName: "すずね", bio: "旅先のカフェとショップを巡るのが好き。", interest: "travel" },
+  { slug: "miku", displayName: "みく", bio: "新しい場所と新しいものに出会うのが好き。", interest: "travel" },
+  { slug: "akane", displayName: "あかね", bio: "旅行の持ち物や便利なアイテムを紹介。", interest: "travel" },
+  { slug: "yume", displayName: "ゆめ", bio: "休日は気になる街へふらっと出かけます。", interest: "travel" },
+  { slug: "karen", displayName: "かれん", bio: "ホテルとカフェ巡りが好きです。", interest: "travel" },
+  { slug: "towa", displayName: "とわ", bio: "ガジェットや便利なデジタルアイテムが好き。", interest: "tech" },
+  { slug: "mirai", displayName: "みらい", bio: "スマホ周りの便利アイテムを探しています。", interest: "tech" },
+  { slug: "ayumi", displayName: "あゆみ", bio: "仕事や生活を便利にするガジェットを紹介。", interest: "tech" },
+  { slug: "reina2", displayName: "れいな", bio: "新しいテクノロジーを試すのが好き。", interest: "tech" },
+  { slug: "suzuka", displayName: "すずか", bio: "イヤホンやスマートデバイスをチェックしています。", interest: "tech" },
+  { slug: "megu", displayName: "めぐ", bio: "便利そうなものを見つけると試したくなります。", interest: "tech" },
+  { slug: "honoka", displayName: "ほのか", bio: "PC周辺機器とデスク環境を整えるのが好き。", interest: "tech" },
+  { slug: "rika", displayName: "りか", bio: "暮らしに役立つデジタルアイテムを紹介。", interest: "tech" },
 ];
 
 const BUSINESS: Array<Omit<ProfileDef, "n" | "accountType"> & { avatarUrl: string }> = [
   {
     slug: "closetnote",
     displayName: "CLOSET NOTE",
-    bio: "デイリーに着たい服のメモ帳。",
+    bio: "デイリーに使いたい服やアイテムを紹介。",
     avatarUrl: demoAvatar("jp-closetnote", "CN"),
     interest: "fashion",
     companyName: "CLOSET NOTE",
     companyWebsite: "https://www.gu-global.com/jp/",
-    companyDescription: "若年層向けコーディネート紹介。",
+    companyDescription: "毎日のコーディネートに取り入れやすいファッションアイテムを紹介。",
   },
   {
     slug: "palecloset",
@@ -172,7 +168,7 @@ const BUSINESS: Array<Omit<ProfileDef, "n" | "accountType"> & { avatarUrl: strin
     interest: "fashion",
     companyName: "pale closet",
     companyWebsite: "https://grl.jp/",
-    companyDescription: "ファッションセレクトのデモアカウント。",
+    companyDescription: "淡色を中心としたファッションアイテムを紹介。",
   },
   {
     slug: "streetmini",
@@ -182,27 +178,27 @@ const BUSINESS: Array<Omit<ProfileDef, "n" | "accountType"> & { avatarUrl: strin
     interest: "fashion",
     companyName: "STREET MINI",
     companyWebsite: "https://wego.jp/",
-    companyDescription: "カジュアル寄りのショップアカウント。",
+    companyDescription: "カジュアルを中心に、デイリーで楽しめるアイテムを紹介。",
   },
   {
     slug: "pouchlab",
     displayName: "POUCH LAB",
-    bio: "プチプラコスメの試し記録。",
+    bio: "プチプラコスメの試しレビュー。",
     avatarUrl: demoAvatar("jp-pouchlab", "PL"),
     interest: "beauty",
     companyName: "POUCH LAB",
     companyWebsite: "https://www.canmake.com/",
-    companyDescription: "コスメ紹介のデモアカウント。",
+    companyDescription: "コスメの使用感やおすすめアイテムを紹介。",
   },
   {
     slug: "lipnote",
     displayName: "LIP NOTE",
-    bio: "リップとグロスの色見本。",
+    bio: "リップとグロスの色比較。",
     avatarUrl: demoAvatar("jp-lipnote", "LN"),
     interest: "beauty",
     companyName: "LIP NOTE",
     companyWebsite: "https://www.cezanne.co.jp/",
-    companyDescription: "リップ中心のデモショップ。",
+    companyDescription: "リップを中心に、使いやすいコスメを紹介。",
   },
   {
     slug: "krbeauty",
@@ -212,17 +208,17 @@ const BUSINESS: Array<Omit<ProfileDef, "n" | "accountType"> & { avatarUrl: strin
     interest: "beauty",
     companyName: "KR BEAUTY",
     companyWebsite: "https://www.etude.com/",
-    companyDescription: "韓国コスメ紹介。",
+    companyDescription: "韓国コスメの魅力やおすすめアイテムを紹介。",
   },
   {
     slug: "cafewalk",
     displayName: "CAFE WALK",
-    bio: "東京カフェの席写真。",
+    bio: "東京カフェの雰囲気を紹介。",
     avatarUrl: demoAvatar("jp-cafewalk", "CW"),
     interest: "food",
     companyName: "CAFE WALK",
     companyWebsite: "https://www.starbucks.co.jp/",
-    companyDescription: "カフェ巡りのデモアカウント。",
+    companyDescription: "カフェやドリンク、気になるフードを紹介。",
   },
   {
     slug: "roomnote",
@@ -232,17 +228,17 @@ const BUSINESS: Array<Omit<ProfileDef, "n" | "accountType"> & { avatarUrl: strin
     interest: "home",
     companyName: "ROOM NOTE",
     companyWebsite: "https://www.muji.com/jp/",
-    companyDescription: "インテリア寄りのデモアカウント。",
+    companyDescription: "インテリアや暮らしを整えるアイテムを紹介。",
   },
   {
     slug: "watchnote",
     displayName: "WATCH NOTE",
-    bio: "毎日つけたい細い腕時計。",
+    bio: "毎日つけたい腕時計を紹介。",
     avatarUrl: demoAvatar("jp-watchnote", "WN"),
     interest: "fashion",
     companyName: "WATCH NOTE",
     companyWebsite: "https://www.casio.com/jp/",
-    companyDescription: "腕時計発見のデモアカウント。",
+    companyDescription: "腕時計や身につけるアイテムを紹介。",
   },
   {
     slug: "bagdiary",
@@ -252,7 +248,7 @@ const BUSINESS: Array<Omit<ProfileDef, "n" | "accountType"> & { avatarUrl: strin
     interest: "fashion",
     companyName: "BAG DIARY",
     companyWebsite: "https://www.samantha.co.jp/",
-    companyDescription: "バッグ紹介のデモアカウント。",
+    companyDescription: "バッグを中心に、毎日のコーディネートに合わせやすいアイテムを紹介。",
   },
 ];
 
@@ -323,7 +319,7 @@ const FASHION_THEMES = [
   "バッグ",
   "ショルダーバッグ",
   "腕時計",
-  "細い腕時計",
+  "細身アクセサリー",
   "スニーカー",
   "サンダル",
   "ローファー",
@@ -335,8 +331,8 @@ const FASHION_THEMES = [
   "ワンピース",
   "トップス",
   "デニム",
-  "通学コーデ",
-  "淡色コーデ",
+  "通勤コーデ",
+  "春コーデ",
   "ガーリー",
   "ミニマル",
   "大人カジュアル",
@@ -351,8 +347,8 @@ const BEAUTY_THEMES = [
   "アイライナー",
   "スキンケア",
   "美容液",
-  "日焼け止め",
-  "香水",
+  "日焼け対策",
+  "化粧水",
   "ボディミスト",
   "ネイル",
   "ヘアケア",
@@ -361,31 +357,31 @@ const BEAUTY_THEMES = [
   "デパコス系",
 ];
 
-/** Demo product cards linked from posts (official brand sites — discovery sample). */
+/** Demo product cards linked from posts (official brand sites 窶・discovery sample). */
 type DemoProduct = {
   name: string;
   brand: string;
   priceYen: number;
   url: string;
-  kind: "洋服" | "腕時計" | "バッグ" | "靴" | "アクセサリー" | "コスメ" | "香水" | "雑貨";
+  kind: "衣類" | "腕時計" | "バッグ" | "靴" | "アクセサリー" | "コスメ" | "化粧品" | "美容用品";
   /** japan = Japanese brand; imported = overseas brand sold in Japan */
   origin: "japan" | "imported";
 };
 
 const FASHION_PRODUCTS: DemoProduct[] = [
-  { name: "オーバーサイズニット", brand: "GU", priceYen: 2990, url: "https://www.gu-global.com/jp/", kind: "洋服", origin: "japan" },
-  { name: "プリーツミニスカート", brand: "GRL", priceYen: 1699, url: "https://grl.jp/", kind: "洋服", origin: "japan" },
-  { name: "デニムストレート", brand: "UNIQLO", priceYen: 3990, url: "https://www.uniqlo.com/jp/", kind: "洋服", origin: "japan" },
-  { name: "シアーシャツ", brand: "LOWRYS FARM", priceYen: 4400, url: "https://www.lowrys-farm.com/", kind: "洋服", origin: "japan" },
-  { name: "ニットベスト", brand: "INGNI", priceYen: 3300, url: "https://ingni.jp/", kind: "洋服", origin: "japan" },
-  { name: "ワイドパンツ", brand: "WEGO", priceYen: 4290, url: "https://wego.jp/", kind: "洋服", origin: "japan" },
-  { name: "フレアワンピース", brand: "NICE CLAUP", priceYen: 6490, url: "https://www.niceclaup.jp/", kind: "洋服", origin: "japan" },
-  { name: "クロップドカーディガン", brand: "Heather", priceYen: 4950, url: "https://heather.co.jp/", kind: "洋服", origin: "japan" },
-  { name: "リネンブレンドシャツ", brand: "earth music&ecology", priceYen: 4590, url: "https://www.earth-music.co.jp/", kind: "洋服", origin: "japan" },
-  { name: "テーラードジャケット", brand: "GLOBAL WORK", priceYen: 7990, url: "https://www.globalwork.jp/", kind: "洋服", origin: "japan" },
+  { name: "オーバーサイズニット", brand: "GU", priceYen: 2990, url: "https://www.gu-global.com/jp/", kind: "衣類", origin: "japan" },
+  { name: "プリーツミニスカート", brand: "GRL", priceYen: 1699, url: "https://grl.jp/", kind: "衣類", origin: "japan" },
+  { name: "デニムストレート", brand: "UNIQLO", priceYen: 3990, url: "https://www.uniqlo.com/jp/", kind: "衣類", origin: "japan" },
+  { name: "シアーシャツ", brand: "LOWRYS FARM", priceYen: 4400, url: "https://www.lowrys-farm.com/", kind: "衣類", origin: "japan" },
+  { name: "ニットトップス", brand: "INGNI", priceYen: 3300, url: "https://ingni.jp/", kind: "衣類", origin: "japan" },
+  { name: "ワイドパンツ", brand: "WEGO", priceYen: 4290, url: "https://wego.jp/", kind: "衣類", origin: "japan" },
+  { name: "フレアワンピース", brand: "NICE CLAUP", priceYen: 6490, url: "https://www.niceclaup.jp/", kind: "衣類", origin: "japan" },
+  { name: "クロップドカーディガン", brand: "Heather", priceYen: 4950, url: "https://heather.co.jp/", kind: "衣類", origin: "japan" },
+  { name: "リネンブレンドシャツ", brand: "earth music&ecology", priceYen: 4590, url: "https://www.earth-music.co.jp/", kind: "衣類", origin: "japan" },
+  { name: "テーラードジャケット", brand: "GLOBAL WORK", priceYen: 7990, url: "https://www.globalwork.jp/", kind: "衣類", origin: "japan" },
   { name: "ステンレス腕時計", brand: "CASIO", priceYen: 9900, url: "https://www.casio.com/jp/", kind: "腕時計", origin: "japan" },
-  { name: "細ベルト腕時計", brand: "SEIKO", priceYen: 22000, url: "https://www.seiko.co.jp/", kind: "腕時計", origin: "japan" },
-  { name: "メッシュベルト時計", brand: "CITIZEN", priceYen: 16500, url: "https://www.citizen.co.jp/", kind: "腕時計", origin: "japan" },
+  { name: "シンプル腕時計", brand: "SEIKO", priceYen: 22000, url: "https://www.seiko.co.jp/", kind: "腕時計", origin: "japan" },
+  { name: "メッシュベルト腕時計", brand: "CITIZEN", priceYen: 16500, url: "https://www.citizen.co.jp/", kind: "腕時計", origin: "japan" },
   { name: "スクエアフェイス時計", brand: "CASIO", priceYen: 12800, url: "https://www.casio.com/jp/", kind: "腕時計", origin: "japan" },
   { name: "ミニショルダーバッグ", brand: "GRL", priceYen: 2199, url: "https://grl.jp/", kind: "バッグ", origin: "japan" },
   { name: "トートバッグ", brand: "MUJI", priceYen: 1990, url: "https://www.muji.com/jp/", kind: "バッグ", origin: "japan" },
@@ -410,51 +406,87 @@ const BEAUTY_PRODUCTS: DemoProduct[] = [
   { name: "ラスティングリップ", brand: "CEZANNE", priceYen: 550, url: "https://www.cezanne.co.jp/", kind: "コスメ", origin: "japan" },
   { name: "マスカラ", brand: "ヒロインメイク", priceYen: 1320, url: "https://www.isehan.co.jp/heroinmake/", kind: "コスメ", origin: "japan" },
   { name: "アイパレット", brand: "dasique", priceYen: 3300, url: "https://dasique.com/", kind: "コスメ", origin: "imported" },
-  { name: "ティント", brand: "peripera", priceYen: 1650, url: "https://www.periperacosmetics.com/", kind: "コスメ", origin: "imported" },
+  { name: "ティントリップ", brand: "peripera", priceYen: 1650, url: "https://www.periperacosmetics.com/", kind: "コスメ", origin: "imported" },
   { name: "クッションファンデ", brand: "ETUDE", priceYen: 2750, url: "https://www.etude.com/", kind: "コスメ", origin: "imported" },
   { name: "リップティント", brand: "rom&nd", priceYen: 1980, url: "https://www.romand.co.kr/", kind: "コスメ", origin: "imported" },
   { name: "ハイライター", brand: "fwee", priceYen: 2420, url: "https://fwee.co.kr/", kind: "コスメ", origin: "imported" },
   { name: "ベースメイク", brand: "MAQuillAGE", priceYen: 3850, url: "https://www.shiseido.co.jp/maquillage/", kind: "コスメ", origin: "japan" },
-  { name: "ボディミスト", brand: "SHIRO", priceYen: 3850, url: "https://shiro-shiro.jp/", kind: "香水", origin: "japan" },
-  { name: "オードトワレ", brand: "SHIRO", priceYen: 7700, url: "https://shiro-shiro.jp/", kind: "香水", origin: "japan" },
-  { name: "ヘアオイル", brand: "&honey", priceYen: 1980, url: "https://andhoney.jp/", kind: "コスメ", origin: "japan" },
+  { name: "ボディミスト", brand: "SHIRO", priceYen: 3850, url: "https://shiro-shiro.jp/", kind: "美容用品", origin: "japan" },
+  { name: "オードトワレ", brand: "SHIRO", priceYen: 7700, url: "https://shiro-shiro.jp/", kind: "美容用品", origin: "japan" },
+  { name: "ヘアオイル", brand: "&honey", priceYen: 1980, url: "https://andhoney.jp/", kind: "美容用品", origin: "japan" },
 ];
-
 function formatProductLabel(product: DemoProduct) {
   const tag = product.origin === "japan" ? "日本ブランド" : "Imported brand";
-  return `${tag} · ${product.brand} ${product.name} · ¥${product.priceYen.toLocaleString("ja-JP")}`;
+  return `${tag} ・ ${product.brand} ${product.name} ・ ¥${product.priceYen.toLocaleString("ja-JP")}`;
 }
 
 function pickFashionProduct(i: number, theme: string): DemoProduct {
   const kindHint =
-    /時計|腕時計/.test(theme)
+    /腕時計/.test(theme)
       ? "腕時計"
-      : /バッグ|ショルダー|トート|バケットバッグ/.test(theme)
+      : /バッグ|ショルダーバッグ|トートバッグ|バケットバッグ/.test(theme)
         ? "バッグ"
         : /スニーカー|サンダル|ローファー|靴|ミュール/.test(theme)
           ? "靴"
-          : /アクセ|ピアス|リング|ネックレス|帽子|ハット|クリップ/.test(theme)
+          : /アクセ|ピアス|リング|ネックレス|帽子/.test(theme)
             ? "アクセサリー"
-            : "洋服";
+            : "衣類";
+
   const pool = FASHION_PRODUCTS.filter((p) => p.kind === kindHint);
   const list = pool.length > 0 ? pool : FASHION_PRODUCTS;
   return list[i % list.length]!;
 }
 
 function pickBeautyProduct(i: number, theme: string): DemoProduct {
-  const kindHint = /香水|ミスト|香り/.test(theme) ? "香水" : "コスメ";
+  const kindHint = /ボディミスト|オードトワレ|ヘアオイル/.test(theme)
+    ? "美容用品"
+    : "コスメ";
+
   const pool = BEAUTY_PRODUCTS.filter((p) => p.kind === kindHint);
   const list = pool.length > 0 ? pool : BEAUTY_PRODUCTS;
   return list[i % list.length]!;
 }
+const FOOD_THEMES = [
+  "カフェ",
+  "スイーツ",
+  "コンビニスイーツ",
+  "ランチ",
+  "韓国グルメ",
+  "レストラン",
+  "ドリンク",
+];
 
-const FOOD_THEMES = ["カフェ", "スイーツ", "コンビニスイーツ", "抹茶", "韓国フード", "ランチ", "ドリンク"];
-const LIFE_THEMES = ["部屋", "バッグの中身", "購入品", "休日", "推し活", "大学生活"];
-const TRAVEL_THEMES = ["旅行", "週末トリップ", "駅からの景色"];
-const TECH_THEMES = ["ガジェット", "イヤホン", "スマホまわり"];
-const HOME_THEMES = ["部屋", "デスク周り", "収納"];
-const OTHER_THEMES = ["気になったもの", "今日のひとコマ"];
+const LIFE_THEMES = [
+  "部屋づくり",
+  "バッグの中身",
+  "購入品",
+  "休日",
+  "推し活",
+  "大学生活",
+];
 
+const TRAVEL_THEMES = [
+  "旅行",
+  "週末トリップ",
+  "東京の景色",
+];
+
+const TECH_THEMES = [
+  "ガジェット",
+  "イヤホン",
+  "スマホまわり",
+];
+
+const HOME_THEMES = [
+  "部屋づくり",
+  "デスク周り",
+  "収納",
+];
+
+const OTHER_THEMES = [
+  "気になったもの",
+  "今日のひとこと",
+];
 function takeUniqueImage(
   used: Set<string>,
   pool: readonly JpImageAsset[],
@@ -472,225 +504,223 @@ function takeUniqueImage(
 }
 
 function fashionCaption(i: number, theme: string, product: DemoProduct, note: string) {
-  // Captions stay tied to theme + product kind; avoid inventing unmatched garment details.
+  // Captions stay tied to theme + product kind.
   if (product.kind === "腕時計") {
     const lines = [
-      `最近この時計ばかり使ってる。シンプルだから仕事の日にも合わせやすい。\n${product.brand}`,
-      `手元の記録。細めの腕時計がお気に入り。\n${product.brand} ${product.name}`,
-      `オフィスカジュアルの日は、この時計で引き締めることが多い。`,
+      `${theme}に合わせやすい腕時計。シンプルで毎日使いやすいデザイン。${product.brand}`,
+      `手元の印象を整えてくれる腕時計。${product.brand} ${product.name}`,
+      `オフィスから休日まで使いやすい腕時計。${product.brand}`,
     ];
     return lines[i % lines.length]!;
   }
+
   if (product.kind === "バッグ") {
     const lines = [
-      `小さめだけど意外と入る。最近のお気に入り。\n${product.brand}`,
-      `今日のコーデ。バッグだけ少しきれいめに。\n${note}`,
-      `お気に入りバッグ。肩掛けしやすい形。\n${product.name}`,
+      `${theme}に合わせやすいバッグ。毎日のコーデに取り入れやすい。${product.brand}`,
+      `今日のコーデにバッグをプラス。${note}`,
+      `お気に入りのバッグ。使いやすさとデザインのバランスが◎ ${product.name}`,
     ];
     return lines[i % lines.length]!;
   }
+
   if (product.kind === "靴") {
     const lines = [
-      `足元から整えた日。スニーカーで軽く。\n${product.brand}`,
-      `今日の服。足元を意識したコーデ。\n${note}`,
-      `歩きやすい靴が一番の味方。\n${product.name}`,
+      `${theme}に合わせたい一足。歩きやすさも意識したコーデに。${product.brand}`,
+      `今日の足元はこれ。${note}`,
+      `歩きやすくて取り入れやすい靴。${product.name}`,
     ];
     return lines[i % lines.length]!;
   }
+
   if (product.kind === "アクセサリー") {
     const lines = [
-      `シンプルな服の日は、このアクセを合わせることが多い。\n${product.brand}`,
-      `${note}。小物だけで印象が変わる。`,
-      `お気に入りの${product.name}。\n${product.brand}`,
+      `シンプルな服の日はアクセサリーを合わせると印象が変わる。${product.brand}`,
+      `${note}。小さなアクセントだけでも雰囲気が変わる。`,
+      `お気に入りのアクセサリー。${product.name} ${product.brand}`,
     ];
     return lines[i % lines.length]!;
   }
+
   const lines = [
-    `今日のコーデ。${note}。\n${product.brand}の${product.name}を合わせてみた。`,
-    `${theme}。シンプルにまとめた日。\n${product.brand}`,
-    `今日の服。${note}。`,
-    `${theme}の記録。着ているトップスは${product.brand}。`,
-    `休日コーデ。${note}。\n保存用。`,
-    `街歩きのコーデ。${product.brand}で揃えた。`,
+    `今日のコーデに${note}。${product.brand}の${product.name}を合わせてみたい。`,
+    `${theme}。シンプルにまとめた日のコーデ。${product.brand}`,
+    `今日の服は${note}。`,
+    `${theme}の記録。合わせやすいトップスは${product.brand}。`,
+    `普段使いしやすいアイテム。${product.brand}`,
+    `歩きやすさも意識したコーデ。${product.brand}で揃えてみた。`,
   ];
   return lines[i % lines.length]!;
 }
 
 function beautyCaption(i: number, theme: string, product: DemoProduct, note: string) {
   const lines = [
-    `最近使い始めた${product.kind === "香水" ? "香り" : "コスメ"}。仕事の日にも使いやすい。\n${product.brand} ${product.name}`,
-    `${theme}の記録。${note}。\n${product.brand}`,
-    `ポーチに入れている${product.name}。\n${product.brand}`,
-    `今日のメイクは薄め。${note}。`,
-    `購入品メモ。${product.brand}の${product.name}。`,
+    `最近使っている${product.kind === "美容用品" ? "美容用品" : "コスメ"}。毎日のケアに取り入れやすい。${product.brand} ${product.name}`,
+    `${theme}の記録。${note}。${product.brand}`,
+    `ポーチに入れておきたい${product.name}。${product.brand}`,
+    `今日のメイクは控えめに。${note}。`,
+    `購入候補メモ。${product.brand}の${product.name}`,
   ];
   return lines[i % lines.length]!;
 }
 
 function foodCaption(i: number, theme: string, note: string) {
-  // Never invent place names — only describe what's in the photo theme.
+  // Never invent place names - only describe what's in the photo theme.
   const lines = [
-    `${theme}の記録。\n${note}`,
-    `${note}。\n${theme}タイム。`,
-    `休日の${theme}。\n${note}`,
-    `${theme}。席の光がやさしい日。`,
+    `${theme}の記録。${note}`,
+    `${note}。${theme}タイム。`,
+    `今日の${theme}。${note}`,
+    `${theme}の中の光がきれいな日。`,
   ];
   return lines[i % lines.length]!;
 }
 
 function simpleCaption(i: number, theme: string, note: string) {
-  // No place lines — location claims caused false Tokyo/night captions.
+  // No place lines - avoid unsupported location claims.
   const lines = [
-    `${theme}の記録。\n${note}`,
-    `${note}。\n${theme}として残しておく。`,
-    `休日の${theme}。\n${note}`,
-    `${theme}を更新。\n${note}`,
+    `${theme}の記録。${note}`,
+    `${note}。${theme}と一緒に過ごす。`,
+    `今日の${theme}。${note}`,
+    `${theme}を更新。${note}`,
   ];
   return lines[i % lines.length]!;
 }
 
 const COMMENT_BY_CATEGORY: Partial<Record<CategoryId, string[]>> = {
   fashion: [
-    "このコーデ好き",
-    "バッグかわいい",
-    "色合わせ参考になる",
-    "淡色でまとまってる",
-    "スカート丈かわいい",
-    "これ学校でも使えそう",
-    "靴気になる",
-    "プチプラ感出てていい",
-    "レイヤード上手い",
-    "GUっぽさ出てていい",
-    "休日コーデにしたい",
-    "シルエットきれい",
-    "足元のバランス好き",
-    "韓国っぽくていい",
-    "オフィスカジュに寄せられそう",
-    "アクセの選び方参考になる",
-    "ワンピ可愛い",
-    "デニム合わせ上手い",
-    "色味落ち着いてて好き",
-    "明日これ真似してみる",
+    "このコーデ好き。",
+    "バッグかわいい。",
+    "色合わせがきれい。",
+    "全体のバランスが好き。",
+    "スニーカー合わせかわいい。",
+    "これ学校でも使えそう。",
+    "雰囲気が好き。",
+    "レイヤードが上手。",
+    "今日のコーデにしたい。",
+    "シルエットきれい。",
+    "色のバランスが好き。",
+    "韓国っぽくてかわいい。",
+    "オフィスカジュアルにも合いそう。",
+    "アクセの選び方がいい。",
+    "ワンポイントがかわいい。",
+    "デニム合わせ好き。",
+    "色味が落ち着いていて好き。",
+    "今日これ真似してみたい。",
   ],
   beauty: [
-    "メイク薄めなの好き",
-    "リップの色味知りたい",
-    "肌のトーンきれい",
-    "次これ試してみる",
-    "ナチュラルで好き",
-    "ポーチ中身見たい",
-    "色味ちょうどいい",
-    "涙袋の入れ方上手い",
-    "ベースきれい",
-    "チークの位置参考になる",
-    "学校メイクに良さそう",
-    "パケかわいい",
-    "韓国コスメっぽい雰囲気",
-    "眉毛の形好き",
-    "グロスのツヤきれい",
-    "スキンケア気になる",
-    "ネイル色いい",
-    "ヘアケアも知りたい",
+    "メイクかわいい。",
+    "リップの色味好き。",
+    "肌のトーンがきれい。",
+    "これ試してみたい。",
+    "ナチュラルで好き。",
+    "ポーチに入れておきたい。",
+    "色味ちょうどいい。",
+    "毎日のケアに良さそう。",
+    "ベースきれい。",
+    "チークの位置がいい。",
+    "学校メイクにも良さそう。",
+    "パケかわいい。",
+    "韓国コスメっぽくて好き。",
+    "発色良さそう。",
   ],
   food: [
-    "美味しそう",
-    "これは食べたい",
-    "お店どこですか？",
-    "ここ気になる",
-    "雰囲気いいですね",
-    "今度行ってみたい",
-    "カフェどこですか",
-    "見た目きれい",
-    "ラテアート上手い",
-    "断面きれい",
-    "抹茶っぽくていい",
-    "新大久保行きたい",
-    "ランチ候補にします",
-    "席の光がいい",
-    "スープの色きれい",
-    "パン焼きたて感ある",
-    "スイーツ保存した",
-    "また行きたい雰囲気",
+    "美味しそう。",
+    "これは食べたい。",
+    "どこのお店ですか？",
+    "ここ気になってる。",
+    "雰囲気いいですね。",
+    "今度行ってみたい。",
+    "カフェ好きにはたまらない。",
+    "見た目きれい。",
+    "ランチに行きたい。",
+    "断面きれい。",
+    "写真映えしてる。",
+    "新しいお店行ってみたい。",
+    "ランチ候補にしたい。",
+    "店内の雰囲気がいい。",
+    "スープの色がきれい。",
+    "パン焼きたてみたい。",
+    "スイーツ美味しそう。",
+    "また行きたい。",
   ],
   travel: [
-    "ここ行ったことあります",
-    "景色きれい",
-    "次の旅行候補にしたい",
-    "写真の角度好き",
-    "空気感が出てる",
-    "また行きたい",
-    "朝の光いい",
-    "神社の雰囲気好き",
-    "海きれい",
-    "山の空気感じる",
-    "京都っぽくていい",
-    "大阪行きたい",
-    "夜景きれい",
-    "荷物少なそうで参考",
-    "週末トリップ候補",
-    "駅からの景色好き",
+    "ここ行ったことあります。",
+    "景色きれい。",
+    "次の休みに行きたい。",
+    "写真の雰囲気が好き。",
+    "空気感が伝わってくる。",
+    "また行きたい。",
+    "朝の光がきれい。",
+    "街の雰囲気が好き。",
+    "海きれい。",
+    "山の空気感がいい。",
+    "京都っぽくていい。",
+    "大阪行きたい。",
+    "景色がきれい。",
+    "自然が気持ちよさそう。",
+    "週末トリップに良さそう。",
+    "ここからの景色好き。",
   ],
   home: [
-    "部屋の光きれい",
-    "インテリア参考になる",
-    "物選びセンスいい",
-    "落ち着く空間",
-    "収納の仕方気になる",
-    "デスク周りきれい",
-    "無印っぽくていい",
-    "角の整え方上手い",
-    "照明の色味好き",
-    "小物の置き方参考",
-    "朝の部屋いい",
-    "すっきりしてて好き",
+    "部屋の雰囲気いい。",
+    "インテリア参考になります。",
+    "家具選びのセンスいい。",
+    "落ち着く空間。",
+    "部屋の雰囲気が好き。",
+    "デスク周りきれい。",
+    "無印っぽくて好き。",
+    "家具の配置がいい。",
+    "照明の色味好き。",
+    "小物の置き方がいい。",
+    "木の家具いい。",
+    "すっきりしていて好き。",
   ],
   lifestyle: [
-    "雰囲気好き",
-    "保存した",
-    "参考になる",
-    "いい感じ",
-    "また見に来ます",
-    "休日感ある",
-    "推し活っぽくていい",
-    "バッグの中身気になる",
-    "購入品メモ助かる",
-    "大学生活の感じ好き",
-    "日常の切り取り上手い",
-    "色味まとまってる",
-    "ゆるくていい",
-    "また投稿見たい",
+    "雰囲気好き。",
+    "保存しておきたい。",
+    "参考になりそう。",
+    "いい感じ。",
+    "また見に来ます。",
+    "今日の記録いいね。",
+    "日常感があって好き。",
+    "バッグの中身気になる。",
+    "購入品メモに役立つ。",
+    "大学生活の感じ好き。",
+    "日常の切り取り方が好き。",
+    "色味まとまってる。",
+    "ゆるくていい。",
+    "また見たい。",
   ],
   tech: [
-    "リンク先見ます",
-    "これ気になってた",
-    "レビュー助かる",
-    "使い心地どうですか",
-    "次これ試してみる",
-    "イヤホン候補にします",
-    "デスク周り参考",
-    "ケースかわいい",
-    "ガジェット感いい",
-    "スマホまわり整理したい",
-    "実機レビュー助かる",
-    "値段感どうでした？",
+    "リンク先も見てみたい。",
+    "これ気になってた。",
+    "レビュー参考になる。",
+    "使い心地どうですか？",
+    "これ試してみたい。",
+    "イヤホン気になる。",
+    "デスク周り参考になる。",
+    "ケースかわいい。",
+    "ガジェット好きにはいい。",
+    "スマホ周り整理したい。",
+    "実際のレビュー助かる。",
+    "値段と機能のバランス良さそう。",
   ],
   sports: [
-    "いい感じ",
-    "参考になる",
-    "また見に来ます",
-    "雰囲気好き",
-    "動きやすそう",
-    "ウェア気になる",
+    "いい感じ。",
+    "参考になりそう。",
+    "また見に来ます。",
+    "雰囲気好き。",
+    "動きやすそう。",
+    "ウェア気になる。",
   ],
   other: [
-    "いい感じ",
-    "保存した",
-    "雰囲気好き",
-    "参考になる",
-    "また見に来ます",
-    "気になるものリスト入り",
-    "今日のひとコマ好き",
-    "切り取り上手い",
+    "いい感じ。",
+    "保存しておきたい。",
+    "雰囲気好き。",
+    "参考になりそう。",
+    "また見に来ます。",
+    "気になるものリストに追加。",
+    "今日のひとこと好き。",
+    "切り取り方がいい。",
   ],
 };
 
@@ -775,13 +805,13 @@ function buildReactors(): Profile[] {
   // Use already-hosted demo media (not real-person portraits).
   const givenNames = [
     "あかり",
-    "みお",
+    "みさき",
     "ひな",
     "ゆい",
     "さき",
-    "のあ",
+    "のぞみ",
     "れん",
-    "まお",
+    "まい",
     "かえで",
     "つばさ",
     "ひなの",
@@ -790,37 +820,51 @@ function buildReactors(): Profile[] {
     "かな",
     "すず",
     "はるか",
-    "あやめ",
+    "あやか",
     "こと",
     "ねね",
-    "ふう",
+    "ふうか",
   ];
+
   const bios = [
-    "淡色コーデが好き。デモ用フォロワー。",
-    "バッグとアクセを少しずつ集めてる。",
-    "コスメ購入品をたまに見る係。",
-    "カフェ巡り好き。デモアカウント。",
-    "時計と靴の投稿をよく保存する。",
-    "韓国系ファッション参考に見てます。",
-    "インテリアと雑貨が気になる。",
-    "香水の香りメモ。デモ用。",
-    "保存したコーデを週末に試す。",
-    "推し活小物も好き。サンプルアカウント。",
+    "淡色コーデが好き。デモ用フォロワーです。",
+    "バッグとアクセを少しずつ集めています。",
+    "コスメや購入品を見るのが好きです。",
+    "カフェ巡りが好き。デモアカウントです。",
+    "腕時計と靴の組み合わせをよく保存します。",
+    "韓国系ファッションを参考にしています。",
+    "インテリアと雑貨が気になります。",
+    "美容アイテムのメモ。デモ用です。",
+    "保存したコーデを週末に試しています。",
+    "日常の小物やシンプルなアイテムが好きです。",
   ];
+
   const avatarPool = [
     ...JP_IMAGES_BY_CATEGORY.fashion,
     ...JP_IMAGES_BY_CATEGORY.beauty,
   ];
+
   return Array.from({ length: 160 }, (_, i) => {
     const n = i + 1;
     const name = givenNames[i % givenNames.length]!;
-    const suffix = n > givenNames.length ? String.fromCharCode(97 + ((n - 1) % 26)) : "";
-    const stockAvatar = JP_PHOTO_AVATARS[n % JP_PHOTO_AVATARS.length] ?? null;
-    const asset = avatarPool.length > 0 ? avatarPool[i % avatarPool.length] : null;
+    const suffix =
+      n > givenNames.length
+        ? String.fromCharCode(97 + ((n - 1) % 26))
+        : "";
+
+    const stockAvatar =
+      JP_PHOTO_AVATARS[n % JP_PHOTO_AVATARS.length] ?? null;
+
+    const asset =
+      avatarPool.length > 0
+        ? avatarPool[i % avatarPool.length]
+        : null;
+
     const avatarUrl =
       n % 5 === 0
         ? demoAvatar(`jp-rx${n}`, name)
         : stockAvatar ?? asset?.url ?? demoAvatar(`jp-rx${n}`, name);
+
     return {
       id: demoJpReactorId(n),
       username: `${DEMO_JP_USERNAME_PREFIX}rx${String(n).padStart(3, "0")}`,
@@ -974,7 +1018,7 @@ function buildPosts(profiles: Profile[]): Post[] {
       caption = foodCaption(i + def.n * 3, theme, image.note);
       if (i % 10 < 5) {
         productUrl = FOOD_LINKS[i % FOOD_LINKS.length]!.url;
-        productLabel = "店舗を見る";
+        productLabel = "蠎苓・繧定ｦ九ｋ";
       }
     } else if (category === "lifestyle") {
       theme = image.theme || LIFE_THEMES[(i + def.n) % LIFE_THEMES.length]!;
@@ -985,17 +1029,17 @@ function buildPosts(profiles: Profile[]): Post[] {
         productLabel = formatProductLabel(product);
       } else if (i % 10 < 4) {
         productUrl = LIFE_LINKS[i % LIFE_LINKS.length]!.url;
-        productLabel = "日本ブランド · 商品を見る";
+        productLabel = "譌･譛ｬ繝悶Λ繝ｳ繝・ﾂｷ 蝠・刀繧定ｦ九ｋ";
       }
     } else if (category === "home") {
       theme = image.theme || HOME_THEMES[(i + def.n) % HOME_THEMES.length]!;
       caption = simpleCaption(i + def.n * 3, theme, image.note);
       if (i % 10 < 4) {
         productUrl = HOME_LINKS[i % HOME_LINKS.length]!.url;
-        productLabel = "日本ブランド · 商品を見る";
+        productLabel = "譌･譛ｬ繝悶Λ繝ｳ繝・ﾂｷ 蝠・刀繧定ｦ九ｋ";
       }
     } else {
-      theme = image.theme || "記録";
+      theme = image.theme || "險倬鹸";
       caption = simpleCaption(i + def.n * 3, theme, image.note);
     }
 
@@ -1094,7 +1138,7 @@ function buildFollows(
     return { profile, def, tier, followers, following };
   });
 
-  // 1) Outgoing follows — prefer same-interest visible profiles, then reactors.
+  // 1) Outgoing follows 窶・prefer same-interest visible profiles, then reactors.
   for (const plan of plans) {
     const sameInterest = shuffleInPlace(
       visible.filter((p) => {
@@ -1120,7 +1164,7 @@ function buildFollows(
     }
   }
 
-  // 2) Incoming follows — top up from same-interest then reactors (all have avatars).
+  // 2) Incoming follows 窶・top up from same-interest then reactors (all have avatars).
   for (const plan of plans) {
     const current = follows.reduce(
       (acc, row) => (row.followeeId === plan.profile.id ? acc + 1 : acc),
@@ -1271,6 +1315,7 @@ function buildReactions(visible: Profile[], reactors: Profile[], posts: Post[]) 
         id: demoJpCommentId(commentN),
         userId: user.id,
         postId: post.id,
+        parentCommentId: null,
         body,
         createdAt: post.createdAt,
       });
@@ -1387,34 +1432,49 @@ export function jpSeedStats() {
 export function jpQualityReport() {
   const posts = SEED_JP_POSTS;
   const isCoordTheme = (t: string) =>
-    /コーデ|服|ストリート|きれいめ|韓国|デート|古着|ミニマル|通学|淡色|ガーリー|大人|オフィス|ワンピ|デニム|トップス|レイヤード|全身|鏡/.test(
+    /コーデ|ストリート|きれいめ|韓国|デート|休日|ミニマル|通学|淡色|ガーリー|大人|オフィス|ワンピース|トップス|レイヤード|全身|服/.test(
       t,
     );
+
   const isWearTheme = (t: string) =>
-    /バッグ|腕時計|時計|スニーカー|アクセ|ネックレス|ピアス|リング|靴|サンダル|ローファー|着用|手元|足元/.test(
+    /バッグ|腕時計|時計|スニーカー|アクセ|ネックレス|ピアス|リング|靴|サンダル|ローファー|衣類|帽子|服/.test(
       t,
     );
+
   const fashionPosts = posts.filter((p) => p.category === "fashion");
+
   const coordPosts = posts.filter((p) => {
     const theme = p.caption.split("\n")[0] ?? "";
     return p.category === "fashion" && isCoordTheme(theme);
   });
+
   const wearPosts = posts.filter((p) => {
     const theme = p.caption.split("\n")[0] ?? "";
     return (
       (p.category === "fashion" && isWearTheme(theme)) ||
-      /バッグ|腕時計|時計|スニーカー|アクセ|ネックレス|靴/.test(p.caption)
+      /バッグ|腕時計|時計|スニーカー|アクセ|ネックレス|ピアス|リング|靴/.test(
+        p.caption,
+      )
     );
   });
-  const watchPosts = posts.filter((p) => /時計|腕時計/.test(p.caption));
-  const bagAccPosts = posts.filter((p) =>
-    /バッグ|スニーカー|サンダル|ローファー|靴|アクセ|ネックレス|ピアス|リング|帽子/.test(p.caption),
+
+  const watchPosts = posts.filter((p) =>
+    /腕時計|時計/.test(p.caption),
   );
+
+  const bagAccPosts = posts.filter((p) =>
+    /バッグ|スニーカー|サンダル|ローファー|靴|アクセ|ネックレス|ピアス|リング|帽子/.test(
+      p.caption,
+    ),
+  );
+
   const beautyPosts = posts.filter((p) => p.category === "beauty");
   const productPosts = posts.filter((p) => p.productUrl && p.productLabel);
+
   const japanBrandLabels = productPosts.filter((p) =>
     p.productLabel?.startsWith("日本ブランド"),
   ).length;
+
   const importedBrandLabels = productPosts.filter((p) =>
     p.productLabel?.startsWith("Imported brand"),
   ).length;
@@ -1425,7 +1485,6 @@ export function jpQualityReport() {
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});
-
   return {
     posts: {
       total: posts.length,
@@ -1453,10 +1512,13 @@ export function jpQualityReport() {
     },
     quality: {
       imageCaptionMismatch: 0,
-      wrongPlaceCaptions: posts.filter((p) => /東京駅|場所は|夜景の記録/.test(p.caption)).length,
+      wrongPlaceCaptions: posts.filter((p) => /譚ｱ莠ｬ鬧・蝣ｴ謇縺ｯ|螟懈勹縺ｮ險倬鹸/.test(p.caption)).length,
       productTagMismatch: 0,
       fixed: posts.length,
       deleted: 480 - posts.length,
     },
   };
 }
+
+
+

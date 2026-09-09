@@ -4,6 +4,7 @@ import { getActiveAiPersonas } from "@/lib/ai-post-engine";
 import { decideAIAction } from "@/lib/ai/brain";
 import { executeAIAction } from "@/lib/ai/action-executor";
 import { runResidentProductHunter } from "@/lib/ai/resident-product-hunter";
+import { ensureAiResidentPopulation } from "@/lib/ai/resident-factory";
 
 async function runAIAct(request: Request) {
   try {
@@ -17,12 +18,14 @@ async function runAIAct(request: Request) {
       );
     }
 
+    const factory = await ensureAiResidentPopulation();
     const personas = await getActiveAiPersonas();
 
     if (personas.length === 0) {
       return NextResponse.json({
         ok: true,
         aiCount: 0,
+        factory,
         results: [],
       });
     }
@@ -61,6 +64,7 @@ async function runAIAct(request: Request) {
         results.push({
           persona: persona.persona_name,
           profileId: persona.profile_id,
+          residentRole: persona.resident_role,
           action: { type: "IGNORE" },
           reason: "No candidate posts",
         });
@@ -71,6 +75,12 @@ async function runAIAct(request: Request) {
 
       const context = `
 あなたはAIユーザー「${persona.persona_name}」です。
+
+役割:
+${persona.resident_role ?? "general_user"}
+
+目標:
+${(persona.goals ?? []).join(", ")}
 
 性格:
 ${persona.personality}
@@ -105,6 +115,7 @@ ${persona.comment_style}
       results.push({
         persona: persona.persona_name,
         profileId: persona.profile_id,
+        residentRole: persona.resident_role,
         targetPostId: post.id,
         action,
         result,
@@ -114,6 +125,7 @@ ${persona.comment_style}
     return NextResponse.json({
       ok: true,
       aiCount: personas.length,
+      factory,
       results,
     });
   } catch (error) {

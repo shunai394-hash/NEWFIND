@@ -1,4 +1,4 @@
-﻿import {
+import {
   buildResidentSearchQuery,
   searchWorld,
   type WorldSearchResult,
@@ -24,6 +24,7 @@ export type ResidentProductHunterResult = {
 
 function candidateToDiscoveryInput(
   candidate: ProductHunterCandidate,
+  residentId: string,
 ): DiscoveryProductInput {
   const now = new Date().toISOString();
 
@@ -44,6 +45,7 @@ function candidateToDiscoveryInput(
     trendScore: candidate.trendScore,
     confidenceScore: candidate.confidenceScore,
     discoverySource: "ai",
+    discoveredByResidentId: residentId,
     discoveredAt: now,
     attentionReason: candidate.attentionReason,
     status: "pending",
@@ -109,7 +111,7 @@ export async function runResidentProductHunter(
   const savedProductIds: string[] = [];
 
   for (const candidate of candidates) {
-    const input = candidateToDiscoveryInput(candidate);
+    const input = candidateToDiscoveryInput(candidate, persona.id);
 
     const saved = await saveDiscoveryProductToDb(input);
 

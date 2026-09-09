@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { ANDROID_OAUTH_CALLBACK } from "@/lib/capacitor/platform";
 import { APPLE_SERVICES_ID, appleWebRedirectUri } from "@/lib/apple/config";
 import { findOrCreateAppleUser, issueAppleLoginTicket } from "@/lib/apple/session";
@@ -149,7 +149,7 @@ async function completeAppleLogin(request: Request) {
     if (error) {
       throw new Error(error.message);
     }
-    return NextResponse.redirect(`${origin}${next}`);
+    return NextResponse.redirect(`${origin}${next}`, 303);
   } catch (err) {
     return loginError(
       origin,
@@ -165,3 +165,4 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   return completeAppleLogin(request);
 }
+

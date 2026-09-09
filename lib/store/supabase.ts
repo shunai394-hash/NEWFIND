@@ -47,6 +47,7 @@ async function notifySocialEvent(payload: {
   }
 }
 import type {
+  AIPostView,
   CategoryId,
   CommentView,
   CreatePostInput,
@@ -261,7 +262,7 @@ async function ensureProfile(
     const row = existing.data as ProfileRow;
     if (row.is_suspended) {
       await supabase.auth.signOut();
-      throw new Error("このアカウントは停止されています");
+      throw new Error("Account suspended");
     }
     return hydrateProfile(supabase, row);
   }
@@ -516,7 +517,7 @@ export const supabaseStore: Store = {
     const supabase = createClient();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.session?.user) {
-      throw new Error(error?.message || "ログインに失敗しました");
+      throw new Error(error?.message || "繝ｭ繧ｰ繧､繝ｳ縺ｫ螟ｱ謨励＠縺ｾ縺励◆");
     }
     const user = data.session.user;
     const suspended = await supabase
@@ -526,7 +527,7 @@ export const supabaseStore: Store = {
       .maybeSingle();
     if ((suspended.data as { is_suspended?: boolean } | null)?.is_suspended) {
       await supabase.auth.signOut();
-      throw new Error("このアカウントは停止されています");
+      throw new Error("Account suspended");
     }
     return { userId: user.id, email: user.email ?? email };
   },
@@ -541,7 +542,7 @@ export const supabaseStore: Store = {
     if (error) throw new Error(error.message);
     if (!data.session?.user) {
       throw new Error(
-        "確認メールを送信しました。メール内のリンクを開いてからログインしてください。",
+        "遒ｺ隱阪Γ繝ｼ繝ｫ繧帝∽ｿ｡メール内のリンクを開いてからログインしてください。",
       );
     }
     const user = data.session.user;
@@ -576,7 +577,7 @@ export const supabaseStore: Store = {
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(
-        typeof body.error === "string" ? body.error : "アカウントの削除に失敗しました",
+        typeof body.error === "string" ? body.error : "繧｢繧ｫ繧ｦ繝ｳ繝医・蜑企勁縺ｫ螟ｱ謨励＠縺ｾ縺励◆",
       );
     }
     try {
@@ -680,6 +681,105 @@ export const supabaseStore: Store = {
     return hydrateProfile(supabase, data as ProfileRow);
   },
 
+
+  async getAIPosts(offset = 0, limit = 24): Promise<AIPostView[]> {
+    const supabase = createClient();
+
+    const { data: aiPosts, error: postsError } = await supabase
+      .from("ai_posts")
+      .select(`
+        id,
+        persona_id,
+        media_type,
+        media_url,
+        thumbnail_url,
+        caption,
+        category,
+        product_url,
+        product_label,
+        status,
+        created_at,
+        published_at
+      `)
+      .eq("status", "published")
+      .order("published_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (postsError) {
+      logSupabaseError("getAIPosts.posts", postsError);
+      throw new Error(postsError.message);
+    }
+
+    if (!aiPosts?.length) return [];
+
+    const personaIds = [...new Set(
+      aiPosts.map((row) => row.persona_id as string),
+    )];
+
+    const { data: personas, error: personasError } = await supabase
+      .from("ai_personas_public")
+      .select("id, profile_id, persona_name, is_active")
+      .in("id", personaIds)
+      .eq("is_active", true);
+
+    if (personasError) {
+      logSupabaseError("getAIPosts.personas", personasError);
+      throw new Error(personasError.message);
+    }
+
+    if (!personas?.length) return [];
+
+    const profileIds = [...new Set(
+      personas.map((persona) => persona.profile_id as string),
+    )];
+
+    const profiles = await selectByIds<ProfileRow>(
+      supabase,
+      "profiles",
+      "*",
+      profileIds,
+      "id",
+    );
+
+    const personaById = new Map(
+      personas.map((persona) => [persona.id as string, persona]),
+    );
+
+    const hydratedProfiles = profiles.map((profile) => mapProfile(profile));
+
+    const profileById = new Map(
+      hydratedProfiles.map((profile) => [profile.id, profile]),
+    );
+
+    const result = aiPosts
+      .map((row) => {
+        const persona = personaById.get(row.persona_id as string);
+        if (!persona) return null;
+
+        const author = profileById.get(persona.profile_id as string);
+        if (!author) return null;
+
+        return {
+          id: row.id as string,
+          personaId: row.persona_id as string,
+          personaName: persona.persona_name as string,
+          author,
+          mediaType: row.media_type as AIPostView["mediaType"],
+          mediaUrl: row.media_url as string,
+          thumbnailUrl: row.thumbnail_url as string | null,
+          caption: row.caption as string,
+          category: row.category as AIPostView["category"],
+          productUrl: row.product_url as string | null,
+          productLabel: row.product_label as string | null,
+          status: row.status as AIPostView["status"],
+          createdAt: row.created_at as string,
+          publishedAt: row.published_at as string | null,
+        };
+      })
+      .filter((post): post is AIPostView => post !== null);
+
+    return result;
+  },
   async getFeed(kind, viewerId, offset = 0, pageLimit = 24) {
     const supabase = createClient();
     const isForYou = kind === "foryou";
@@ -774,7 +874,7 @@ export const supabaseStore: Store = {
       throw new Error(suspended.error.message);
     }
     if (suspended.data && (suspended.data as { is_suspended?: boolean }).is_suspended) {
-      throw new Error("このアカウントは停止されています");
+      throw new Error("Account suspended");
     }
     const payload: Record<string, unknown> = {
       author_id: authorId,
@@ -809,7 +909,7 @@ export const supabaseStore: Store = {
     }
     if (error) throw new Error(error.message);
     const [view] = await hydratePosts(supabase, [mapPost(data as PostRow)], authorId);
-    if (!view) throw new Error("投稿の作成に失敗しました");
+    if (!view) throw new Error("謚慕ｨｿ縺ｮ菴懈・縺ｫ螟ｱ謨励＠縺ｾ縺励◆");
     return view;
   },
 
@@ -848,9 +948,9 @@ export const supabaseStore: Store = {
       error = retry.error;
     }
     if (error) throw new Error(error.message);
-    if (!data) throw new Error("投稿が見つかりません");
+    if (!data) throw new Error("謚慕ｨｿ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ");
     const [view] = await hydratePosts(supabase, [mapPost(data as PostRow)], userId);
-    if (!view) throw new Error("投稿の更新に失敗しました");
+    if (!view) throw new Error("謚慕ｨｿ縺ｮ譖ｴ譁ｰ縺ｫ螟ｱ謨励＠縺ｾ縺励◆");
     return view;
   },
 
@@ -877,7 +977,7 @@ export const supabaseStore: Store = {
     const body = await response.json().catch(() => ({}));
     if (response.status === 404) return {};
     if (!response.ok) {
-      throw new Error(typeof body.error === "string" ? body.error : "削除に失敗しました");
+      throw new Error(typeof body.error === "string" ? body.error : "蜑企勁縺ｫ螟ｱ謨励＠縺ｾ縺励◆");
     }
     return { warning: typeof body.warning === "string" ? body.warning : null };
   },
@@ -916,7 +1016,7 @@ export const supabaseStore: Store = {
       .single();
     if (error) throw new Error(error.message);
     const profile = await this.getProfile(userId);
-    if (!profile) throw new Error("プロフィールが見つかりません");
+    if (!profile) throw new Error("繝励Ο繝輔ぅ繝ｼ繝ｫ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ");
     void notifySocialEvent({ type: "comment", postId });
     return {
       id: data.id,
@@ -978,7 +1078,7 @@ export const supabaseStore: Store = {
       followerId,
       time: new Date().toISOString(),
     });
-    if (followeeId === followerId) throw new Error("自分はフォローできません");
+    if (followeeId === followerId) throw new Error("閾ｪ蛻・・繝輔か繝ｭ繝ｼ縺ｧ縺阪∪縺帙ｓ");
     const supabase = createClient();
     const { data, error: lookupError } = await supabase
       .from("follows")
@@ -1196,7 +1296,7 @@ function stubFollowProfile(id: string): Profile {
   return {
     id,
     username: `user_${id.replace(/-/g, "").slice(0, 10)}`,
-    displayName: "ユーザー",
+    displayName: "繝ｦ繝ｼ繧ｶ繝ｼ",
     bio: "",
     avatarUrl: null,
     accountType: "personal",
@@ -1293,6 +1393,18 @@ async function toggleJoin(
 
   return true;
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

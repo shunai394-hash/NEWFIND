@@ -3,6 +3,7 @@ import { supabaseStore } from "@/lib/store/supabase";
 import { getActiveAiPersonas } from "@/lib/ai-post-engine";
 import { decideAIAction } from "@/lib/ai/brain";
 import { executeAIAction } from "@/lib/ai/action-executor";
+import { runResidentProductHunter } from "@/lib/ai/resident-product-hunter";
 
 async function runAIAct(request: Request) {
   try {
@@ -23,13 +24,28 @@ async function runAIAct(request: Request) {
         ok: true,
         aiCount: 0,
         results: [],
-        reason: "No active AI personas",
       });
     }
 
     const results = [];
 
     for (const persona of personas) {
+      if (persona.resident_role === "product_hunter") {
+        const hunterResult = await runResidentProductHunter(persona);
+
+        results.push({
+          persona: persona.persona_name,
+          profileId: persona.profile_id,
+          residentRole: persona.resident_role,
+          action: {
+            type: "PRODUCT_HUNT",
+          },
+          productHunter: hunterResult,
+        });
+
+        continue;
+      }
+
       const feedResult = await supabaseStore.getFeed(
         "foryou",
         persona.profile_id,
@@ -74,16 +90,12 @@ ${persona.comment_style}
 投稿者名: ${post.author.displayName}
 カテゴリー: ${post.category}
 本文: ${post.caption}
+商品URL: ${post.productUrl ?? "なし"}
 
 この投稿を見て、あなた自身として次に取る行動を1つだけ決めてください。
 `;
 
       const action = await decideAIAction(context);
-
-      console.log(
-        `AI ACTION [${persona.persona_name}]:`,
-        JSON.stringify(action),
-      );
 
       const result = await executeAIAction(
         action,

@@ -255,6 +255,38 @@ export async function getDiscoveryProductFromDb(id: string, admin = false) {
 
 export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
   const supabase = discoveryDb();
+
+  // AI住民が同じ商品を再発見しても、既存Discovery商品を重複登録しない。
+  // product_url の一意制約は維持し、既存商品をそのまま返す。
+  if (input.productUrl) {
+    const { data: existing, error: existingError } = await supabase
+      .from("discovery_products")
+      .select("id")
+      .eq("product_url", input.productUrl)
+      .maybeSingle();
+
+    if (existingError) {
+      throw new Error(existingError.message);
+    }
+
+    if (existing?.id) {
+      const existingProduct = await getDiscoveryProductFromDb(existing.id, true);
+
+      if (!existingProduct) {
+        throw new Error("Existing discovery product not found: " + existing.id);
+      }
+
+      console.log(
+        "DISCOVERY: duplicate product skipped:",
+        input.productUrl,
+        "existingId:",
+        existing.id,
+      );
+
+      return existingProduct;
+    }
+  }
+
   const now = new Date().toISOString();
   const productPayload: Record<string, unknown> = {
     id: input.id,

@@ -8,6 +8,7 @@ import {
   roleLabel,
   titleCaseTag,
 } from "@/lib/world/labels";
+import { resolveResidentAvatar } from "@/lib/world/featured-avatars";
 
 export type WorldResident = {
   id: string;
@@ -82,8 +83,8 @@ const FEATURED_BLUEPRINTS: WorldResidentCard[] = [
     roleLabel: "AI Product Hunter",
     tags: ["Beauty", "Fragrance", "Trends"],
     blurb: "Always looking for products she hasn't seen before.",
-    href: null,
-    avatarUrl: null,
+    href: "/u/yuna_ai",
+    avatarUrl: "/residents/yuna.png",
     live: false,
   },
   {
@@ -93,8 +94,8 @@ const FEATURED_BLUEPRINTS: WorldResidentCard[] = [
     roleLabel: "AI Fashion Critic",
     tags: ["Fashion", "Culture", "Pricing"],
     blurb: "She notices the details others miss.",
-    href: null,
-    avatarUrl: null,
+    href: "/u/isla_ai",
+    avatarUrl: "/residents/isla.png",
     live: false,
   },
   {
@@ -104,8 +105,8 @@ const FEATURED_BLUEPRINTS: WorldResidentCard[] = [
     roleLabel: "AI Beauty Curator",
     tags: ["Beauty", "Fragrance", "Luxury"],
     blurb: "Collecting beautiful discoveries from around the world.",
-    href: null,
-    avatarUrl: null,
+    href: "/u/camille_ai",
+    avatarUrl: "/residents/camille.png",
     live: false,
   },
   {
@@ -174,8 +175,10 @@ function firstSentence(text: string, max = 92) {
 }
 
 function matchFeatured(resident: WorldResident, name: string) {
-  const hay = `${resident.name} ${resident.personaName}`.toLowerCase();
-  return hay.includes(name.toLowerCase());
+  const target = name.trim().toLowerCase();
+  const display = resident.name.trim().toLowerCase();
+  const persona = resident.personaName.trim().toLowerCase();
+  return display === target || persona === target;
 }
 
 function toResident(
@@ -200,7 +203,7 @@ function toResident(
     name: displayName,
     personaName: persona.persona_name,
     username: profile?.username ?? null,
-    avatarUrl: profile?.avatar_url ?? null,
+    avatarUrl: resolveResidentAvatar(displayName, profile?.avatar_url ?? null),
     bio: profile?.bio?.trim() || "",
     roleKey: persona.resident_role ?? "",
     roleLabel: roleLabel(persona.resident_role),
@@ -250,14 +253,14 @@ function cardFromResident(
     name: givenName(resident.name) || resident.name,
     flag: flagEmoji(resident.countryCode) || blueprint?.flag || "",
     region: countryName(resident.countryCode) || resident.region || blueprint?.region || "",
-    roleLabel: resident.roleLabel || blueprint?.roleLabel || "AI resident",
+    roleLabel: blueprint?.roleLabel || resident.roleLabel || "AI resident",
     tags: resident.expertise.length ? resident.expertise : blueprint?.tags ?? [],
     blurb:
       firstSentence(resident.bio) ||
       blueprint?.blurb ||
       "Exploring, reacting, and discovering in NEWFIND.",
     href: resident.href,
-    avatarUrl: resident.avatarUrl,
+    avatarUrl: resolveResidentAvatar(resident.name, resident.avatarUrl),
     live: true,
   };
 }
@@ -283,7 +286,10 @@ function editorialActivities(
     role: match?.roleLabel || fallbackRole,
     flag: match ? flagEmoji(match.countryCode) || fallbackFlag : fallbackFlag,
     href: match?.href ?? null,
-    avatarUrl: match?.avatarUrl ?? null,
+    avatarUrl: resolveResidentAvatar(
+      match?.name ?? fallbackName,
+      match?.avatarUrl,
+    ),
   });
 
   const a1 = actor(yuna ?? first ?? undefined, "Yuna", "AI Product Hunter", "🇯🇵");

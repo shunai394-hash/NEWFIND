@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { Avatar } from "@/components/avatar";
 import type {
   WorldActivity,
   WorldHomeData,
@@ -7,6 +8,7 @@ import type {
   WorldResident,
   WorldResidentCard,
 } from "@/lib/world/home-data";
+import { resolveResidentAvatar } from "@/lib/world/featured-avatars";
 
 const COUNTRY_CHIPS = [
   { flag: "🇯🇵", label: "Japan" },
@@ -232,7 +234,10 @@ function ActivityCard({ activity }: { activity: WorldActivity }) {
   return (
     <article className="rounded-3xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
       <div className="flex items-start gap-3">
-        <Face name={activity.actorName} src={activity.actorAvatarUrl} size={42} />
+        <Avatar
+          profile={{ displayName: activity.actorName, avatarUrl: activity.actorAvatarUrl }}
+          size={42}
+        />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {activity.actorHref ? <Link href={activity.actorHref}>{name}</Link> : name}
@@ -317,7 +322,10 @@ function MeetResidents({ featured }: { featured: WorldResidentCard[] }) {
 function ResidentCard({ resident }: { resident: WorldResidentCard }) {
   const inner = (
     <>
-      <Face name={resident.name} src={resident.avatarUrl} size={52} />
+      <Avatar
+        profile={{ displayName: resident.name, avatarUrl: resident.avatarUrl }}
+        size={52}
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="text-[16px] font-semibold">{resident.name}</p>
@@ -618,7 +626,10 @@ function MiniPostFace({
   return (
     <div className="border-t border-neutral-100 bg-[#fafafa] px-4 py-3">
       <div className="flex items-center gap-2">
-        <Face name={face.name} src={face.avatarUrl} size={28} />
+        <Avatar
+          profile={{ displayName: face.name, avatarUrl: face.avatarUrl }}
+          size={28}
+        />
         <div className="min-w-0">
           <p className="truncate text-[12px] font-semibold">{face.name}</p>
           <p className="text-[10px] text-neutral-400">{face.role}</p>
@@ -645,7 +656,10 @@ function MiniReactions({
       <div className="flex -space-x-2">
         {faces.slice(0, 3).map((face) => (
           <span key={face.name} className="rounded-full ring-2 ring-white">
-            <Face name={face.name} src={face.avatarUrl} size={24} />
+            <Avatar
+              profile={{ displayName: face.name, avatarUrl: face.avatarUrl }}
+              size={24}
+            />
           </span>
         ))}
       </div>
@@ -679,7 +693,10 @@ function MosaicFace({
 }) {
   const body = (
     <>
-      <Face name={face.name} src={face.avatarUrl} size={48} />
+      <Avatar
+        profile={{ displayName: face.name, avatarUrl: face.avatarUrl }}
+        size={48}
+      />
       <p className="mt-1 max-w-[72px] truncate text-[10px] font-semibold">{face.name}</p>
       <p className="max-w-[72px] truncate text-[9px] text-white/45">{face.role}</p>
     </>
@@ -769,51 +786,16 @@ function Chip({
   );
 }
 
-function Face({
-  name,
-  src,
-  size,
-}: {
-  name: string;
-  src: string | null;
-  size: number;
-}) {
-  const initial = (name || "?").slice(0, 1).toUpperCase();
-  if (src) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt=""
-        width={size}
-        height={size}
-        className="shrink-0 rounded-full bg-neutral-200 object-cover"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  return (
-    <span
-      className="inline-flex shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-700"
-      style={{ width: size, height: size, fontSize: Math.max(11, size * 0.32) }}
-    >
-      {initial}
-    </span>
-  );
-}
-
 function heroFaces(data: Pick<WorldHomeData, "residents" | "featured">) {
-  const fromResidents = data.residents.slice(0, 4).map((resident) => ({
+  const source =
+    data.featured.length >= 3
+      ? data.featured.slice(0, 3)
+      : data.residents.slice(0, 3);
+
+  return source.map((resident) => ({
     name: resident.name,
     role: resident.roleLabel,
-    avatarUrl: resident.avatarUrl,
-    href: resident.href,
-  }));
-  if (fromResidents.length >= 3) return fromResidents;
-  return data.featured.map((resident) => ({
-    name: resident.name,
-    role: resident.roleLabel,
-    avatarUrl: resident.avatarUrl,
+    avatarUrl: resolveResidentAvatar(resident.name, resident.avatarUrl),
     href: resident.href,
   }));
 }

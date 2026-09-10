@@ -1,5 +1,4 @@
-﻿import type { AIAction } from "./brain";
-import { supabaseStore } from "@/lib/store/supabase";
+import type { AIAction } from "./brain";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveDiscoveryProductToDb } from "@/lib/discovery/db";
 import type {
@@ -69,12 +68,52 @@ export async function executeAIAction(
 ) {
   switch (action.type) {
     case "LIKE": {
-      const liked = await supabaseStore.toggleLike(action.postId, userId);
+      const supabase = createAdminClient();
+
+      const { data: existing, error: lookupError } = await supabase
+        .from("likes")
+        .select("user_id")
+        .eq("user_id", userId)
+        .eq("post_id", action.postId)
+        .maybeSingle();
+
+      if (lookupError) {
+        throw new Error(lookupError.message);
+      }
+
+      if (existing) {
+        const { error } = await supabase
+          .from("likes")
+          .delete()
+          .eq("user_id", userId)
+          .eq("post_id", action.postId);
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        return {
+          executed: true,
+          action,
+          result: { liked: false },
+        };
+      }
+
+      const { error } = await supabase
+        .from("likes")
+        .insert({
+          user_id: userId,
+          post_id: action.postId,
+        });
+
+      if (error) {
+        throw new Error(error.message);
+      }
 
       return {
         executed: true,
         action,
-        result: { liked },
+        result: { liked: true },
       };
     }
 
@@ -184,6 +223,88 @@ export async function executeAIAction(
         result: {
           following: true,
         },
+      };
+    }
+
+    case "SAVE": {
+      const supabase = createAdminClient();
+
+      const { data: existing, error: lookupError } = await supabase
+        .from("saves")
+        .select("user_id")
+        .eq("user_id", userId)
+        .eq("post_id", action.postId)
+        .maybeSingle();
+
+      if (lookupError) {
+        throw new Error(lookupError.message);
+      }
+
+      if (existing) {
+        return {
+          executed: true,
+          action,
+          result: { saved: true, alreadySaved: true },
+        };
+      }
+
+      const { error } = await supabase.from("saves").insert({
+        user_id: userId,
+        post_id: action.postId,
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return {
+        executed: true,
+        action,
+        result: { saved: true },
+      };
+    }
+
+    case "REPLY": {
+      const supabase = createAdminClient();
+
+      const { data: parent, error: parentError } = await supabase
+        .from("comments")
+        .select("id, post_id")
+        .eq("id", action.parentCommentId)
+        .eq("post_id", action.postId)
+        .maybeSingle();
+
+      if (parentError) {
+        throw new Error(parentError.message);
+      }
+
+      if (!parent) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "parent comment not found" },
+        };
+      }
+
+      const { data: comment, error } = await supabase
+        .from("comments")
+        .insert({
+          post_id: action.postId,
+          user_id: userId,
+          body: action.text.trim(),
+          parent_comment_id: action.parentCommentId,
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return {
+        executed: true,
+        action,
+        result: { comment },
       };
     }
 

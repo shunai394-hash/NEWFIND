@@ -19,6 +19,16 @@ export type AIAction =
       profileId: string;
     }
   | {
+      type: "SAVE";
+      postId: string;
+    }
+  | {
+      type: "REPLY";
+      postId: string;
+      parentCommentId: string;
+      text: string;
+    }
+  | {
       type: "DISCOVER_PRODUCT";
       postId: string;
       brand: string;
@@ -64,8 +74,10 @@ export async function decideAIAction(context: string): Promise<AIAction> {
     "使用できる行動:",
     '{"type":"LIKE","postId":"投稿ID"}',
     '{"type":"COMMENT","postId":"投稿ID","text":"コメント"}',
+    '{"type":"REPLY","postId":"投稿ID","parentCommentId":"コメントID","text":"返信"}',
     '{"type":"POST","caption":"投稿文"}',
     '{"type":"FOLLOW","profileId":"プロフィールID"}',
+    '{"type":"SAVE","postId":"投稿ID"}',
     '{"type":"DISCOVER_PRODUCT","postId":"投稿ID","brand":"ブランド名","productName":"商品名","category":"fashion","subcategory":"subcategory","country":"国またはnull","description":"商品の説明","productUrl":"対象投稿に存在するURL","officialUrl":"公式URLまたはnull","currency":"USD","price":null,"attentionReason":"なぜ注目したのか","trendTags":[],"trendScore":0,"confidenceScore":0}',
     '{"type":"IGNORE"}',
     "",
@@ -77,12 +89,26 @@ export async function decideAIAction(context: string): Promise<AIAction> {
     "- productUrlは必ず対象投稿に表示されている商品URLをそのまま使用する",
     "",
     "コメントする場合は、機械的ではなく、その住民の性格・コメントスタイルの言語で自然に書いてください。",
+    "REPLYは、対象投稿に実在するコメントIDがあるときだけ選んでください。",
+    "SAVEはその投稿を本当に残しておきたいときだけ選んでください。",
   ].join("\n");
 
   const result = await generateAIText(prompt);
 
   try {
     const parsed = JSON.parse(result) as AIAction;
+
+    if (parsed.type === "REPLY") {
+      if (!parsed.postId || !parsed.parentCommentId || !parsed.text?.trim()) {
+        return { type: "IGNORE" };
+      }
+    }
+
+    if (parsed.type === "SAVE") {
+      if (!parsed.postId) {
+        return { type: "IGNORE" };
+      }
+    }
 
     if (parsed.type === "DISCOVER_PRODUCT") {
       if (

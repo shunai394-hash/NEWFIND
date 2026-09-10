@@ -1,4 +1,5 @@
 ﻿import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
+import { repairMojibake } from "./text-encoding";
 
 export type WorldSearchQuery = {
   residentId: string;
@@ -180,11 +181,12 @@ const NON_PRODUCT_PATH_PATTERNS = [
   /\/blogs?(?:\/|$)/i,
   /\/stories?(?:\/|$)/i,
   /\/editorial(?:\/|$)/i,
+  /\/exclusives?(?:\/|$)/i,
   /\/press(?:\/|$)/i,
   /\/calendar(?:\/|$)/i,
   /\/events?(?:\/|$)/i,
   /\/category(?:\/|$)/i,
-  /\/categories(?:\/|$)/i,
+  /\/categories(?:\/(?!.*\/p(?:\/|$))|$)/i,
   /\/collection(?:\/|$)/i,
   /\/collections(?:\/|$)/i,
   /\/tag(?:\/|$)/i,
@@ -291,7 +293,10 @@ export function classifyTavilyResult(
    * Known news domains remain news even when the URL path
    * itself does not contain /news/.
    */
-  if (sourceType === "news") {
+  if (
+    sourceType === "news" ||
+    /(^|\.)prtimes\.jp$/i.test(new URL(url).hostname)
+  ) {
     return "news";
   }
 
@@ -363,6 +368,55 @@ export function classifyTavilyResult(
  * Catalog World Search
  * ======================================================= */
 
+const RESIDENT_CATEGORY_ALIASES: Record<string, string[]> = {
+  "美容": ["beauty"],
+  "美容・コスメ": ["beauty"],
+  "コスメ": ["beauty"],
+  "メイク": ["beauty"],
+  "スキンケア": ["beauty"],
+  "ライフスタイル": [
+    "accessories",
+    "fragrance",
+    "japan_brands",
+    "trending",
+  ],
+  "雑貨": ["accessories", "japan_brands"],
+  "インテリア": ["accessories", "japan_brands"],
+  "ファッション": ["fashion"],
+  "香水": ["fragrance"],
+  "フレグランス": ["fragrance"],
+  "アクセサリー": ["accessories"],
+  "ティーン": ["teen"],
+  "若者": ["teen"],
+  "日本ブランド": ["japan_brands"],
+  "トレンド": ["trending"],
+};
+
+function normalizeResidentInterests(
+  values: string[],
+): string[] {
+  const normalized = new Set<string>();
+
+  for (const value of values) {
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed) continue;
+
+    normalized.add(trimmed);
+
+    for (const [alias, categories] of Object.entries(
+      RESIDENT_CATEGORY_ALIASES,
+    )) {
+      if (trimmed.includes(alias.toLowerCase())) {
+        for (const category of categories) {
+          normalized.add(category);
+        }
+      }
+    }
+  }
+
+  return [...normalized];
+}
+
 function matchesResident(
   product: (typeof CATALOG_PRODUCTS)[number],
   query: WorldSearchQuery,
@@ -380,12 +434,10 @@ function matchesResident(
     .join(" ")
     .toLowerCase();
 
-  const interests = [
+  const interests = normalizeResidentInterests([
     ...query.interests,
     ...query.preferredCategories,
-  ]
-    .filter(Boolean)
-    .map((value) => value.toLowerCase());
+  ]);
 
   if (interests.length === 0) {
     return true;
@@ -438,7 +490,15 @@ class CatalogWorldSearchProvider
         domain,
         imageUrl: product.imageUrl || null,
         publishedAt: product.publishedAt ?? null,
-        sourceRole: "product",
+        sourceRole:
+          /\/news(?:\/|$)/i.test(getPath(url))
+            ? "general"
+            : classifyTavilyResult(
+                `${product.brand} ${product.name}`,
+                url,
+                product.description ?? "",
+                sourceTypeFromCatalog(product.sourceKind),
+              ),
       });
     }
 
@@ -514,7 +574,7 @@ class TavilyWorldSearchProvider
     for (const result of data.results) {
       const title =
         typeof result.title === "string"
-          ? result.title.trim()
+          ? repairMojibake(result.title.trim())
           : "";
 
       const url =
@@ -524,7 +584,7 @@ class TavilyWorldSearchProvider
 
       const snippet =
         typeof result.content === "string"
-          ? result.content.trim()
+          ? repairMojibake(result.content.trim())
           : "";
 
       if (!title || !url) continue;
@@ -770,3 +830,4 @@ export function buildResidentSearchQuery(
     language: input.language ?? "en",
   };
 }
+

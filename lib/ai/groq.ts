@@ -1,4 +1,5 @@
-﻿import Groq from "groq-sdk";
+﻿import { repairMojibake } from "./text-encoding";
+import Groq from "groq-sdk";
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -7,7 +8,7 @@ const groq = new Groq({
 export async function generateAIText(prompt: string): Promise<string> {
   try {
     const response = await groq.chat.completions.create({
-      model: "openai/gpt-oss-120b",
+      model: "openai/gpt-oss-20b",
       messages: [
         {
           role: "user",
@@ -15,21 +16,13 @@ export async function generateAIText(prompt: string): Promise<string> {
         },
       ],
       temperature: 0.2,
-      max_tokens: 3000,
+      reasoning_effort: "low",
+      max_tokens: 1200,
     });
 
     const choice = response.choices?.[0];
     const content = choice?.message?.content;
 
-    console.log("=== GROQ RESPONSE DEBUG ===");
-    console.log("model:", response.model);
-    console.log("choices:", response.choices?.length ?? 0);
-    console.log("finish_reason:", choice?.finish_reason ?? null);
-    console.log("message_role:", choice?.message?.role ?? null);
-    console.log("content_type:", typeof content);
-    console.log("content_length:", content?.length ?? 0);
-    console.log("usage:", response.usage ?? null);
-    console.log("=== END GROQ RESPONSE DEBUG ===");
 
     if (typeof content !== "string" || !content.trim()) {
       console.error(
@@ -42,7 +35,7 @@ export async function generateAIText(prompt: string): Promise<string> {
       );
     }
 
-    return content.trim();
+    return repairMojibake(content.trim());
   } catch (error) {
     console.error("GROQ API ERROR:", error);
     throw error;
@@ -102,27 +95,23 @@ export async function generateAITextWithImages(
         },
       ],
       temperature: 0.2,
-      max_tokens: 3000,
+      reasoning_effort: "low",
+      max_tokens: 1200,
     });
 
     const choice = response.choices?.[0];
     const messageContent = choice?.message?.content;
 
-    console.log("=== GROQ VISION RESPONSE DEBUG ===");
-    console.log("model:", response.model);
-    console.log("images:", validImages.length);
-    console.log("finish_reason:", choice?.finish_reason ?? null);
-    console.log("content_length:", messageContent?.length ?? 0);
-    console.log("=== END GROQ VISION RESPONSE DEBUG ===");
 
     if (typeof messageContent !== "string" || !messageContent.trim()) {
       console.warn("GROQ VISION EMPTY RESPONSE, falling back to text.");
       return generateAIText(prompt);
     }
 
-    return messageContent.trim();
+    return repairMojibake(messageContent.trim());
   } catch (error) {
     console.error("GROQ VISION API ERROR, falling back to text:", error);
     return generateAIText(prompt);
   }
 }
+

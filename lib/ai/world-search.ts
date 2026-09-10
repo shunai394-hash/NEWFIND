@@ -35,18 +35,18 @@ export type WorldSearchResult = {
   sourceRole?: WorldSearchSourceRole;
 };
 
+export interface WorldSearchProvider {
+  search(
+    query: WorldSearchQuery,
+  ): Promise<WorldSearchResult[]>;
+}
+
 export function isNewsSignal(result: WorldSearchResult) {
   return result.sourceRole === "news";
 }
 
 export function isProductSource(result: WorldSearchResult) {
-  return result.sourceRole !== "news";
-}
-
-export interface WorldSearchProvider {
-  search(
-    query: WorldSearchQuery,
-  ): Promise<WorldSearchResult[]>;
+  return result.sourceRole === "product";
 }
 
 /* =========================================================
@@ -58,6 +58,14 @@ function getDomain(url: string): string {
     return new URL(url).hostname
       .replace(/^www\./, "")
       .toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function getPath(url: string): string {
+  try {
+    return new URL(url).pathname.toLowerCase();
   } catch {
     return "";
   }
@@ -157,6 +165,198 @@ function sourceTypeFromCatalog(
     default:
       return "other";
   }
+}
+
+/* =========================================================
+ * Tavily page classification
+ *
+ * A Tavily result is NOT automatically a product page.
+ * Search results may be product pages, news, editorial,
+ * category pages, calendars, SNS, blogs, etc.
+ * ======================================================= */
+
+const NON_PRODUCT_PATH_PATTERNS = [
+  /\/article(?:s)?(?:\/|$)/i,
+  /\/blogs?(?:\/|$)/i,
+  /\/stories?(?:\/|$)/i,
+  /\/editorial(?:\/|$)/i,
+  /\/press(?:\/|$)/i,
+  /\/calendar(?:\/|$)/i,
+  /\/events?(?:\/|$)/i,
+  /\/category(?:\/|$)/i,
+  /\/categories(?:\/|$)/i,
+  /\/collection(?:\/|$)/i,
+  /\/collections(?:\/|$)/i,
+  /\/tag(?:\/|$)/i,
+  /\/tags(?:\/|$)/i,
+  /\/search(?:\/|$)/i,
+  /\/archive(?:\/|$)/i,
+  /\/archives(?:\/|$)/i,
+  /\/author(?:\/|$)/i,
+  /\/authors(?:\/|$)/i,
+  /\/about(?:\/|$)/i,
+  /\/press-release(?:\/|$)/i,
+  /\/press-releases(?:\/|$)/i,
+];
+
+const NON_PRODUCT_TITLE_PATTERNS = [
+  /\bnews\b/i,
+  /\barticle\b/i,
+  /\barticles\b/i,
+  /\bblog\b/i,
+  /\beditorial\b/i,
+  /\bcalendar\b/i,
+  /\bevent\b/i,
+  /\bevents\b/i,
+  /\bcategory\b/i,
+  /\bcollection\b/i,
+  /\bcollections\b/i,
+  /\bpress release\b/i,
+  /\binterview\b/i,
+  /\breview\b/i,
+  /\btrend report\b/i,
+];
+
+const PRODUCT_PATH_PATTERNS = [
+  /\/products?(?:\/|$)/i,
+  /\/item(?:\/|$)/i,
+  /\/items(?:\/|$)/i,
+  /\/shop(?:\/|$)/i,
+  /\/store(?:\/|$)/i,
+  /\/p(?:\/|$)/i,
+  /\/dp\/[a-z0-9]/i,
+  /\/sku(?:\/|$)/i,
+];
+
+const PRODUCT_TEXT_PATTERNS = [
+  /\bbuy\b/i,
+  /\bshop now\b/i,
+  /\badd to cart\b/i,
+  /\badd to bag\b/i,
+  /\bprice\b/i,
+  /\bsku\b/i,
+  /\bproduct\b/i,
+  /\bsize\b/i,
+  /\bcolor\b/i,
+  /\bcolour\b/i,
+  /\bingredients\b/i,
+  /\bvolume\b/i,
+  /\bml\b/i,
+  /\boz\b/i,
+];
+
+export function classifyTavilyResult(
+  title: string,
+  url: string,
+  snippet: string,
+  sourceType: WorldSearchResult["sourceType"],
+): WorldSearchSourceRole {
+  const path = getPath(url);
+  const text = `${title}\n${snippet}`;
+
+  /* Search result pages are never product pages. */
+  try {
+    const parsedUrl = new URL(url);
+    const searchParams = parsedUrl.searchParams;
+
+    if (["q", "query", "search", "k"].some((key) => searchParams.has(key))) {
+      return "general";
+    }
+  } catch {
+    // Keep existing classification for malformed URLs.
+  }
+
+  /*
+   * SNS is never a product page candidate.
+   */
+  if (sourceType === "sns") {
+    return "general";
+  }
+
+  /*
+   * Strong URL-level exclusions always win.
+   * This specifically prevents paths such as:
+   * /news/calendar/
+   * from becoming productUrl.
+   */
+  if (
+    NON_PRODUCT_PATH_PATTERNS.some((pattern) =>
+      pattern.test(path),
+    )
+  ) {
+    return "general";
+  }
+
+  /*
+   * Known news domains remain news even when the URL path
+   * itself does not contain /news/.
+   */
+  if (sourceType === "news") {
+    return "news";
+  }
+
+  /*
+   * Magazine/blog/editorial sources are useful search results,
+   * but they are not direct product pages.
+   */
+  if (
+    sourceType === "magazine" ||
+    sourceType === "blog" ||
+    sourceType === "editorial"
+  ) {
+    return "general";
+  }
+
+  /*
+   * Titles that clearly describe articles, calendars,
+   * interviews, reviews, etc. are not product pages.
+   */
+  if (
+    NON_PRODUCT_TITLE_PATTERNS.some((pattern) =>
+      pattern.test(title),
+    )
+  ) {
+    return "general";
+  }
+
+  /*
+   * A strong product URL is enough to classify the result
+   * as a product candidate.
+   */
+  if (
+    PRODUCT_PATH_PATTERNS.some((pattern) =>
+      pattern.test(path),
+    )
+  ) {
+    return "product";
+  }
+
+  /*
+   * Retailers can expose product detail pages without a
+   * /product/ path. Only classify them as product candidates
+   * when the result contains multiple product-specific signals.
+   */
+  if (sourceType === "retailer") {
+    const productSignals = PRODUCT_TEXT_PATTERNS.filter(
+      (pattern) => pattern.test(text),
+    ).length;
+
+    return productSignals >= 2
+      ? "product"
+      : "general";
+  }
+
+  /*
+   * For unknown/brand domains, require product-specific
+   * evidence instead of assuming every page is a product.
+   */
+  const productSignals = PRODUCT_TEXT_PATTERNS.filter(
+    (pattern) => pattern.test(text),
+  ).length;
+
+  return productSignals >= 2
+    ? "product"
+    : "general";
 }
 
 /* =========================================================
@@ -313,28 +513,46 @@ class TavilyWorldSearchProvider
 
     for (const result of data.results) {
       const title =
-        typeof result.title === "string" ? result.title.trim() : "";
+        typeof result.title === "string"
+          ? result.title.trim()
+          : "";
+
       const url =
-        typeof result.url === "string" ? result.url.trim() : "";
+        typeof result.url === "string"
+          ? result.url.trim()
+          : "";
+
       const snippet =
-        typeof result.content === "string" ? result.content.trim() : "";
+        typeof result.content === "string"
+          ? result.content.trim()
+          : "";
 
       if (!title || !url) continue;
 
       const domain = getDomain(url);
+      const sourceType =
+        sourceTypeFromDomain(domain);
+
+      const sourceRole =
+        classifyTavilyResult(
+          title,
+          url,
+          snippet,
+          sourceType,
+        );
 
       results.push({
         title,
         url,
         snippet,
-        sourceType: sourceTypeFromDomain(domain),
+        sourceType,
         domain,
         imageUrl: null,
         publishedAt:
           typeof result.published_date === "string"
             ? result.published_date
             : null,
-        sourceRole: "product",
+        sourceRole,
       });
     }
 
@@ -344,9 +562,10 @@ class TavilyWorldSearchProvider
 
 /* =========================================================
  * Combined World Search
- * Catalog + Tavily are product sources only.
- * GDELT news is fetched once per ai-act via getSharedWorldNews()
- * and must never be mixed into these product candidates.
+ * Catalog + Tavily.
+ *
+ * Tavily results retain their classification:
+ * product / news / general.
  * ======================================================= */
 
 class CombinedWorldSearchProvider
@@ -387,6 +606,29 @@ class CombinedWorldSearchProvider
       console.log(
         "WORLD SEARCH: web results:",
         webResults.length,
+      );
+
+      console.log(
+        "WORLD SEARCH: web product results:",
+        webResults.filter(
+          isProductSource,
+        ).length,
+      );
+
+      console.log(
+        "WORLD SEARCH: web news results:",
+        webResults.filter(
+          isNewsSignal,
+        ).length,
+      );
+
+      console.log(
+        "WORLD SEARCH: web general results:",
+        webResults.filter(
+          (result) =>
+            result.sourceRole ===
+            "general",
+        ).length,
       );
     } catch (error) {
       console.error(

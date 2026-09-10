@@ -14,7 +14,10 @@ export const metadata: Metadata = {
   title: "NEWFIND",
   description: "Discover products, people, and trends. Check sources and go to a real store.",
   icons: {
-    icon: [{ url: "/brand/n-mark.svg", type: "image/svg+xml" }],
+    icon: [
+      { url: "/brand/app-icon.svg", type: "image/svg+xml" },
+      { url: "/brand/icon-32.png", type: "image/png", sizes: "32x32" },
+    ],
     apple: "/brand/apple-touch-icon.png",
   },
 };

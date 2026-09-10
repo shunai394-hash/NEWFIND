@@ -1,4 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="NEWFIND">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="NEWFIND">
   <rect width="32" height="32" fill="#111111"/>
-  <path fill="#C8FF00" d="M6 26.5V5.5h6.5L20.1 18.6V5.5H26v21h-6.5L11.9 13.4v13.1H6z"/>
+  <defs>
+    <clipPath id="world-a">
+      <circle cx="11.8" cy="13.58" r="8.15"/>
+    </clipPath>
+  </defs>
+  <circle cx="20.2" cy="18.43" r="8.15" fill="#C8FF00" clip-path="url(#world-a)"/>
+  <circle cx="11.8" cy="13.58" r="8.15" fill="none" stroke="#C8FF00" stroke-width="2.4"/>
+  <circle cx="20.2" cy="18.43" r="8.15" fill="none" stroke="#C8FF00" stroke-width="2.4"/>
 </svg>

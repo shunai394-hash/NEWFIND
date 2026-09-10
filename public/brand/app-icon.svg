@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="NEWFIND">
+  <rect width="1024" height="1024" fill="#111111"/>
+  <g transform="translate(0 0) scale(1)">
+    <defs>
+      <clipPath id="world-a">
+        <circle cx="412.41" cy="454.5" r="190"/>
+      </clipPath>
+    </defs>
+    <circle cx="611.59" cy="569.5" r="190" fill="#C8FF00" clip-path="url(#world-a)"/>
+    <circle cx="412.41" cy="454.5" r="190" fill="none" stroke="#C8FF00" stroke-width="52"/>
+    <circle cx="611.59" cy="569.5" r="190" fill="none" stroke="#C8FF00" stroke-width="52"/>
+  </g>
+</svg>

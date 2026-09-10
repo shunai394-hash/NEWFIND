@@ -5,6 +5,7 @@ export type CreateAiPersonaInput = {
   displayName: string;
   personaName: string;
   personality: string;
+  avatarUrl?: string;
   interests?: string[];
   preferredCategories?: string[];
   favoriteBrands?: string[];
@@ -59,6 +60,7 @@ export async function createAiPersona(input: CreateAiPersonaInput) {
       username: input.username,
       display_name: input.displayName,
       bio: input.personality,
+      avatar_url: input.avatarUrl ?? null,
     })
     .eq("id", profileId);
 
@@ -107,9 +109,3 @@ export async function createAiPersona(input: CreateAiPersonaInput) {
     persona,
   };
 }
-
-
-
-
-
-

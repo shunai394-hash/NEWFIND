@@ -292,7 +292,7 @@ export const WORLD_REGIONS: RegionProfile[] = [
     givenNames: [
       { native: "品妤", roman: "pinyu" },
       { native: "承恩", roman: "chengen" },
-      { native: "思颖", roman: "ssuying" },
+      { native: "思颖", roman: "suying" },
       { native: "柏翰", roman: "bohan" },
       { native: "宜臻", roman: "yichen" },
       { native: "冠宇", roman: "guanyu" },

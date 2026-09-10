@@ -29,6 +29,7 @@ import {
   type WorldValue,
 } from "./world-resident-catalog";
 import { buildResidentVoice } from "./world-resident-voice";
+import { buildWorldResidentAvatarUrl } from "./world-resident-avatar";
 
 const DEFAULT_TARGET = 10;
 
@@ -298,6 +299,14 @@ export function composeWorldResident(slotNumber: number): WorldResidentBlueprint
   const displayName = displayNameFor(region, given, family);
   const personaName = `${displayName} · ${slotNumber}`;
   const countryCode = countryCodeFor(region, slotNumber);
+  const username = usernameFor(given, family, slotNumber);
+  const avatarUrl = buildWorldResidentAvatarUrl({
+    username,
+    displayName,
+    residentRole: role,
+      countryCode,
+      region: region.region,
+    });
 
   const voice = buildResidentVoice(primaryLanguage, {
     displayName,
@@ -313,7 +322,8 @@ export function composeWorldResident(slotNumber: number): WorldResidentBlueprint
 
   return {
     slotNumber,
-    username: usernameFor(given, family, slotNumber),
+    username,
+    avatarUrl,
     displayName,
     personaName,
     personality: voice.personality,
@@ -467,6 +477,7 @@ export async function ensureAiResidentPopulation(): Promise<ResidentFactoryResul
         username: resident.username,
         displayName: resident.displayName,
         personaName: resident.personaName,
+        avatarUrl: resident.avatarUrl,
         personality: resident.personality,
         interests: resident.interests,
         preferredCategories: resident.preferredCategories,

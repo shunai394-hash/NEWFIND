@@ -1,5 +1,7 @@
 import {
   buildResidentSearchQuery,
+  isNewsSignal,
+  isProductSource,
   searchWorld,
   type WorldSearchResult,
 } from "./world-search";
@@ -8,9 +10,8 @@ import {
   type ProductHunterCandidate,
 } from "./product-hunter";
 import type { AiPersona } from "../ai-post-engine";
-import {
-  saveDiscoveryProductToDb,
-} from "@/lib/discovery/db";
+import { saveDiscoveryProductToDb } from "@/lib/discovery/db";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import type { DiscoveryProductInput } from "@/lib/discovery/types";
 
 export type ResidentProductHunterResult = {
@@ -18,6 +19,7 @@ export type ResidentProductHunterResult = {
   residentName: string;
   searchQuery: string;
   searchResults: WorldSearchResult[];
+  worldNews: WorldSearchResult[];
   candidates: ProductHunterCandidate[];
   savedProductIds: string[];
 };
@@ -27,6 +29,9 @@ function candidateToDiscoveryInput(
   residentId: string,
 ): DiscoveryProductInput {
   const now = new Date().toISOString();
+  const productImageUrl = isUsableProductImage(candidate.productImageUrl)
+    ? candidate.productImageUrl
+    : null;
 
   return {
     id: crypto.randomUUID(),
@@ -36,7 +41,7 @@ function candidateToDiscoveryInput(
     subcategory: candidate.subcategory,
     country: candidate.country,
     description: candidate.description,
-    productImageUrl: null,
+    productImageUrl,
     productUrl: candidate.productUrl,
     officialUrl: candidate.officialUrl,
     price: candidate.price,
@@ -73,6 +78,7 @@ function candidateToDiscoveryInput(
 
 export async function runResidentProductHunter(
   persona: AiPersona,
+  sharedWorldNews: WorldSearchResult[] = [],
 ): Promise<ResidentProductHunterResult> {
   const query = buildResidentSearchQuery({
     residentName: persona.persona_name,
@@ -85,18 +91,23 @@ export async function runResidentProductHunter(
     language: persona.languages?.[0],
   });
 
-  const searchResults = await searchWorld({
+  const productResults = await searchWorld({
     ...query,
     residentId: persona.id,
     residentName: persona.persona_name,
   });
 
-  if (searchResults.length === 0) {
+  const newsSignals = sharedWorldNews.filter(isNewsSignal);
+  const productSources = productResults.filter(isProductSource);
+  const searchResults = [...newsSignals, ...productSources];
+
+  if (productSources.length === 0) {
     return {
       residentId: persona.id,
       residentName: persona.persona_name,
       searchQuery: query.query,
-      searchResults: [],
+      searchResults,
+      worldNews: newsSignals,
       candidates: [],
       savedProductIds: [],
     };
@@ -121,9 +132,7 @@ export async function runResidentProductHunter(
 
   for (const candidate of candidates) {
     const input = candidateToDiscoveryInput(candidate, persona.id);
-
     const saved = await saveDiscoveryProductToDb(input);
-
     savedProductIds.push(saved.id);
   }
 
@@ -132,8 +141,8 @@ export async function runResidentProductHunter(
     residentName: persona.persona_name,
     searchQuery: query.query,
     searchResults,
+    worldNews: newsSignals,
     candidates,
     savedProductIds,
   };
 }
-

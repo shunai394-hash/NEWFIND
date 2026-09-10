@@ -11,6 +11,8 @@ export type WorldSearchQuery = {
   language?: string;
 };
 
+export type WorldSearchSourceRole = "product" | "news" | "general";
+
 export type WorldSearchResult = {
   title: string;
   url: string;
@@ -26,7 +28,20 @@ export type WorldSearchResult = {
     | "blog"
     | "other";
   domain: string;
+  imageUrl?: string | null;
+  language?: string | null;
+  sourceCountry?: string | null;
+  publishedAt?: string | null;
+  sourceRole?: WorldSearchSourceRole;
 };
+
+export function isNewsSignal(result: WorldSearchResult) {
+  return result.sourceRole === "news";
+}
+
+export function isProductSource(result: WorldSearchResult) {
+  return result.sourceRole !== "news";
+}
 
 export interface WorldSearchProvider {
   search(
@@ -198,47 +213,36 @@ class CatalogWorldSearchProvider
       )
       .slice(0, 20);
 
-    return matched
-      .map((product) => {
-        const url =
-          product.purchaseUrl ||
-          product.sourceUrl;
+    const results: WorldSearchResult[] = [];
 
-        if (!url) {
-          return null;
-        }
+    for (const product of matched) {
+      const url = product.purchaseUrl || product.sourceUrl;
+      if (!url) continue;
 
-        const domain = getDomain(url);
+      const domain = getDomain(url);
 
-        return {
-          title: `${product.brand} ${product.name}`,
-          url,
-          snippet: [
-            product.description,
-            `カテゴリー: ${
-              product.collections?.join(", ") ?? ""
-            }`,
-            `サブカテゴリー: ${
-              product.subcategoryLabel ??
-              product.subcategory ??
-              ""
-            }`,
-            `情報源: ${product.sourceTitle ?? ""}`,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-          sourceType: sourceTypeFromCatalog(
-            product.sourceKind,
-          ),
-          domain,
-        };
-      })
-      .filter(
-        (
-          result,
-        ): result is WorldSearchResult =>
-          result !== null,
-      );
+      results.push({
+        title: `${product.brand} ${product.name}`,
+        url,
+        snippet: [
+          product.description,
+          `カテゴリー: ${product.collections?.join(", ") ?? ""}`,
+          `サブカテゴリー: ${
+            product.subcategoryLabel ?? product.subcategory ?? ""
+          }`,
+          `情報源: ${product.sourceTitle ?? ""}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        sourceType: sourceTypeFromCatalog(product.sourceKind),
+        domain,
+        imageUrl: product.imageUrl || null,
+        publishedAt: product.publishedAt ?? null,
+        sourceRole: "product",
+      });
+    }
+
+    return results;
   }
 }
 
@@ -305,49 +309,44 @@ class TavilyWorldSearchProvider
       return [];
     }
 
-    return data.results
-      .map((result) => {
-        const title =
-          typeof result.title === "string"
-            ? result.title.trim()
-            : "";
+    const results: WorldSearchResult[] = [];
 
-        const url =
-          typeof result.url === "string"
-            ? result.url.trim()
-            : "";
+    for (const result of data.results) {
+      const title =
+        typeof result.title === "string" ? result.title.trim() : "";
+      const url =
+        typeof result.url === "string" ? result.url.trim() : "";
+      const snippet =
+        typeof result.content === "string" ? result.content.trim() : "";
 
-        const snippet =
-          typeof result.content === "string"
-            ? result.content.trim()
-            : "";
+      if (!title || !url) continue;
 
-        if (!title || !url) {
-          return null;
-        }
+      const domain = getDomain(url);
 
-        const domain = getDomain(url);
+      results.push({
+        title,
+        url,
+        snippet,
+        sourceType: sourceTypeFromDomain(domain),
+        domain,
+        imageUrl: null,
+        publishedAt:
+          typeof result.published_date === "string"
+            ? result.published_date
+            : null,
+        sourceRole: "product",
+      });
+    }
 
-        return {
-          title,
-          url,
-          snippet,
-          sourceType:
-            sourceTypeFromDomain(domain),
-          domain,
-        };
-      })
-      .filter(
-        (
-          result,
-        ): result is WorldSearchResult =>
-          result !== null,
-      );
+    return results;
   }
 }
 
 /* =========================================================
  * Combined World Search
+ * Catalog + Tavily are product sources only.
+ * GDELT news is fetched once per ai-act via getSharedWorldNews()
+ * and must never be mixed into these product candidates.
  * ======================================================= */
 
 class CombinedWorldSearchProvider

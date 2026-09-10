@@ -14,6 +14,12 @@ export type CreateAiPersonaInput = {
   systemPrompt?: string;
   residentRole?: string;
   goals?: string[];
+  countryCode?: string;
+  region?: string;
+  languages?: string[];
+  expertise?: string[];
+  values?: string[];
+  culture?: string;
 };
 
 function createInternalEmail(username: string, userId: string) {
@@ -78,6 +84,12 @@ export async function createAiPersona(input: CreateAiPersonaInput) {
       system_prompt: input.systemPrompt ?? "",
       resident_role: input.residentRole ?? "general_user",
       goals: input.goals ?? [],
+      country_code: input.countryCode ?? "",
+      region: input.region ?? "",
+      languages: input.languages ?? [],
+      expertise: input.expertise ?? [],
+      values: input.values ?? [],
+      culture: input.culture ?? "",
       is_active: true,
     })
     .select("*")

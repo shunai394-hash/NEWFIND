@@ -31,7 +31,7 @@ export function PostDetail({ id }: { id: string }) {
     <PostCard
       post={post}
       onChange={setPost}
-      onDeleted={() => router.replace("/")}
+      onDeleted={() => router.replace("/feed")}
     />
   );
 }

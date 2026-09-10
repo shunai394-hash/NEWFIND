@@ -14,6 +14,9 @@ function hasSupabaseAuthCookie(request: NextRequest) {
 
 function isPublicPath(pathname: string, method: string) {
   if (pathname === "/") return true;
+  if (pathname === "/feed") return true;
+  if (pathname === "/following") return true;
+  if (pathname === "/api/auth/callback/apple") return true;
   if (
     pathname.startsWith("/products") ||
     pathname.startsWith("/p/") ||

@@ -24,6 +24,14 @@ export type AiPersona = {
   last_action?: string | null;
   last_observed_at?: string | null;
   next_action_at?: string | null;
+
+  // World resident attributes
+  country_code?: string | null;
+  region?: string | null;
+  languages?: string[];
+  expertise?: string[];
+  values?: string[];
+  culture?: string | null;
 };
 
 export async function getActiveAiPersonas(): Promise<AiPersona[]> {

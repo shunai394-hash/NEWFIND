@@ -36,11 +36,11 @@ export function BottomNav() {
   const items: NavItem[] = [
     {
       key: "home",
-      href: "/",
+      href: "/feed",
       icon: HomeIcon,
       label: "ホーム",
       active:
-        pathname === "/" ||
+        pathname === "/feed" ||
         pathname === "/following",
     },
     {

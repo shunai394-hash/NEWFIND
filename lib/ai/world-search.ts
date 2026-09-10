@@ -482,6 +482,10 @@ export function buildResidentSearchQuery(
     interests: string[];
     preferredCategories: string[];
     goals: string[];
+    expertise?: string[];
+    values?: string[];
+    country?: string | null;
+    language?: string;
   },
 ): WorldSearchQuery {
   const interests =
@@ -495,9 +499,17 @@ export function buildResidentSearchQuery(
   const goals =
     input.goals.filter(Boolean);
 
+  const expertise =
+    (input.expertise ?? []).filter(Boolean);
+
+  const values =
+    (input.values ?? []).filter(Boolean);
+
   const queryParts = [
     ...categories,
     ...interests,
+    ...expertise,
+    ...values,
     ...goals,
     "new product",
     "trending",
@@ -513,7 +525,7 @@ export function buildResidentSearchQuery(
     goals,
     query:
       queryParts.join(" "),
-    country: null,
-    language: "en",
+    country: input.country ?? null,
+    language: input.language ?? "en",
   };
 }

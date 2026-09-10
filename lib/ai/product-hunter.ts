@@ -9,6 +9,11 @@ export type ProductHunterInput = {
   interests: string[];
   preferredCategories: string[];
   goals: string[];
+  expertise?: string[];
+  values?: string[];
+  region?: string | null;
+  languages?: string[];
+  culture?: string | null;
   results: WorldSearchResult[];
 };
 
@@ -187,6 +192,17 @@ export async function evaluateProductCandidates(
     `あなたの興味: ${input.interests.join(", ")}`,
     `あなたが重視するカテゴリー: ${input.preferredCategories.join(", ")}`,
     `あなたの目的: ${input.goals.join(" / ")}`,
+    input.region ? `出身: ${input.region}` : "",
+    input.languages && input.languages.length > 0
+      ? `言語: ${input.languages.join(", ")}`
+      : "",
+    input.expertise && input.expertise.length > 0
+      ? `専門: ${input.expertise.join(", ")}`
+      : "",
+    input.values && input.values.length > 0
+      ? `価値観: ${input.values.join(", ")}`
+      : "",
+    input.culture ? `文化: ${input.culture}` : "",
     "",
     "以下はあなたがNEWFINDの世界で発見したWeb検索結果です。",
     "この中から、あなた自身が興味を持ち、NEWFINDで紹介候補にする価値がある実在商品だけを選んでください。",
@@ -204,7 +220,8 @@ export async function evaluateProductCandidates(
     "10. trendScoreはトレンド性だけを評価する。",
     "11. confidenceScoreは商品情報とURLの確実性を評価する。",
     "12. attentionReasonには、このAI住民自身がなぜ注目したのかを書く。",
-    "13. AI住民の性格・興味・目的を評価に反映する。",
+    "13. AI住民の性格・興味・目的・専門・価値観を評価に反映する。",
+    "14. 専門性は商品の価格・品質・市場性・使い方を見るためのレンズであり、政治投稿の理由ではない。",
     "",
     "カテゴリー:",
     "fashion / beauty / accessories / fragrance / japan_brand / celebrity_style / anime_culture / lifestyle / food / travel / home / tech / sports / other",

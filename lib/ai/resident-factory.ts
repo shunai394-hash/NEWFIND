@@ -1,152 +1,343 @@
+// NEWFIND world resident factory.
+// AI personas are residents of this world, not content generators.
+// Existing slot 1-10 residents are never rewritten here.
+// New residents are composed from region, language, expertise, values,
+// temperament, and role using slot_number as a stable seed.
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CreateAiPersonaInput } from "@/lib/ai-personas";
 import { createAiPersona } from "@/lib/ai-personas";
+import {
+  BEHAVIORS,
+  EXTRA_INTERESTS,
+  EXPERTISE_CATEGORIES,
+  PRODUCT_TASTES,
+  ROLE_ACTIVITY,
+  TEMPERAMENTS,
+  WORLD_EXPERTISE,
+  WORLD_REGIONS,
+  WORLD_ROLES,
+  WORLD_VALUES,
+  type BehaviorPattern,
+  type NamePart,
+  type ProductTaste,
+  type RegionProfile,
+  type Temperament,
+  type WorldExpertise,
+  type WorldLanguage,
+  type WorldRole,
+  type WorldValue,
+} from "./world-resident-catalog";
+import { buildResidentVoice } from "./world-resident-voice";
 
 const DEFAULT_TARGET = 10;
 
-type ResidentTemplate = Omit<CreateAiPersonaInput, "username"> & {
-  usernamePrefix: string;
-  residentRole: string;
-  goals: string[];
+function hashSlot(slot: number, salt: number): number {
+  let x = Math.imul(slot + 1, 0x9e3779b1) ^ Math.imul(salt + 1, 0x85ebca6b);
+  x = Math.imul(x ^ (x >>> 16), 0x7feb352d);
+  x = Math.imul(x ^ (x >>> 15), 0x846ca68b);
+  return x >>> 0;
+}
+
+function pickCoprime(length: number, slot: number, stride: number): number {
+  return ((slot - 1) * stride) % length;
+}
+
+function pickIndex(length: number, slot: number, salt: number): number {
+  return hashSlot(slot, salt) % length;
+}
+
+function pickUnique<T>(
+  items: readonly T[],
+  slot: number,
+  salt: number,
+  excluded: T,
+): T {
+  if (items.length === 1) {
+    return items[0];
+  }
+
+  let index = pickIndex(items.length, slot, salt);
+  if (items[index] === excluded) {
+    index = (index + 1) % items.length;
+  }
+
+  return items[index];
+}
+
+function displayNameFor(
+  region: RegionProfile,
+  given: NamePart,
+  family: NamePart,
+): string {
+  if (region.nameOrder === "family-given") {
+    return `${family.native} ${given.native}`;
+  }
+
+  return `${given.native} ${family.native}`;
+}
+
+function usernameFor(
+  given: NamePart,
+  family: NamePart,
+  slotNumber: number,
+): string {
+  const base = `${given.roman}${family.roman}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 18);
+
+  return `ai_${base || "resident"}_${slotNumber}`;
+}
+
+function primaryLanguageFor(
+  region: RegionProfile,
+  slotNumber: number,
+): WorldLanguage {
+  const roll = hashSlot(slotNumber, 17) % 10;
+
+  switch (region.id) {
+    case "japan":
+      return "Japanese";
+    case "south_korea":
+      return "Korean";
+    case "china":
+    case "taiwan":
+      return "Chinese";
+    case "singapore":
+      return roll < 7 ? "English" : "Chinese";
+    case "india":
+      return roll < 6 ? "English" : "Hindi";
+    case "canada":
+      return roll < 2 ? "French" : "English";
+    case "mexico":
+    case "spain":
+      return "Spanish";
+    case "brazil":
+      return "Portuguese";
+    case "france":
+      return "French";
+    case "germany":
+      return "German";
+    case "italy":
+      return "Italian";
+    case "netherlands":
+      return "Dutch";
+    case "sweden":
+      return "Swedish";
+    case "middle_east":
+      return roll < 7 ? "Arabic" : "English";
+    case "southeast_asia":
+      return roll < 8 ? "English" : "Chinese";
+    default:
+      return "English";
+  }
+}
+
+function languagesFor(
+  region: RegionProfile,
+  primary: WorldLanguage,
+  slotNumber: number,
+): WorldLanguage[] {
+  const languages: WorldLanguage[] = [primary];
+
+  for (const candidate of region.defaultLanguages) {
+    if (!languages.includes(candidate)) {
+      languages.push(candidate);
+    }
+  }
+
+  if (hashSlot(slotNumber, 23) % 5 === 0 && !languages.includes("English")) {
+    languages.push("English");
+  }
+
+  return languages.slice(0, 3);
+}
+
+function countryCodeFor(region: RegionProfile, slotNumber: number): string {
+  const variants = region.countryCodeVariants;
+  if (!variants || variants.length === 0) {
+    return region.countryCode;
+  }
+
+  return variants[pickIndex(variants.length, slotNumber, 29)];
+}
+
+function activityFor(role: WorldRole, slotNumber: number): "low" | "medium" | "high" {
+  const base = ROLE_ACTIVITY[role];
+  const roll = hashSlot(slotNumber, 31) % 8;
+
+  if (base === "high" && roll === 0) {
+    return "medium";
+  }
+
+  if (base === "medium" && roll === 0) {
+    return "low";
+  }
+
+  if (base === "medium" && roll === 1) {
+    return "high";
+  }
+
+  return base;
+}
+
+function interestsFor(
+  expertise: WorldExpertise[],
+  taste: ProductTaste,
+  slotNumber: number,
+): string[] {
+  const extras = [
+    EXTRA_INTERESTS[pickIndex(EXTRA_INTERESTS.length, slotNumber, 41)],
+    EXTRA_INTERESTS[pickIndex(EXTRA_INTERESTS.length, slotNumber, 43)],
+    EXTRA_INTERESTS[pickIndex(EXTRA_INTERESTS.length, slotNumber, 47)],
+  ];
+
+  return Array.from(
+    new Set([...expertise, taste, ...extras]),
+  );
+}
+
+function categoriesFor(expertise: WorldExpertise[]): string[] {
+  const categories = expertise.flatMap(
+    (item) => EXPERTISE_CATEGORIES[item],
+  );
+
+  return Array.from(new Set(categories)).slice(0, 4);
+}
+
+function favoriteBrandsFor(
+  region: RegionProfile,
+  expertise: WorldExpertise[],
+  values: WorldValue[],
+  slotNumber: number,
+): string[] {
+  const localHints: Record<string, string[]> = {
+    japan: ["local craft", "Tokyo independents"],
+    south_korea: ["Seoul beauty labs", "Korean independents"],
+    china: ["Shanghai design studios"],
+    taiwan: ["Taipei cafes and makers"],
+    singapore: ["independent Singapore makers"],
+    india: ["Indian craft houses"],
+    united_states: ["US independents"],
+    canada: ["Canadian outdoor makers"],
+    mexico: ["Mexican craft studios"],
+    brazil: ["Brazilian beauty and design"],
+    united_kingdom: ["British independents"],
+    france: ["French maisons and ateliers"],
+    germany: ["German industrial design"],
+    italy: ["Italian workshops"],
+    spain: ["Spanish design studios"],
+    netherlands: ["Dutch functional design"],
+    sweden: ["Nordic everyday makers"],
+    australia: ["Australian independents"],
+    new_zealand: ["Aotearoa makers"],
+    middle_east: ["Gulf contemporary makers"],
+    southeast_asia: ["Southeast Asian independents"],
+  };
+
+  const hints = localHints[region.id] ?? ["independent makers"];
+  const hint = hints[pickIndex(hints.length, slotNumber, 53)];
+
+  if (values.includes("local-culture") || values.includes("craftsmanship")) {
+    return [hint];
+  }
+
+  if (expertise.includes("beauty") || expertise.includes("fashion")) {
+    return [hint];
+  }
+
+  return [];
+}
+
+export type WorldResidentBlueprint = CreateAiPersonaInput & {
+  slotNumber: number;
+  primaryLanguage: WorldLanguage;
+  temperament: Temperament;
+  behavior: BehaviorPattern;
+  productTaste: ProductTaste;
 };
 
-const RESIDENT_TEMPLATES: ResidentTemplate[] = [
-  {
-    usernamePrefix: "yuna",
-    displayName: "Yuna",
-    personaName: "Yuna",
-    residentRole: "product_hunter",
-    personality: "新しい商品を見つけることが大好きで、まだ知られていないブランドを積極的に探す好奇心旺盛な住民。",
-    interests: ["新商品", "美容", "ライフスタイル", "海外ブランド"],
-    preferredCategories: ["美容・コスメ", "ライフスタイル"],
-    favoriteBrands: ["TAKAMI", "SUQQU", "Le Labo"],
-    postingStyle: "見つけた商品の魅力を短く紹介し、なぜ気になったのかを自分の言葉で投稿する。",
-    commentStyle: "商品の具体的な魅力や使ってみたい理由に反応する。",
-    activityLevel: "high",
-    goals: ["新しい商品を発見する", "まだ知られていないブランドを見つける", "発見した商品を共有する"],
-    systemPrompt: "あなたはNEWFINDの商品ハンターです。世界中から面白い商品を探し、NEWFINDの住民に紹介してください。",
-  },
-  {
-    usernamePrefix: "mika",
-    displayName: "Mika",
-    personaName: "Mika",
-    residentRole: "influencer",
-    personality: "トレンドに敏感で、話題になりそうな商品を見つけるとすぐに周囲へ共有したくなる社交的な住民。",
-    interests: ["トレンド", "美容", "ファッション", "SNS"],
-    preferredCategories: ["美容・コスメ", "ファッション"],
-    favoriteBrands: ["SUQQU", "KOSE"],
-    postingStyle: "テンポのよい短文で、トレンド感のある商品を紹介する。",
-    commentStyle: "共感しながら自然に会話を広げる。",
-    activityLevel: "high",
-    goals: ["トレンドを発見する", "話題の商品を紹介する", "他の住民と交流する"],
-    systemPrompt: "あなたはNEWFINDのトレンド好きなインフルエンサー住民です。",
-  },
-  {
-    usernamePrefix: "ren",
-    displayName: "Ren",
-    personaName: "Ren",
-    residentRole: "reviewer",
-    personality: "商品を冷静に観察し、良い点だけでなく気になる点も正直に考える慎重な住民。",
-    interests: ["レビュー", "品質", "機能性", "コスパ"],
-    preferredCategories: ["ガジェット", "ライフスタイル", "美容・コスメ"],
-    favoriteBrands: [],
-    postingStyle: "商品の特徴を具体的に説明し、メリットと注意点をバランスよく書く。",
-    commentStyle: "具体的な質問をしたり、実用性について意見を述べる。",
-    activityLevel: "medium",
-    goals: ["商品の品質を見極める", "役立つレビューを残す", "他の住民の判断を助ける"],
-    systemPrompt: "あなたはNEWFINDのレビュアー住民です。商品の良い点と気になる点を公平に考えてください。",
-  },
-  {
-    usernamePrefix: "sora",
-    displayName: "Sora",
-    personaName: "Sora",
-    residentRole: "fan",
-    personality: "お気に入りのブランドや商品を見つけると長く応援する熱心なファンタイプの住民。",
-    interests: ["ブランド", "美容", "ファッション", "コレクション"],
-    preferredCategories: ["美容・コスメ", "ファッション"],
-    favoriteBrands: ["Le Labo", "Frederic Malle"],
-    postingStyle: "好きな商品の魅力を楽しそうに語る。",
-    commentStyle: "お気に入りの商品について積極的に反応する。",
-    activityLevel: "medium",
-    goals: ["お気に入りを見つける", "好きなブランドを応援する", "同じ趣味の住民とつながる"],
-    systemPrompt: "あなたはNEWFINDのブランドファン住民です。",
-  },
-  {
-    usernamePrefix: "kai",
-    displayName: "Kai",
-    personaName: "Kai",
-    residentRole: "critic",
-    personality: "流行に流されず、自分の基準で商品を評価する少し辛口な住民。",
-    interests: ["品質", "価格", "ブランド戦略", "レビュー"],
-    preferredCategories: ["ファッション", "美容・コスメ", "ライフスタイル"],
-    favoriteBrands: [],
-    postingStyle: "短く鋭いコメントで商品の本質を指摘する。",
-    commentStyle: "疑問点や弱点を率直に指摘する。",
-    activityLevel: "medium",
-    goals: ["商品の本質を見抜く", "過剰な評価に流されない", "独自の視点を提供する"],
-    systemPrompt: "あなたはNEWFINDの辛口レビュアー住民です。感情的にならず、独自の視点で商品を評価してください。",
-  },
-  {
-    usernamePrefix: "mei",
-    displayName: "Mei",
-    personaName: "Mei",
-    residentRole: "media",
-    personality: "世の中で起きている商品やブランドの動きを観察し、面白い情報を見つけるのが好きな住民。",
-    interests: ["ブランドニュース", "新商品", "カルチャー", "トレンド"],
-    preferredCategories: ["美容・コスメ", "ファッション", "ライフスタイル"],
-    favoriteBrands: [],
-    postingStyle: "商品そのものだけでなく、その背景や話題性も紹介する。",
-    commentStyle: "商品の背景や市場での位置づけについて反応する。",
-    activityLevel: "medium",
-    goals: ["面白いブランド情報を発見する", "新しいトレンドを観察する", "情報を共有する"],
-    systemPrompt: "あなたはNEWFINDのメディア系住民です。",
-  },
-  {
-    usernamePrefix: "haru",
-    displayName: "Haru",
-    personaName: "Haru",
-    residentRole: "general_user",
-    personality: "特定のジャンルに限定されず、その日の気分で面白いものを探す普通のNEWFIND住民。",
-    interests: ["日用品", "美容", "食品", "ガジェット", "ファッション"],
-    preferredCategories: ["ライフスタイル", "美容・コスメ", "ガジェット"],
-    favoriteBrands: [],
-    postingStyle: "自然体で日常の中で気になった商品を投稿する。",
-    commentStyle: "友達に話しかけるような自然なコメントをする。",
-    activityLevel: "medium",
-    goals: ["面白い商品を見つける", "日常の発見を共有する", "他の住民と交流する"],
-    systemPrompt: "あなたはNEWFINDの一般住民です。日常生活の中で気になる商品を見つけてください。",
-  },
-  {
-    usernamePrefix: "nagi",
-    displayName: "Nagi",
-    personaName: "Nagi",
-    residentRole: "trend_hunter",
-    personality: "まだ大きな話題になる前の小さな兆候を見つけることが好きな観察型の住民。",
-    interests: ["新ブランド", "海外商品", "トレンド", "デザイン"],
-    preferredCategories: ["ファッション", "美容・コスメ", "デザイン"],
-    favoriteBrands: [],
-    postingStyle: "まだ知られていないものを先取りするような投稿をする。",
-    commentStyle: "将来人気になりそうかという視点でコメントする。",
-    activityLevel: "high",
-    goals: ["次のトレンドを発見する", "新しいブランドを先取りする", "海外の面白い商品を探す"],
-    systemPrompt: "あなたはNEWFINDのトレンドハンター住民です。",
-  },
-  {
-    usernamePrefix: "ao",
-    displayName: "Ao",
-    personaName: "Ao",
-    residentRole: "curator",
-    personality: "たくさんの商品を見るのが好きで、その中から人に紹介したいものを選ぶキュレータータイプ。",
-    interests: ["デザイン", "美容", "ライフスタイル", "ブランド"],
-    preferredCategories: ["ライフスタイル", "美容・コスメ", "ファッション"],
-    favoriteBrands: [],
-    postingStyle: "複数の商品を比較しながら、特に気になるものを紹介する。",
-    commentStyle: "他の商品との違いを見つけてコメントする。",
-    activityLevel: "medium",
-    goals: ["面白い商品を選ぶ", "商品の違いを見つける", "NEWFINDの発見を豊かにする"],
-    systemPrompt: "あなたはNEWFINDのキュレーター住民です。",
-  },
-];
+export function composeWorldResident(slotNumber: number): WorldResidentBlueprint {
+  const region =
+    WORLD_REGIONS[pickCoprime(WORLD_REGIONS.length, slotNumber, 1)];
+  const role =
+    WORLD_ROLES[pickCoprime(WORLD_ROLES.length, slotNumber, 4)];
+  const expertisePrimary =
+    WORLD_EXPERTISE[pickCoprime(WORLD_EXPERTISE.length, slotNumber, 5)];
+  const valuePrimary =
+    WORLD_VALUES[pickCoprime(WORLD_VALUES.length, slotNumber, 3)];
+  const temperament =
+    TEMPERAMENTS[pickCoprime(TEMPERAMENTS.length, slotNumber, 7)];
+  const behavior =
+    BEHAVIORS[pickCoprime(BEHAVIORS.length, slotNumber, 5)];
+  const given =
+    region.givenNames[pickIndex(region.givenNames.length, slotNumber, 57)];
+  const family =
+    region.familyNames[pickIndex(region.familyNames.length, slotNumber, 59)];
+
+  const expertiseSecondary = pickUnique(
+    WORLD_EXPERTISE,
+    slotNumber,
+    61,
+    expertisePrimary,
+  );
+  const valueSecondary = pickUnique(
+    WORLD_VALUES,
+    slotNumber,
+    67,
+    valuePrimary,
+  );
+  const productTaste =
+    PRODUCT_TASTES[pickIndex(PRODUCT_TASTES.length, slotNumber, 71)];
+
+  const expertise: WorldExpertise[] = [expertisePrimary, expertiseSecondary];
+  const values: WorldValue[] = [valuePrimary, valueSecondary];
+  const primaryLanguage = primaryLanguageFor(region, slotNumber);
+  const languages = languagesFor(region, primaryLanguage, slotNumber);
+  const displayName = displayNameFor(region, given, family);
+  const personaName = `${displayName} · ${slotNumber}`;
+  const countryCode = countryCodeFor(region, slotNumber);
+
+  const voice = buildResidentVoice(primaryLanguage, {
+    displayName,
+    region: region.region,
+    role,
+    expertise,
+    values,
+    temperament,
+    behavior,
+    culture: region.culture,
+    productTaste,
+  });
+
+  return {
+    slotNumber,
+    username: usernameFor(given, family, slotNumber),
+    displayName,
+    personaName,
+    personality: voice.personality,
+    interests: interestsFor(expertise, productTaste, slotNumber),
+    preferredCategories: categoriesFor(expertise),
+    favoriteBrands: favoriteBrandsFor(region, expertise, values, slotNumber),
+    postingStyle: voice.postingStyle,
+    commentStyle: voice.commentStyle,
+    activityLevel: activityFor(role, slotNumber),
+    systemPrompt: voice.systemPrompt,
+    residentRole: role,
+    goals: voice.goals,
+    countryCode,
+    region: region.region,
+    languages,
+    expertise,
+    values,
+    culture: region.culture,
+    primaryLanguage,
+    temperament,
+    behavior,
+    productTaste,
+  };
+}
 
 function getTargetPopulation() {
   const raw = Number(process.env.AI_RESIDENT_TARGET ?? DEFAULT_TARGET);
@@ -158,10 +349,6 @@ function getTargetPopulation() {
   return Math.floor(raw);
 }
 
-function makeUniqueUsername(prefix: string, index: number) {
-  return `ai_${prefix}_${index}_${crypto.randomUUID().slice(0, 6)}`;
-}
-
 async function getActiveCount() {
   const admin = createAdminClient();
 
@@ -171,15 +358,13 @@ async function getActiveCount() {
     .eq("is_active", true);
 
   if (error) {
-    throw new Error("AI resident count取得失敗: " + error.message);
+    throw new Error("AI resident count failed: " + error.message);
   }
 
   return count ?? 0;
 }
 
-async function claimResidentSlot(
-  slotNumber: number,
-): Promise<boolean> {
+async function claimResidentSlot(slotNumber: number): Promise<boolean> {
   const admin = createAdminClient();
 
   const { data, error } = await admin
@@ -195,17 +380,13 @@ async function claimResidentSlot(
       return false;
     }
 
-    throw new Error(
-      "AI resident slot取得失敗: " + error.message,
-    );
+    throw new Error("AI resident slot claim failed: " + error.message);
   }
 
   return Boolean(data);
 }
 
-async function releaseResidentSlot(
-  slotNumber: number,
-): Promise<void> {
+async function releaseResidentSlot(slotNumber: number): Promise<void> {
   const admin = createAdminClient();
 
   const { error } = await admin
@@ -215,10 +396,7 @@ async function releaseResidentSlot(
     .is("persona_id", null);
 
   if (error) {
-    console.error(
-      "AI resident slot release failed:",
-      error,
-    );
+    console.error("AI resident slot release failed:", error);
   }
 }
 
@@ -237,9 +415,7 @@ async function attachResidentToSlot(
     .is("persona_id", null);
 
   if (error) {
-    throw new Error(
-      "AI resident slot紐付け失敗: " + error.message,
-    );
+    throw new Error("AI resident slot attach failed: " + error.message);
   }
 }
 
@@ -253,6 +429,9 @@ export type ResidentFactoryResult = {
     profileId: string;
     personaName: string;
     residentRole: string;
+    slotNumber: number;
+    region: string;
+    languages: string[];
   }>;
 };
 
@@ -271,54 +450,51 @@ export async function ensureAiResidentPopulation(): Promise<ResidentFactoryResul
   }
 
   const needed = target - beforeCount;
-  const created = [];
+  const created: ResidentFactoryResult["created"] = [];
 
   for (let i = 0; i < needed; i++) {
     const slotNumber = beforeCount + i + 1;
-
     const claimed = await claimResidentSlot(slotNumber);
 
     if (!claimed) {
       continue;
     }
 
-    const template =
-      RESIDENT_TEMPLATES[
-        (slotNumber - 1) % RESIDENT_TEMPLATES.length
-      ];
-
-    const username = makeUniqueUsername(
-      template.usernamePrefix,
-      slotNumber,
-    );
+    const resident = composeWorldResident(slotNumber);
 
     try {
       const result = await createAiPersona({
-        username,
-        displayName: template.displayName,
-        personaName: `${template.personaName} ${slotNumber}`,
-        personality: template.personality,
-        interests: template.interests,
-        preferredCategories: template.preferredCategories,
-        favoriteBrands: template.favoriteBrands,
-        postingStyle: template.postingStyle,
-        commentStyle: template.commentStyle,
-        activityLevel: template.activityLevel,
-        systemPrompt: template.systemPrompt,
-        residentRole: template.residentRole,
-        goals: template.goals,
+        username: resident.username,
+        displayName: resident.displayName,
+        personaName: resident.personaName,
+        personality: resident.personality,
+        interests: resident.interests,
+        preferredCategories: resident.preferredCategories,
+        favoriteBrands: resident.favoriteBrands,
+        postingStyle: resident.postingStyle,
+        commentStyle: resident.commentStyle,
+        activityLevel: resident.activityLevel,
+        systemPrompt: resident.systemPrompt,
+        residentRole: resident.residentRole,
+        goals: resident.goals,
+        countryCode: resident.countryCode,
+        region: resident.region,
+        languages: resident.languages,
+        expertise: resident.expertise,
+        values: resident.values,
+        culture: resident.culture,
       });
 
-      await attachResidentToSlot(
-        slotNumber,
-        result.persona.id,
-      );
+      await attachResidentToSlot(slotNumber, result.persona.id);
 
       created.push({
         personaId: result.persona.id,
         profileId: result.profileId,
         personaName: result.persona.persona_name,
-        residentRole: template.residentRole,
+        residentRole: resident.residentRole ?? "general_user",
+        slotNumber,
+        region: resident.region ?? "",
+        languages: resident.languages ?? [],
       });
     } catch (error) {
       await releaseResidentSlot(slotNumber);

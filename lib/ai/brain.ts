@@ -76,7 +76,7 @@ export async function decideAIAction(context: string): Promise<AIAction> {
     "- trendTagsは既知のタグだけを使用する",
     "- productUrlは必ず対象投稿に表示されている商品URLをそのまま使用する",
     "",
-    "コメントする場合は、機械的ではなく、そのAIの性格に合った自然な日本語にしてください。",
+    "コメントする場合は、機械的ではなく、その住民の性格・コメントスタイルの言語で自然に書いてください。",
   ].join("\n");
 
   const result = await generateAIText(prompt);

@@ -146,6 +146,7 @@ export async function listDiscoveryProducts(options?: {
       const { listDiscoveryProductsFromDb } = await import("@/lib/discovery/db");
       return withJapanCatalog(await listDiscoveryProductsFromDb(options), options);
     } catch (error) {
+      console.error("[DISCOVERY REAL ERROR]", error);
       if (!isMissingDiscoveryTable(error)) throw error;
       if (options?.admin) {
         throw new Error(
@@ -165,6 +166,7 @@ export async function getDiscoveryProduct(id: string, admin = false) {
       const fromDb = await getDiscoveryProductFromDb(id, admin);
       if (fromDb) return fromDb;
     } catch (error) {
+      console.error("[DISCOVERY REAL ERROR]", error);
       if (!isMissingDiscoveryTable(error)) throw error;
       if (admin) {
         throw new Error(
@@ -191,6 +193,7 @@ export async function saveDiscoveryProduct(input: DiscoveryProductInput) {
       }
       return await saveDiscoveryProductToDb(next);
     } catch (error) {
+      console.error("[DISCOVERY REAL ERROR]", error);
       if (error instanceof Error && error.message.startsWith("Discovery tables are missing")) {
         throw error;
       }

@@ -65,7 +65,7 @@ export function ProductDiscoverView() {
         ))}
       </div>
       <div className="grid grid-cols-2 border-b border-neutral-200 bg-white text-sm font-semibold">
-        <Link href="/" className="py-3 text-center text-neutral-400">
+        <Link href="/feed" className="py-3 text-center text-neutral-400">
           For You
         </Link>
         <Link href="/products" className="border-b-2 border-[#C6FF00] py-3 text-center">

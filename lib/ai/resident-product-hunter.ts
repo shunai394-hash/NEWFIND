@@ -79,6 +79,10 @@ export async function runResidentProductHunter(
     interests: persona.interests ?? [],
     preferredCategories: persona.preferred_categories ?? [],
     goals: persona.goals ?? [],
+    expertise: persona.expertise ?? [],
+    values: persona.values ?? [],
+    country: persona.country_code || persona.region || null,
+    language: persona.languages?.[0],
   });
 
   const searchResults = await searchWorld({
@@ -105,6 +109,11 @@ export async function runResidentProductHunter(
     interests: persona.interests ?? [],
     preferredCategories: persona.preferred_categories ?? [],
     goals: persona.goals ?? [],
+    expertise: persona.expertise ?? [],
+    values: persona.values ?? [],
+    region: persona.region,
+    languages: persona.languages ?? [],
+    culture: persona.culture,
     results: searchResults,
   });
 

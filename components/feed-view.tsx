@@ -1,29 +1,36 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SearchIcon } from "@/components/icons";
+import { AIPostCard } from "@/components/ai-post-card";
 import { PostCard } from "@/components/post-card";
 import { useApp } from "@/lib/app-context";
 import { FEED_CHANNELS, type FeedChannelId } from "@/lib/japan-context";
 import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import { getStore } from "@/lib/store";
 import { isLocallyBlocked } from "@/lib/moderation/client";
-import type { PostView } from "@/lib/types";
+import type { AIPostView, PostView } from "@/lib/types";
 
 const PAGE_SIZE = 24;
+const AI_MIX_RATIO = 0.25;
+
+type FeedItem =
+  | { type: "human"; post: PostView }
+  | { type: "ai"; post: AIPostView };
 
 export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   const { session } = useApp();
   const [channel, setChannel] = useState<FeedChannelId>("today");
-  const [posts, setPosts] = useState<PostView[]>([]);
+  const [posts, setPosts] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
   const loadingRef = useRef(false);
   const dbOffsetRef = useRef(0);
-  const postsRef = useRef<PostView[]>([]);
+  const postsRef = useRef<FeedItem[]>([]);
+  const aiOffsetRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const selected = FEED_CHANNELS.find((item) => item.id === channel) ?? FEED_CHANNELS[0]!;
 
@@ -46,49 +53,122 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
       try {
         const store = getStore();
         const category = selected.categories?.[0];
-        const collected: PostView[] = [];
-        const seen = new Set(replace ? [] : postsRef.current.map((post) => post.id));
-        let cursor = offset;
-        let more = true;
 
-        while (collected.length < PAGE_SIZE && more) {
+        const collectedHuman: PostView[] = [];
+        const seenHuman = new Set(
+          replace
+            ? []
+            : postsRef.current
+                .filter((item) => item.type === "human")
+                .map((item) => item.post.id),
+        );
+
+        let cursor = offset;
+        let moreHuman = true;
+
+        while (collectedHuman.length < PAGE_SIZE && moreHuman) {
           const page =
             kind === "foryou" && category
-              ? await store.byCategory(category, session?.userId ?? null, cursor, PAGE_SIZE)
-              : await store.getFeed(kind, session?.userId ?? null, cursor, PAGE_SIZE);
+              ? await store.byCategory(
+                  category,
+                  session?.userId ?? null,
+                  cursor,
+                  PAGE_SIZE,
+                )
+              : await store.getFeed(
+                  kind,
+                  session?.userId ?? null,
+                  cursor,
+                  PAGE_SIZE,
+                );
 
           cursor = page.nextOffset;
-          more = page.hasMore;
+          moreHuman = page.hasMore;
 
           if (page.posts.length === 0) break;
 
           for (const post of page.posts) {
-            if (seen.has(post.id)) continue;
+            if (seenHuman.has(post.id)) continue;
             if (!hasDisplayablePostMedia(post)) continue;
             if (session && isLocallyBlocked(post.authorId)) continue;
-            seen.add(post.id);
-            collected.push(post);
+
+            seenHuman.add(post.id);
+            collectedHuman.push(post);
+
+            if (collectedHuman.length >= PAGE_SIZE) break;
           }
         }
 
         dbOffsetRef.current = cursor;
 
-        if (replace) {
-          setPosts(collected);
-        } else {
-          setPosts((prev) => {
-            const existing = new Set(prev.map((post) => post.id));
-            return [...prev, ...collected.filter((post) => !existing.has(post.id))];
-          });
+        let collectedAI: AIPostView[] = [];
+
+        if (kind === "foryou") {
+          const aiPage = await store.getAIPosts(
+            replace ? 0 : aiOffsetRef.current,
+            PAGE_SIZE,
+          );
+
+          aiOffsetRef.current = replace
+            ? aiPage.length
+            : aiOffsetRef.current + aiPage.length;
+
+          collectedAI = category
+            ? aiPage.filter((post) => post.category === category)
+            : aiPage;
         }
 
-        setHasMore(more);
+        const aiCount = Math.min(
+          collectedAI.length,
+          Math.max(1, Math.round(PAGE_SIZE * AI_MIX_RATIO)),
+        );
+
+        const mixed: FeedItem[] = [];
+
+        let aiIndex = 0;
+
+        collectedHuman.forEach((human, index) => {
+          mixed.push({ type: "human", post: human });
+
+          const shouldInsertAI =
+            kind === "foryou" &&
+            aiIndex < aiCount &&
+            (index + 1) % Math.max(1, Math.round(PAGE_SIZE / aiCount)) === 0;
+
+          if (shouldInsertAI) {
+            mixed.push({
+              type: "ai",
+              post: collectedAI[aiIndex]!,
+            });
+            aiIndex += 1;
+          }
+        });
+
+        while (aiIndex < aiCount) {
+          mixed.push({
+            type: "ai",
+            post: collectedAI[aiIndex]!,
+          });
+          aiIndex += 1;
+        }
+
+        if (replace) {
+          setPosts(mixed);
+        } else {
+          setPosts((prev) => [...prev, ...mixed]);
+        }
+
+        setHasMore(
+          moreHuman ||
+            (kind === "foryou" && collectedAI.length >= PAGE_SIZE),
+        );
       } catch (err) {
         console.error("[FeedView] getFeed failed", err);
 
         if (replace) {
           setPosts([]);
           dbOffsetRef.current = 0;
+          aiOffsetRef.current = 0;
         }
 
         setHasMore(false);
@@ -100,12 +180,12 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
     },
     [kind, session, selected.categories],
   );
-
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setPosts([]);
     setHasMore(true);
     dbOffsetRef.current = 0;
+    aiOffsetRef.current = 0;
     void loadPage(0, true);
   }, [loadPage]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -134,7 +214,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
       <div className="flex items-center justify-end border-b border-neutral-200 bg-white px-4 py-2">
         <Link
           href="/discover"
-          aria-label="検索"
+          aria-label="隶諛・ｽｴ・｢"
           className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-700 hover:bg-neutral-100"
         >
           <SearchIcon className="h-5 w-5" />
@@ -162,14 +242,14 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
 
       <div className="grid grid-cols-2 border-b border-neutral-200 bg-white text-sm font-semibold">
         <Link
-          href="/"
+          href="/feed"
           className={`py-3 text-center ${
             kind === "foryou"
               ? "border-b-2 border-[#C6FF00]"
               : "text-neutral-400"
           }`}
         >
-          For You
+          おすすめ
         </Link>
 
         <Link
@@ -180,7 +260,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
               : "text-neutral-400"
           }`}
         >
-          Following
+          フォロー中
         </Link>
       </div>
 
@@ -200,28 +280,50 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
             ? "フォロー中の投稿はまだありません。Discoverからアカウントを探してください。"
             : channel === "today"
               ? "投稿はまだありません。"
-              : `${selected.hint}の投稿はまだありません。見つけたら投稿してください.`}
-        </p>
+              : `${selected.hint}の投稿はまだありません。新しい投稿を見つけてみましょう。`}        </p>
       ) : (
         <>
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onChange={(next) =>
-                setPosts((prev) =>
-                  prev.map((p) => (p.id === next.id ? next : p)),
-                )
-              }
-              onDeleted={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
-              onUnavailable={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
-            />
-          ))}
 
+          {posts.map((item) =>
+            item.type === "ai" ? (
+              <AIPostCard
+                key={`ai:${item.post.id}`}
+                post={item.post}
+              />
+            ) : (
+              <PostCard
+                key={`human:${item.post.id}`}
+                post={item.post}
+                onChange={(next) =>
+                  setPosts((prev) =>
+                    prev.map((p) =>
+                      p.type === "human" && p.post.id === next.id
+                        ? { type: "human", post: next }
+                        : p,
+                    ),
+                  )
+                }
+                onDeleted={(id) =>
+                  setPosts((prev) =>
+                    prev.filter(
+                      (p) => !(p.type === "human" && p.post.id === id),
+                    ),
+                  )
+                }
+                onUnavailable={(id) =>
+                  setPosts((prev) =>
+                    prev.filter(
+                      (p) => !(p.type === "human" && p.post.id === id),
+                    ),
+                  )
+                }
+              />
+            ),
+          )}
           <div ref={sentinelRef} className="min-h-16">
             {loadingMore && (
               <p className="py-6 text-center text-sm text-neutral-400">
-                さらに読み込み中...
+                読み込み中...
               </p>
             )}
 
@@ -237,7 +339,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
 
             {!hasMore && (
               <p className="py-6 text-center text-xs text-neutral-400">
-                すべての投稿を表示しました
+                これ以上の投稿はありません。
               </p>
             )}
           </div>
@@ -246,4 +348,9 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
     </div>
   );
 }
+
+
+
+
+
 

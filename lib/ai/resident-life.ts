@@ -22,8 +22,6 @@ import {
   type ResidentProductHunterResult,
 } from "@/lib/ai/resident-product-hunter";
 
-const FALLBACK_MEDIA =
-  "https://images.unsplash.com/photo-1483985988355-763728e1935b";
 
 export type ResidentLifeCycleResult = {
   persona: string;
@@ -625,7 +623,7 @@ async function executeWorkPost(
       subjectId: subject.id,
       productUrl: subject.productUrl ?? null,
       productLabel: subject.productName ?? subject.label,
-      mediaUrl: subject.mediaUrl || FALLBACK_MEDIA,
+      mediaUrl: subject.mediaUrl ?? null,
       category: subject.category || "other",
       discoveryProductId: subject.discoveryProductId ?? null,
       sourceUrl: subject.sourceUrl ?? subject.productUrl ?? null,

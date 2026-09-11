@@ -144,6 +144,12 @@ export async function executeAIAction(
     case "POST": {
       const supabase = createAdminClient();
       const caption = action.caption.trim();
+      const mediaUrl = action.mediaUrl?.trim() || "";
+      const productUrl = action.productUrl?.trim() || "";
+      const sourceRef =
+        action.sourceRef?.trim() ||
+        action.discoveryProductId?.trim() ||
+        "";
       if (!caption) {
         return {
           executed: false,
@@ -155,17 +161,15 @@ export async function executeAIAction(
       const payload: Record<string, unknown> = {
         author_id: userId,
         media_type: "photo",
-        media_url:
-          action.mediaUrl?.trim() ||
-          "https://images.unsplash.com/photo-1483985988355-763728e1935b",
-        thumbnail_url: action.mediaUrl?.trim() || null,
+        media_url: mediaUrl,
+        thumbnail_url: mediaUrl,
         caption,
         category: safeCategory(action.category || "other"),
-        product_url: action.productUrl?.trim() || null,
+        product_url: productUrl || null,
         product_label: action.productLabel?.trim() || null,
         is_sponsored: false,
         source: "ai",
-        source_ref: action.sourceRef?.trim() || action.discoveryProductId?.trim() || null,
+        source_ref: sourceRef || null,
         source_url: action.sourceUrl?.trim() || action.productUrl?.trim() || null,
       };
 
@@ -453,9 +457,7 @@ export async function publishAIProductPost(
   const payload: Record<string, unknown> = {
     author_id: userId,
     media_type: "photo",
-    media_url:
-      input.productImageUrl?.trim() ||
-      "https://images.unsplash.com/photo-1483985988355-763728e1935b",
+    media_url: input.productImageUrl?.trim() || null,
     thumbnail_url: input.productImageUrl?.trim() || null,
     caption: residentCaption || captionParts.join("\n\n"),
     category: safeCategory(input.category),

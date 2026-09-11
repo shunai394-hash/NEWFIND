@@ -1,4 +1,4 @@
-﻿import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
+import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
 import { repairMojibake } from "./text-encoding";
 
 export type WorldSearchQuery = {
@@ -474,7 +474,10 @@ class CatalogWorldSearchProvider
       const domain = getDomain(url);
 
       results.push({
-        title: `${product.brand} ${product.name}`,
+        title:
+          product.name.trim().startsWith(product.brand.trim())
+            ? product.name
+            : `${product.brand} ${product.name}`,
         url,
         snippet: [
           product.description,

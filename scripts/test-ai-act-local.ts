@@ -6,7 +6,7 @@
     throw new Error("CRON_SECRET is not set");
   }
 
-  const url = `http://127.0.0.1:${port}/api/ai-act`;
+  const url = `http://127.0.0.1:${port}/api/ai-act?limit=8`;
 
   console.log(`GET ${url}`);
 
@@ -15,6 +15,7 @@
     headers: {
       Authorization: `Bearer ${secret}`,
     },
+    signal: AbortSignal.timeout(240000),
   });
 
   const text = await response.text();
@@ -60,8 +61,8 @@
     }
 
     if (result.result) {
-      console.log("execution:");
-      console.dir(result.result, { depth: null });
+      console.log("result:");
+      console.dir(result.result, { depth: 4 });
     }
 
     if (result.productHunter) {

@@ -143,31 +143,58 @@ export async function executeAIAction(
 
     case "POST": {
       const supabase = createAdminClient();
+      const caption = action.caption.trim();
+      if (!caption) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "empty caption" },
+        };
+      }
 
-      const payload = {
+      const payload: Record<string, unknown> = {
         author_id: userId,
         media_type: "photo",
         media_url:
+          action.mediaUrl?.trim() ||
           "https://images.unsplash.com/photo-1483985988355-763728e1935b",
-        thumbnail_url: null,
-        caption: action.caption,
-        category: "fashion",
-        product_url: null,
-        product_label: null,
+        thumbnail_url: action.mediaUrl?.trim() || null,
+        caption,
+        category: safeCategory(action.category || "other"),
+        product_url: action.productUrl?.trim() || null,
+        product_label: action.productLabel?.trim() || null,
         is_sponsored: false,
-        source: "user",
-        source_ref: null,
-        source_url: null,
+        source: "ai",
+        source_ref: action.sourceRef?.trim() || action.discoveryProductId?.trim() || null,
+        source_url: action.sourceUrl?.trim() || action.productUrl?.trim() || null,
       };
 
-      const { data: post, error } = await supabase
+      if (action.discoveryProductId?.trim()) {
+        payload.discovery_product_id = action.discoveryProductId.trim();
+      }
+
+      let { data: post, error } = await supabase
         .from("posts")
         .insert(payload)
         .select("*")
         .single();
 
-      if (error) {
-        throw new Error(error.message);
+      if (
+        error &&
+        /discovery_product_id|schema cache|42703/i.test(error.message)
+      ) {
+        delete payload.discovery_product_id;
+        const retry = await supabase
+          .from("posts")
+          .insert(payload)
+          .select("*")
+          .single();
+        post = retry.data;
+        error = retry.error;
+      }
+
+      if (error || !post) {
+        throw new Error(error?.message || "AI post insert failed");
       }
 
       return {
@@ -372,4 +399,103 @@ export async function executeAIAction(
         action,
       };
   }
+}
+
+export type AIProductPostInput = {
+  discoveryProductId: string;
+  brand: string;
+  productName: string;
+  category: string;
+  productUrl: string;
+  productImageUrl?: string | null;
+  description?: string | null;
+  residentName?: string | null;
+  attentionReason?: string | null;
+  caption?: string | null;
+};
+
+export async function publishAIProductPost(
+  userId: string,
+  input: AIProductPostInput,
+) {
+  const supabase = createAdminClient();
+
+  const { data: existing, error: lookupError } = await supabase
+    .from("posts")
+    .select("id")
+    .eq("author_id", userId)
+    .eq("source_ref", input.discoveryProductId)
+    .maybeSingle();
+
+  if (lookupError) {
+    throw new Error(lookupError.message);
+  }
+
+  if (existing) {
+    return {
+      executed: true,
+      alreadyPublished: true,
+      postId: existing.id,
+    };
+  }
+
+  const description = input.description?.trim() || "";
+  const attentionReason = input.attentionReason?.trim() || "";
+  const residentCaption = input.caption?.trim() || "";
+
+  const captionParts = [
+    input.productName.trim(),
+    input.brand.trim() ? `by ${input.brand.trim()}` : "",
+    description,
+    attentionReason,
+  ].filter(Boolean);
+
+  const payload: Record<string, unknown> = {
+    author_id: userId,
+    media_type: "photo",
+    media_url:
+      input.productImageUrl?.trim() ||
+      "https://images.unsplash.com/photo-1483985988355-763728e1935b",
+    thumbnail_url: input.productImageUrl?.trim() || null,
+    caption: residentCaption || captionParts.join("\n\n"),
+    category: safeCategory(input.category),
+    product_url: input.productUrl.trim(),
+    product_label: input.productName.trim(),
+    is_sponsored: false,
+    source: "ai",
+    source_ref: input.discoveryProductId,
+    source_url: input.productUrl.trim(),
+    discovery_product_id: input.discoveryProductId,
+  };
+
+  let { data: post, error } = await supabase
+    .from("posts")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if (
+    error &&
+    /discovery_product_id|schema cache|42703/i.test(error.message)
+  ) {
+    delete payload.discovery_product_id;
+    const retry = await supabase
+      .from("posts")
+      .insert(payload)
+      .select("*")
+      .single();
+    post = retry.data;
+    error = retry.error;
+  }
+
+  if (error || !post) {
+    throw new Error(error?.message || "AI product post insert failed");
+  }
+
+  return {
+    executed: true,
+    alreadyPublished: false,
+    postId: post.id,
+    post,
+  };
 }

@@ -1,155 +1,66 @@
 import { NextResponse } from "next/server";
-import { supabaseStore } from "@/lib/store/supabase";
 import { getActiveAiPersonas, type AiPersona } from "@/lib/ai-post-engine";
-import { decideAIAction } from "@/lib/ai/brain";
-import { executeAIAction } from "@/lib/ai/action-executor";
 import { getSharedWorldNews } from "@/lib/ai/gdelt";
-import { runResidentProductHunter } from "@/lib/ai/resident-product-hunter";
+import { getGoogleTrends } from "@/lib/ai/google-trends";
 import { ensureAiResidentPopulation } from "@/lib/ai/resident-factory";
 import { ensureFeaturedLivingResidents } from "@/lib/ai/ensure-featured-residents";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { FEATURED_LIVING_RESIDENTS } from "@/lib/ai/featured-living-residents";
+import { runResidentLifeCycle } from "@/lib/ai/resident-life";
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 
-async function loadPostComments(postId: string) {
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("comments")
-    .select("id, user_id, body, parent_comment_id, created_at")
-    .eq("post_id", postId)
-    .order("created_at", { ascending: true })
-    .limit(8);
+const DEFAULT_ACT_LIMIT = 8;
 
-  if (error || !data?.length) return [];
-
-  const userIds = [...new Set(data.map((row) => row.user_id))];
-  const { data: profiles } = await admin
-    .from("profiles")
-    .select("id, display_name, username")
-    .in("id", userIds);
-
-  const names = new Map(
-    (profiles ?? []).map((profile) => [
-      profile.id,
-      profile.display_name || profile.username || "resident",
-    ]),
-  );
-
-  return data.map((row) => ({
-    id: row.id,
-    author: names.get(row.user_id) || "resident",
-    body: String(row.body ?? "").trim(),
-    parentCommentId: row.parent_comment_id ?? null,
-  }));
+function dueStamp(persona: AiPersona): number {
+  const parsed = Date.parse(persona.next_action_at || "");
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
-async function runResidentSocialAction(persona: AiPersona) {
-  const feedResult = await supabaseStore.getFeed(
-    "foryou",
-    persona.profile_id,
-    0,
-    10,
-  );
-
-  const candidates = feedResult.posts.filter(
-    (post) => post.author.id !== persona.profile_id,
-  );
-
-  if (candidates.length === 0) {
-    return {
-      persona: persona.persona_name,
-      profileId: persona.profile_id,
-      residentRole: persona.resident_role,
-      action: { type: "IGNORE" as const },
-      reason: "No candidate posts",
-    };
+function pickByRole(personas: AiPersona[], limit: number): AiPersona[] {
+  const byRole = new Map<string, AiPersona[]>();
+  for (const persona of personas) {
+    const role = persona.resident_role || "general_user";
+    const list = byRole.get(role) ?? [];
+    list.push(persona);
+    byRole.set(role, list);
+  }
+  for (const list of byRole.values()) {
+    list.sort((a, b) => dueStamp(a) - dueStamp(b));
   }
 
-  const post = candidates[0];
-  const comments = await loadPostComments(post.id);
-  const commentLines = comments.length
-    ? comments
-        .map((comment) => {
-          const reply = comment.parentCommentId
-            ? ` (reply to ${comment.parentCommentId})`
-            : "";
-          return `- ${comment.id}${reply} / ${comment.author}: ${comment.body}`;
-        })
-        .join("\n")
-    : "なし";
-
-  const worldLines = [
-    persona.region || persona.country_code
-      ? `出身 / origin: ${persona.region || persona.country_code}`
-      : "",
-    persona.languages && persona.languages.length > 0
-      ? `言語 / languages: ${persona.languages.join(", ")}`
-      : "",
-    persona.expertise && persona.expertise.length > 0
-      ? `専門 / expertise: ${persona.expertise.join(", ")}`
-      : "",
-    persona.values && persona.values.length > 0
-      ? `価値観 / values: ${persona.values.join(", ")}`
-      : "",
-    persona.culture ? `文化 / culture: ${persona.culture}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  const context = `
-あなたはAIユーザー「${persona.persona_name}」です。
-You are a NEWFIND resident, not a content generator.
-
-役割:
-${persona.resident_role ?? "general_user"}
-
-目標:
-${(persona.goals ?? []).join(", ")}
-
-性格:
-${persona.personality}
-
-興味:
-${persona.interests.join(", ")}
-
-投稿スタイル:
-${persona.posting_style}
-
-コメントスタイル:
-${persona.comment_style}
-
-${worldLines}
-
-対象投稿:
-投稿ID: ${post.id}
-投稿者ID: ${post.author.id}
-投稿者名: ${post.author.displayName}
-カテゴリー: ${post.category}
-本文: ${post.caption}
-商品URL: ${post.productUrl ?? "なし"}
-
-この投稿へのコメント:
-${commentLines}
-
-この投稿を見て、あなた自身として次に取る行動を1つだけ決めてください。
-LIKE / COMMENT / REPLY / POST / FOLLOW / SAVE / DISCOVER_PRODUCT / IGNORE から選んでください。
-REPLYする場合は、上に実在するコメントIDだけを parentCommentId に使ってください。
-FOLLOWする場合は、投稿者ID ${post.author.id} を使ってください。
-コメントや投稿は、この住民の性格・コメントスタイルの言語で書いてください。
-専門性は商品の見方として使ってください。政治投稿の専門家になってはいけません。
-`;
-
-  const action = await decideAIAction(context);
-  const result = await executeAIAction(action, persona.profile_id);
-
-  return {
-    persona: persona.persona_name,
-    profileId: persona.profile_id,
-    residentRole: persona.resident_role,
-    targetPostId: post.id,
-    action,
-    result,
-  };
+  const picked: AiPersona[] = [];
+  const roles = [...byRole.keys()];
+  while (picked.length < limit) {
+    let added = false;
+    for (const role of roles) {
+      if (picked.length >= limit) break;
+      const next = byRole.get(role)?.shift();
+      if (next) {
+        picked.push(next);
+        added = true;
+      }
+    }
+    if (!added) break;
+  }
+  return picked;
 }
+
+function pickResidentsToAct(personas: AiPersona[], limit: number): AiPersona[] {
+  const featuredNames = new Set(
+    FEATURED_LIVING_RESIDENTS.map((resident) => resident.personaName),
+  );
+  const featured = personas
+    .filter((persona) => featuredNames.has(persona.persona_name))
+    .sort((a, b) => dueStamp(a) - dueStamp(b));
+  const rest = personas.filter(
+    (persona) => !featuredNames.has(persona.persona_name),
+  );
+  const remaining = Math.max(0, limit - featured.length);
+  return [...featured, ...pickByRole(rest, remaining)].slice(0, limit);
+}
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 async function runAIAct(request: Request) {
   try {
@@ -174,7 +85,12 @@ async function runAIAct(request: Request) {
     }
 
     const personas = await getActiveAiPersonas();
-
+    const limitParam = Number(new URL(request.url).searchParams.get("limit"));
+    const limit =
+      Number.isFinite(limitParam) && limitParam > 0
+        ? Math.min(Math.floor(limitParam), personas.length || 1)
+        : Math.min(DEFAULT_ACT_LIMIT, personas.length || 1);
+    const acting = pickResidentsToAct(personas, limit);
 
     if (personas.length === 0) {
       return NextResponse.json({
@@ -193,41 +109,14 @@ async function runAIAct(request: Request) {
       worldNews = [];
     }
 
+    const googleTrends = await getGoogleTrends(10);
     const results = [];
 
-    for (const persona of personas) {
+    for (const persona of acting) {
       try {
-        if (persona.resident_role === "product_hunter") {
-          const hunterResult = await runResidentProductHunter(
-            persona,
-            worldNews,
-          );
-
-          let social = null;
-          try {
-            social = await runResidentSocialAction(persona);
-          } catch (error) {
-            console.error(
-              "Product hunter social action failed:",
-              persona.persona_name,
-              error,
-            );
-          }
-
-          results.push({
-            persona: persona.persona_name,
-            profileId: persona.profile_id,
-            residentRole: persona.resident_role,
-            action: {
-              type: "PRODUCT_HUNT",
-            },
-            productHunter: hunterResult,
-            social,
-          });
-          continue;
-        }
-
-        results.push(await runResidentSocialAction(persona));
+        results.push(
+          await runResidentLifeCycle(persona, worldNews, googleTrends),
+        );
       } catch (error) {
         console.error("AI resident action failed:", persona.persona_name, error);
         results.push({
@@ -244,6 +133,7 @@ async function runAIAct(request: Request) {
     return NextResponse.json({
       ok: true,
       aiCount: personas.length,
+      actedCount: acting.length,
       factory,
       featuredResidents,
       worldNewsCount: worldNews.length,

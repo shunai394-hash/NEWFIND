@@ -1,6 +1,6 @@
 ﻿export type AccountType = "personal" | "business";
 export type MediaType = "photo" | "video";
-export type PostSource = "user" | "brandbridge";
+export type PostSource = "user" | "brandbridge" | "ai";
 
 export const CATEGORIES = [
   "fashion",

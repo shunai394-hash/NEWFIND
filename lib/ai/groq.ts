@@ -5,7 +5,15 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-export async function generateAIText(prompt: string): Promise<string> {
+export type GenerateAITextOptions = {
+  temperature?: number;
+  maxTokens?: number;
+};
+
+export async function generateAIText(
+  prompt: string,
+  options?: GenerateAITextOptions,
+): Promise<string> {
   try {
     const response = await groq.chat.completions.create({
       model: "openai/gpt-oss-20b",
@@ -15,9 +23,9 @@ export async function generateAIText(prompt: string): Promise<string> {
           content: prompt,
         },
       ],
-      temperature: 0.2,
+      temperature: options?.temperature ?? 0.2,
       reasoning_effort: "low",
-      max_tokens: 1200,
+      max_tokens: options?.maxTokens ?? 1200,
     });
 
     const choice = response.choices?.[0];

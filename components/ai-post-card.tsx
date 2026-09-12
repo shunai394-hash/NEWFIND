@@ -32,7 +32,7 @@ export function AIPostCard({ post }: { post: AIPostView }) {
       </header>
 
       <div className="relative bg-neutral-200">
-        {post.mediaType === "video" ? (
+        {post.mediaUrl && post.mediaType === "video" ? (
           <video
             src={post.mediaUrl}
             poster={post.thumbnailUrl ?? undefined}
@@ -42,14 +42,14 @@ export function AIPostCard({ post }: { post: AIPostView }) {
             controls
             className="mx-auto max-h-[520px] w-full object-cover"
           />
-        ) : (
+        ) : post.mediaUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={post.mediaUrl}
             alt=""
             className="mx-auto max-h-[520px] w-full object-cover"
           />
-        )}
+        ) : null}
       </div>
 
       {post.productUrl ? (

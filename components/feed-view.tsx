@@ -7,7 +7,7 @@ import { AIPostCard } from "@/components/ai-post-card";
 import { PostCard } from "@/components/post-card";
 import { useApp } from "@/lib/app-context";
 import { FEED_CHANNELS, type FeedChannelId } from "@/lib/japan-context";
-import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
+import { isVisibleTimelinePost } from "@/lib/posts/text-post";
 import { getStore } from "@/lib/store";
 import { isLocallyBlocked } from "@/lib/moderation/client";
 import type { AIPostView, PostView } from "@/lib/types";
@@ -89,7 +89,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
 
           for (const post of page.posts) {
             if (seenHuman.has(post.id)) continue;
-            if (!hasDisplayablePostMedia(post)) continue;
+            if (!isVisibleTimelinePost(post)) continue;
             if (session && isLocallyBlocked(post.authorId)) continue;
 
             seenHuman.add(post.id);

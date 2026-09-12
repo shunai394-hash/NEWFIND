@@ -1,4 +1,8 @@
 import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
+import {
+  isBeautyWorldSearchQuery,
+  OpenBeautyFactsWorldSearchProvider,
+} from "./open-beauty-facts";
 import { repairMojibake } from "./text-encoding";
 
 export type WorldSearchQuery = {
@@ -264,6 +268,13 @@ export function classifyTavilyResult(
     if (["q", "query", "search", "k"].some((key) => searchParams.has(key))) {
       return "general";
     }
+
+    if (
+      /(^|\.)openbeautyfacts\.org$/i.test(parsedUrl.hostname) &&
+      /\/product\//i.test(parsedUrl.pathname)
+    ) {
+      return "product";
+    }
   } catch {
     // Keep existing classification for malformed URLs.
   }
@@ -390,6 +401,28 @@ const RESIDENT_CATEGORY_ALIASES: Record<string, string[]> = {
   "若者": ["teen"],
   "日本ブランド": ["japan_brands"],
   "トレンド": ["trending"],
+  cosmetics: ["beauty"],
+  skincare: ["beauty"],
+  fragrance: ["fragrance"],
+  shoes: ["fashion"],
+  bags: ["accessories"],
+  gadgets: ["tech"],
+  electronics: ["tech"],
+  audio: ["tech"],
+  "smart devices": ["tech"],
+  beverage: ["food"],
+  snacks: ["food"],
+  sweets: ["food"],
+  interior: ["lifestyle", "japan_brands"],
+  kitchen: ["lifestyle"],
+  household: ["lifestyle"],
+  fitness: ["sports"],
+  training: ["sports"],
+  wellness: ["lifestyle"],
+  pet: ["lifestyle"],
+  "pet food": ["lifestyle"],
+  "pet care": ["lifestyle"],
+  "pet accessories": ["accessories"],
 };
 
 function normalizeResidentInterests(
@@ -625,11 +658,76 @@ class TavilyWorldSearchProvider
 
 /* =========================================================
  * Combined World Search
- * Catalog + Tavily.
+ * Catalog + Tavily + Open Beauty Facts (beauty queries).
  *
  * Tavily results retain their classification:
  * product / news / general.
+ * Open Beauty Facts results are real product pages.
  * ======================================================= */
+
+function specialistSearchFocus(input: {
+  interests: string[];
+  preferredCategories: string[];
+  expertise: string[];
+}): string[] {
+  const haystack = [
+    ...input.expertise,
+    ...input.preferredCategories,
+    ...input.interests,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (
+    /beauty|cosmetic|skincare|fragrance|perfume|makeup|美容|コスメ|スキンケア/.test(
+      haystack,
+    )
+  ) {
+    return ["new cosmetics", "skincare", "fragrance", "beauty product"];
+  }
+
+  if (/pet food|pet care|pet accessories|\bpet\b/.test(haystack)) {
+    return ["pet product", "pet food", "pet care accessories"];
+  }
+
+  if (/fitness|sports|training|wellness/.test(haystack)) {
+    return ["fitness gear", "training equipment", "wellness product"];
+  }
+
+  if (/food|beverage|snack|sweet|食品/.test(haystack)) {
+    return ["new food product", "craft beverage", "regional snacks"];
+  }
+
+  if (/gadget|electronics|audio|smart device|\btech\b/.test(haystack)) {
+    return ["new gadget", "startup electronics", "audio device"];
+  }
+
+  if (/interior|kitchen|household|\bhome\b|インテリア/.test(haystack)) {
+    return ["interior product", "kitchen tool", "household design"];
+  }
+
+  if (/fashion|shoes|\bbags\b|ファッション/.test(haystack)) {
+    return [
+      "new fashion brand",
+      "independent fashion",
+      "shoes bags accessories",
+    ];
+  }
+
+  if (
+    /global products|emerging brands|japan imports|international trends/.test(
+      haystack,
+    )
+  ) {
+    return [
+      "emerging brand",
+      "new product not in Japan",
+      "international launch",
+    ];
+  }
+
+  return [];
+}
 
 class CombinedWorldSearchProvider
   implements WorldSearchProvider
@@ -639,6 +737,9 @@ class CombinedWorldSearchProvider
 
   private readonly catalogProvider =
     new CatalogWorldSearchProvider();
+
+  private readonly beautyFactsProvider =
+    new OpenBeautyFactsWorldSearchProvider();
 
   async search(
     query: WorldSearchQuery,
@@ -656,6 +757,28 @@ class CombinedWorldSearchProvider
       "query:",
       query.query,
     );
+
+    let beautyResults: WorldSearchResult[] =
+      [];
+
+    if (isBeautyWorldSearchQuery(query)) {
+      try {
+        beautyResults =
+          await this.beautyFactsProvider.search(
+            query,
+          );
+
+        console.log(
+          "WORLD SEARCH: Open Beauty Facts results:",
+          beautyResults.length,
+        );
+      } catch (error) {
+        console.error(
+          "WORLD SEARCH: Open Beauty Facts search failed:",
+          error,
+        );
+      }
+    }
 
     let webResults: WorldSearchResult[] =
       [];
@@ -721,6 +844,7 @@ class CombinedWorldSearchProvider
     }
 
     const combined = [
+      ...beautyResults,
       ...webResults,
       ...catalogResults,
     ];
@@ -810,6 +934,11 @@ export function buildResidentSearchQuery(
     (input.values ?? []).filter(Boolean);
 
   const queryParts = [
+    ...specialistSearchFocus({
+      interests,
+      preferredCategories: categories,
+      expertise,
+    }),
     ...categories,
     ...interests,
     ...expertise,

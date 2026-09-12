@@ -1,12 +1,12 @@
 ﻿import type { MediaType } from "@/lib/types";
 
-export function mediaTypeFromFile(file: File): MediaType {
+export function mediaTypeFromFile(file: File): Extract<MediaType, "photo" | "video"> {
   return file.type.startsWith("video/") ? "video" : "photo";
 }
 
 export async function fileToStoredUrl(file: File): Promise<{
   url: string;
-  type: MediaType;
+  type: Extract<MediaType, "photo" | "video">;
 }> {
   const type = mediaTypeFromFile(file);
 

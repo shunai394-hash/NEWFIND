@@ -20,6 +20,7 @@ import {
 } from "@/lib/japan-context";
 import { isLocallyBlocked } from "@/lib/moderation/client";
 import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
+import { isVisibleTimelinePost } from "@/lib/posts/text-post";
 import { getStore } from "@/lib/store";
 import type { PostView } from "@/lib/types";
 
@@ -43,7 +44,7 @@ export function PostCard({
   const [mediaFailed, setMediaFailed] = useState(false);
   const [hidden, setHidden] = useState(isLocallyBlocked(initial.authorId));
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hideMedia = !hasDisplayablePostMedia(post);
+  const hasMedia = hasDisplayablePostMedia(post);
   const mine = me?.id === post.authorId;
 
   const notified = useRef(false);
@@ -56,10 +57,10 @@ export function PostCard({
   }, [initial]);
 
   useEffect(() => {
-    if (!(hideMedia || mediaFailed) || notified.current) return;
+    if (!hasMedia || !mediaFailed || notified.current) return;
     notified.current = true;
     onUnavailable?.(post.id);
-  }, [hideMedia, mediaFailed, onUnavailable, post.id]);
+  }, [hasMedia, mediaFailed, onUnavailable, post.id]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -125,7 +126,8 @@ export function PostCard({
       ? `/p/${post.id}`
       : `${window.location.origin}/p/${post.id}`;
 
-  if (hidden || hideMedia || mediaFailed) return null;
+  if (hidden || !isVisibleTimelinePost(post)) return null;
+  if (hasMedia && mediaFailed) return null;
 
   return (
     <article className="border-b border-neutral-200 bg-white">
@@ -157,12 +159,13 @@ export function PostCard({
         )}
       </header>
 
+      {hasMedia ? (
       <div className="relative bg-neutral-200">
         {post.mediaType === "video" ? (
           <>
             <video
               ref={videoRef}
-              src={post.mediaUrl}
+              src={post.mediaUrl ?? undefined}
               poster={post.thumbnailUrl ?? undefined}
               muted={muted}
               loop
@@ -188,13 +191,14 @@ export function PostCard({
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={post.mediaUrl}
+            src={post.mediaUrl ?? ""}
             alt=""
             className="mx-auto max-h-[520px] w-full object-cover"
             onError={() => setMediaFailed(true)}
           />
         )}
       </div>
+      ) : null}
 
       <PostActions
         post={post}

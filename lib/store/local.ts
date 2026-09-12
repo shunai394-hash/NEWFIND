@@ -1,6 +1,10 @@
 ﻿import { fileToStoredUrl } from "@/lib/media";
 import { rankForYouFeed, engagementScore } from "@/lib/feed-rank";
 import {
+  normalizePostMedia,
+  requirePostCaption,
+} from "@/lib/posts/text-post";
+import {
   SEED_COMMENTS,
   SEED_FOLLOWS,
   SEED_LIKES,
@@ -387,13 +391,18 @@ export const localStore: Store = {
 
   async createPost(authorId, input: CreatePostInput) {
     return mutate((state) => {
+      const caption = requirePostCaption(input.caption);
+      const media = normalizePostMedia({
+        mediaUrl: input.mediaUrl,
+        mediaType: input.mediaType,
+      });
       const post: Post = {
         id: newId(),
         authorId,
-        mediaType: input.mediaType,
-        mediaUrl: input.mediaUrl,
-        thumbnailUrl: input.thumbnailUrl ?? null,
-        caption: input.caption,
+        mediaType: media.mediaType,
+        mediaUrl: media.mediaUrl,
+        thumbnailUrl: input.thumbnailUrl ?? (media.mediaType === "text" ? null : media.mediaUrl),
+        caption,
         category: input.category,
         productUrl: input.productUrl || null,
         productLabel: input.productLabel || null,

@@ -130,6 +130,13 @@ function isLikelyConcreteProduct(
   const snippet = source.snippet.toLowerCase();
   const url = source.url.toLowerCase();
 
+  if (
+    /openbeautyfacts\.org/i.test(url) &&
+    /\/product\/[a-z0-9]/i.test(url)
+  ) {
+    return true;
+  }
+
   const genericPagePatterns = [
     "shop",
     "store",

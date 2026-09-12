@@ -1,5 +1,6 @@
 import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
 import { mediaTypeFromFile } from "@/lib/media";
+import { buildCreatePostPayload } from "@/lib/posts/text-post";
 import {
   EMPTY_SOCIAL_LINKS,
   type SocialLinks,
@@ -93,7 +94,7 @@ type PostRow = {
   id: string;
   author_id: string;
   media_type: Post["mediaType"];
-  media_url: string;
+  media_url: string | null;
   thumbnail_url: string | null;
   caption: string;
   category: Post["category"];
@@ -232,7 +233,7 @@ function mapPost(row: PostRow): Post {
     id: row.id,
     authorId: row.author_id,
     mediaType: row.media_type,
-    mediaUrl: row.media_url,
+    mediaUrl: row.media_url?.trim() || null,
     thumbnailUrl: row.thumbnail_url,
     caption: row.caption,
     category: row.category,
@@ -834,7 +835,7 @@ export const supabaseStore: Store = {
           personaName: persona.persona_name as string,
           author,
           mediaType: row.media_type as AIPostView["mediaType"],
-          mediaUrl: row.media_url as string,
+          mediaUrl: (row.media_url as string | null)?.trim() || null,
           thumbnailUrl: row.thumbnail_url as string | null,
           caption: row.caption as string,
           category: row.category as AIPostView["category"],
@@ -945,25 +946,7 @@ export const supabaseStore: Store = {
     if (suspended.data && (suspended.data as { is_suspended?: boolean }).is_suspended) {
       throw new Error("Account suspended");
     }
-    const payload: Record<string, unknown> = {
-      author_id: authorId,
-      media_type: input.mediaType,
-      media_url: input.mediaUrl,
-      thumbnail_url: input.thumbnailUrl ?? null,
-      caption: input.caption,
-      category: input.category,
-      product_url: input.productUrl || null,
-      product_label: input.productLabel || null,
-      is_sponsored: Boolean(input.isSponsored),
-      source: input.source ?? "user",
-      source_ref: input.sourceRef || null,
-      source_url: input.sourceUrl || null,
-    };
-    if (input.japanContext) payload.japan_context = input.japanContext;
-    if (input.visualKind) payload.visual_kind = input.visualKind;
-    if (input.featuredPerson) payload.featured_person = input.featuredPerson;
-    if (input.featuredCredit) payload.featured_credit = input.featuredCredit;
-    if (input.discoveryProductId) payload.discovery_product_id = input.discoveryProductId;
+    const payload = buildCreatePostPayload(authorId, input);
 
     let { data, error } = await supabase.from("posts").insert(payload).select("*").single();
     if (error && /japan_context|visual_kind|featured_person|featured_credit|discovery_product_id|schema cache|42703/i.test(error.message)) {

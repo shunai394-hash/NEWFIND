@@ -19,7 +19,7 @@ import { addLocalBlock, isLocallyBlocked, removeLocalBlock } from "@/lib/moderat
 import { displayUrl, socialLinkEntries } from "@/lib/social-links";
 import { getStore } from "@/lib/store";
 import { normalizeUsername, usernamesMatch } from "@/lib/username";
-import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
+import { isVisibleTimelinePost } from "@/lib/posts/text-post";
 import { authHeaders } from "@/lib/auth/client-headers";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
 import type { FollowCounts, PostView, Profile } from "@/lib/types";
@@ -113,7 +113,7 @@ export function ProfileView({ username }: { username: string }) {
             store.getFollowCounts(found.id),
           ]);
           if (cancelled) return;
-          setPosts(userPosts.filter(hasDisplayablePostMedia));
+          setPosts(userPosts.filter(isVisibleTimelinePost));
           setCounts(followCounts);
           if (session && found.id !== session.userId) {
             setFollowing(await store.isFollowing(session.userId, found.id));
@@ -193,8 +193,8 @@ export function ProfileView({ username }: { username: string }) {
       fetchUserAlerts().catch(() => []),
     ]).then(([saved, liked, products, userAlerts]) => {
       if (cancelled) return;
-      setSavedPosts(saved.filter(hasDisplayablePostMedia));
-      setLikedPosts(liked.filter(hasDisplayablePostMedia));
+      setSavedPosts(saved.filter(isVisibleTimelinePost));
+      setLikedPosts(liked.filter(isVisibleTimelinePost));
       setSavedProducts(products.products.filter((item) => isUsableProductImage(item.productImageUrl)));
       setAlerts(userAlerts);
     });
@@ -248,7 +248,7 @@ export function ProfileView({ username }: { username: string }) {
     setBlocked(false);
   }
 
-  const visiblePosts = posts.filter(hasDisplayablePostMedia);
+  const visiblePosts = posts.filter(isVisibleTimelinePost);
 
   return (
     <div>

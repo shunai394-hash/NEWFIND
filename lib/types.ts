@@ -1,5 +1,5 @@
 ﻿export type AccountType = "personal" | "business";
-export type MediaType = "photo" | "video";
+export type MediaType = "photo" | "video" | "text";
 export type PostSource = "user" | "brandbridge" | "ai";
 
 export const CATEGORIES = [
@@ -59,7 +59,7 @@ export type Post = {
   id: string;
   authorId: string;
   mediaType: MediaType;
-  mediaUrl: string;
+  mediaUrl: string | null;
   thumbnailUrl: string | null;
   caption: string;
   category: CategoryId;
@@ -127,8 +127,8 @@ export type SearchResult = {
 };
 
 export type CreatePostInput = {
-  mediaType: MediaType;
-  mediaUrl: string;
+  mediaType?: MediaType;
+  mediaUrl?: string | null;
   thumbnailUrl?: string | null;
   caption: string;
   category: CategoryId;
@@ -151,7 +151,7 @@ export type UpdatePostInput = {
   productUrl?: string | null;
   productLabel?: string | null;
   visualKind?: VisualKind | null;
-  mediaUrl?: string;
+  mediaUrl?: string | null;
   mediaType?: MediaType;
   thumbnailUrl?: string | null;
 };
@@ -177,7 +177,7 @@ export type AIPostView = {
   personaName: string;
   author: Profile;
   mediaType: MediaType;
-  mediaUrl: string;
+  mediaUrl: string | null;
   thumbnailUrl: string | null;
   caption: string;
   category: CategoryId;

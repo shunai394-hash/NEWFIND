@@ -5,6 +5,7 @@ import { getGoogleTrends } from "@/lib/ai/google-trends";
 import { ensureAiResidentPopulation } from "@/lib/ai/resident-factory";
 import { ensureFeaturedLivingResidents } from "@/lib/ai/ensure-featured-residents";
 import { FEATURED_LIVING_RESIDENTS } from "@/lib/ai/featured-living-residents";
+import { SPECIALIST_PRODUCT_HUNTERS } from "@/lib/ai/specialist-product-hunters";
 import { runResidentLifeCycle } from "@/lib/ai/resident-life";
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 
@@ -48,14 +49,30 @@ function pickResidentsToAct(personas: AiPersona[], limit: number): AiPersona[] {
   const featuredNames = new Set(
     FEATURED_LIVING_RESIDENTS.map((resident) => resident.personaName),
   );
+  const specialistNames = new Set(
+    SPECIALIST_PRODUCT_HUNTERS.map((resident) => resident.personaName),
+  );
   const featured = personas
     .filter((persona) => featuredNames.has(persona.persona_name))
     .sort((a, b) => dueStamp(a) - dueStamp(b));
+  const specialists = personas
+    .filter((persona) => specialistNames.has(persona.persona_name))
+    .sort((a, b) => dueStamp(a) - dueStamp(b));
   const rest = personas.filter(
-    (persona) => !featuredNames.has(persona.persona_name),
+    (persona) =>
+      !featuredNames.has(persona.persona_name) &&
+      !specialistNames.has(persona.persona_name),
   );
-  const remaining = Math.max(0, limit - featured.length);
-  return [...featured, ...pickByRole(rest, remaining)].slice(0, limit);
+
+  const picked = [...featured];
+  const remaining = Math.max(0, limit - picked.length);
+  const specialistSlots =
+    remaining === 0
+      ? 0
+      : Math.min(specialists.length, Math.max(1, Math.ceil(remaining / 2)));
+  picked.push(...specialists.slice(0, specialistSlots));
+  const restRemaining = Math.max(0, limit - picked.length);
+  return [...picked, ...pickByRole(rest, restRemaining)].slice(0, limit);
 }
 
 export const runtime = "nodejs";

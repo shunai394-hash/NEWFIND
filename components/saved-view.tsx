@@ -7,7 +7,7 @@ import { ProductCard } from "@/components/product-card";
 import { useApp } from "@/lib/app-context";
 import { fetchSavedProducts, fetchUserAlerts, patchUserAlert } from "@/lib/discovery/client-api";
 import { isUsableProductImage } from "@/lib/discovery/media";
-import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
+import { isVisibleTimelinePost } from "@/lib/posts/text-post";
 import { ALERT_TYPE_LABELS, type AlertType } from "@/lib/discovery/types";
 import { getStore } from "@/lib/store";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
@@ -48,7 +48,7 @@ export function SavedView() {
     ])
       .then(([savedPosts, savedProducts, userAlerts]) => {
         if (cancelled) return;
-        setPosts(savedPosts.filter(hasDisplayablePostMedia));
+        setPosts(savedPosts.filter(isVisibleTimelinePost));
         setProducts(savedProducts.products.filter((item) => isUsableProductImage(item.productImageUrl)));
         setAlerts(userAlerts);
       })

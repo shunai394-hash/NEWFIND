@@ -7,13 +7,23 @@ import type { Post } from "@/lib/types";
 export function MediaThumb({
   post,
 }: {
-  post: Pick<Post, "mediaType" | "mediaUrl" | "thumbnailUrl">;
+  post: Pick<Post, "mediaType" | "mediaUrl" | "thumbnailUrl"> & {
+    caption?: string;
+  };
 }) {
   const [mediaFailed, setMediaFailed] = useState(false);
   const mediaUrl = (post.mediaUrl || "").trim();
   const thumbnailUrl = (post.thumbnailUrl || "").trim();
 
-  if (!hasDisplayablePostMedia(post) || !mediaUrl) return null;
+  if (!hasDisplayablePostMedia(post) || !mediaUrl) {
+    const text = (post.caption || "").trim();
+    if (!text) return null;
+    return (
+      <span className="flex h-full w-full items-start overflow-hidden bg-white p-2 text-left text-[11px] leading-snug text-neutral-800">
+        {text.slice(0, 90)}
+      </span>
+    );
+  }
 
   // iOS/WKWebView: use the actual video element for video posts.
   if (post.mediaType === "video") {

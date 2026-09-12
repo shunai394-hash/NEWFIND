@@ -72,7 +72,7 @@ export function EditPostForm({ postId }: { postId: string }) {
         setVisualKind(post.visualKind ?? "");
         setProductUrl(post.productUrl ?? "");
         setProductLabel(post.productLabel ?? "商品を見る");
-        setPreview(post.mediaUrl);
+        setPreview(post.mediaUrl ?? "");
         setMediaType(post.mediaType);
       })
       .catch((err) => {
@@ -118,6 +118,10 @@ export function EditPostForm({ postId }: { postId: string }) {
     setBusy(true);
 
     try {
+      if (!caption.trim()) {
+        throw new Error("本文を入力してください");
+      }
+
       if (productUrl && !isHttpUrl(productUrl)) {
         throw new Error("商品リンクは http(s) のURLにしてください");
       }
@@ -193,13 +197,16 @@ export function EditPostForm({ postId }: { postId: string }) {
         </span>
       </label>
 
-      <textarea
-        value={caption}
-        onChange={(e) => setCaption(e.target.value)}
-        placeholder="キャプション"
-        rows={3}
-        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
-      />
+      <label className="block space-y-1.5">
+        <span className="text-sm font-medium text-neutral-700">投稿内容</span>
+        <textarea
+          value={caption}
+          onChange={(e) => setCaption(e.target.value)}
+          placeholder="いま思っていることを書いてみよう"
+          rows={3}
+          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
+        />
+      </label>
 
       <select
         value={category}

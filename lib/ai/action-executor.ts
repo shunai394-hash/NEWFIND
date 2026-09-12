@@ -1,6 +1,7 @@
 import type { AIAction } from "./brain";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveDiscoveryProductToDb } from "@/lib/discovery/db";
+import { normalizePostMedia } from "@/lib/posts/text-post";
 import type {
   DiscoveryCategory,
   DiscoveryProductInput,
@@ -144,7 +145,10 @@ export async function executeAIAction(
     case "POST": {
       const supabase = createAdminClient();
       const caption = action.caption.trim();
-      const mediaUrl = action.mediaUrl?.trim() || "";
+      const media = normalizePostMedia({
+        mediaUrl: action.mediaUrl,
+        mediaType: "photo",
+      });
       const productUrl = action.productUrl?.trim() || "";
       const sourceRef =
         action.sourceRef?.trim() ||
@@ -160,9 +164,9 @@ export async function executeAIAction(
 
       const payload: Record<string, unknown> = {
         author_id: userId,
-        media_type: "photo",
-        media_url: mediaUrl,
-        thumbnail_url: mediaUrl,
+        media_type: media.mediaType,
+        media_url: media.mediaUrl,
+        thumbnail_url: media.mediaUrl,
         caption,
         category: safeCategory(action.category || "other"),
         product_url: productUrl || null,

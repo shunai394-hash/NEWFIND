@@ -21,6 +21,10 @@ import {
   runResidentProductHunter,
   type ResidentProductHunterResult,
 } from "@/lib/ai/resident-product-hunter";
+import {
+  shouldAttemptFallbackTweet,
+  tweetCategory,
+} from "@/lib/posts/text-post";
 
 
 export type ResidentLifeCycleResult = {
@@ -193,6 +197,44 @@ function fallbackLifePost(
     subjectId: subject.id,
     caption: lines[role] || lines.general_user,
   };
+}
+
+function fallbackLifeTweet(persona: AiPersona): ResidentLifeDecision {
+  const ja = usesJapanese(persona);
+  const interests = (persona.interests ?? []).map((item) => item.trim()).filter(Boolean);
+  const interest =
+    interests[hashSeed(persona.id + (persona.last_action || "") + "interest") % Math.max(interests.length, 1)] ||
+    "";
+  const region = persona.region || persona.country_code || "";
+  const variants = ja
+    ? [
+        interest ? `最近${interest}のことばかり考えてる。` : "今日はちょっとぼんやりしてる。",
+        region ? `${region}、空気が少し違って感じる。` : "今日の空気、ちょっと好き。",
+        "特に用事はないけど、少しだけ残しておきたい気持ち。",
+        persona.posting_style
+          ? "いまの気分、短く残しておく。"
+          : "今日はこれくらい。",
+      ]
+    : [
+        interest ? `Still thinking about ${interest}.` : "Quiet day. That's enough.",
+        region ? `${region} feels a little different today.` : "Just sitting with the day.",
+        "Nothing to sell. Just a note to myself.",
+        "Keeping this short.",
+      ];
+  const caption =
+    variants[hashSeed(persona.id + (persona.last_observed_at || "") + "tweet") % variants.length] ||
+    variants[0];
+  return { type: "POST", caption };
+}
+
+function isProductLikeSubject(subject: PostSubject | undefined): boolean {
+  if (!subject) return false;
+  return (
+    subject.kind === "hunter" ||
+    subject.kind === "catalog" ||
+    subject.kind === "discovery" ||
+    Boolean(subject.productUrl)
+  );
 }
 
 function shouldEncouragePost(persona: AiPersona): boolean {
@@ -575,7 +617,7 @@ function fallbackSocialAction(
       text:
         (persona.languages ?? []).includes("ja") ||
         (persona.languages ?? []).includes("Japanese")
-          ? "これ、気になる視点。"
+          ? "\u3053\u308c\u3001\u6c17\u306b\u306a\u308b\u8996\u70b9\u3067\u3059\u306d\u3002"
           : "This is an interesting take.",
     };
   }
@@ -601,6 +643,15 @@ async function executeWorkPost(
     const candidate = hunter.candidates[subject.hunterIndex];
     const discoveryProductId = hunter.savedProductIds[subject.hunterIndex];
     if (candidate && discoveryProductId) {
+      if (!isUsableProductImage(candidate.productImageUrl)) {
+        return {
+          executed: false,
+          skipped: true,
+          reason: "PRODUCT_IMAGE_REQUIRED",
+          discoveryProductId,
+        };
+      }
+
       return publishAIProductPost(persona.profile_id, {
         discoveryProductId,
         brand: candidate.brand,
@@ -651,7 +702,14 @@ export async function runResidentLifeCycle(
   }
 
   const subjects = await gatherPostSubjects(persona, worldNews, hunter);
-  const encouragePost = shouldEncouragePost(persona) && subjects.length > 0;
+  const cadenceReady = shouldEncouragePost(persona);
+  const hasProductSubject = subjects.some((subject) => isProductLikeSubject(subject));
+  const mayTweet = shouldAttemptFallbackTweet({
+    activityLevel: persona.activity_level,
+    seed: `${persona.id}:${new Date().toISOString().slice(0, 13)}:tweet`,
+    hasProductSubject,
+  });
+  const encouragePost = cadenceReady && (subjects.length > 0 || mayTweet);
 
   const trendLines = googleTrends.length
     ? googleTrends
@@ -678,7 +736,9 @@ export async function runResidentLifeCycle(
             .join("\n"),
         )
         .join("\n\n")
-    : "今使える実在の題材はありません。SKIP_POSTしてください。";
+    : mayTweet
+      ? "今使える実在の題材はありません。商品を作らず、日常の短いつぶやきならPOSTしてよい。毎回投稿する必要はない。"
+      : "今使える実在の題材はありません。SKIP_POSTしてください。";
 
   const workContext = `
 ${personaVoiceBlock(persona)}
@@ -699,10 +759,12 @@ ${subjectLines}
 ルール:
 - あなたはNEWFINDで生活している住民です。コンテンツ生成ボットではありません。
 - 仕事は傾向であり、行動を禁止しません。
-- 題材リストにある実在情報だけを使ってください。
+- 題材リストにある実在情報だけを商品投稿に使ってください。
 - 存在しない商品・URL・画像を作ってはいけません。
+- 商品がない日は、人格に沿った短いつぶやきでもよい。その場合は subjectId を付けない。
+- つぶやきに架空の商品リンクを付けない。
 - 投稿文は ${persona.posting_style || "短く自然な一人称"} で。
-- ${encouragePost ? "今日は発信する番です。題材があるならPOSTしてください。" : "最近投稿したばかりならSKIP_POSTしても構いません。"}
+- ${cadenceReady ? (mayTweet || subjects.length > 0 ? "今日は発信してもよい番です。商品投稿・つぶやき・SKIP_POSTのどれでも自然です。" : "今日は交流が中心でもよい。無理に投稿しなくていい。") : "最近投稿したばかりならSKIP_POSTしてください。"}
 - IGNOREという行動はありません。POSTかSKIP_POSTだけです。
 `;
 
@@ -715,16 +777,23 @@ ${subjectLines}
   }
   if (workDecision.type === "POST") {
     const subjectId = workDecision.subjectId;
-    const subject = subjects.find((item) => item.id === subjectId);
-    if (!subject) {
+    if (subjectId) {
+      const subject = subjects.find((item) => item.id === subjectId);
+      if (!subject) {
+        workDecision = {
+          type: "SKIP_POST",
+          reason: "subject not in list",
+        };
+      }
+    } else if (!mayTweet || !cadenceReady) {
       workDecision = {
         type: "SKIP_POST",
-        reason: "subject not in list",
+        reason: "tweet not in cadence",
       };
     }
   }
 
-  if (workDecision.type === "SKIP_POST" && encouragePost && subjects.length > 0) {
+  if (workDecision.type === "SKIP_POST" && cadenceReady && subjects.length > 0) {
     try {
       const retry = await decideResidentLifePost(
         workContext + "\n\n追加: あなたはNEWFINDで生活しています。今日は何かしら発信してください。SKIP_POSTは使わないでください。題材IDを1つ選び、自分の口調でPOSTしてください。",
@@ -741,13 +810,19 @@ ${subjectLines}
     }
   }
 
+  if (workDecision.type === "SKIP_POST" && cadenceReady && mayTweet) {
+    workDecision = fallbackLifeTweet(persona);
+  }
+
   let workResult: unknown = { skipped: true };
   let workType: "POST" | "SKIP_POST" | "PRODUCT_HUNT" =
     workDecision.type === "POST" ? "POST" : "SKIP_POST";
 
   if (workDecision.type === "POST") {
     const posted = workDecision;
-    const subject = subjects.find((item) => item.id === posted.subjectId);
+    const subject = posted.subjectId
+      ? subjects.find((item) => item.id === posted.subjectId)
+      : undefined;
     if (subject) {
       workResult = await executeWorkPost(
         persona,
@@ -762,6 +837,26 @@ ${subjectLines}
         "subject",
         subject.id,
         `Posted about ${subject.label}`,
+      );
+    } else if (!posted.subjectId) {
+      workResult = await executeAIAction(
+        {
+          type: "POST",
+          caption: posted.caption,
+          category: tweetCategory([
+            ...(persona.preferred_categories ?? []),
+            ...(persona.interests ?? []),
+          ]),
+        },
+        persona.profile_id,
+      );
+      workType = "POST";
+      await remember(
+        persona.id,
+        "post",
+        "tweet",
+        persona.id,
+        `Tweeted: ${posted.caption.slice(0, 80)}`,
       );
     }
   } else {
@@ -822,6 +917,7 @@ ${candidateLines}
 - フォロー中の住民や、よく話す相手を優先してよい。
 - 実在する投稿ID / コメントID / 投稿者IDだけを使う。
 - DISCOVER_PRODUCTは投稿に実在する商品URLがあるときだけ。
+- 商品リンクがないつぶやきにも LIKE / COMMENT / REPLY してよい。
 - IGNOREは候補が空のときだけ。
 `;
 

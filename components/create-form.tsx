@@ -6,6 +6,10 @@ import { useApp } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { isHttpUrl, mediaTypeFromFile } from "@/lib/media";
 import { getStore } from "@/lib/store";
+import {
+  normalizePostMedia,
+  requirePostCaption,
+} from "@/lib/posts/text-post";
 import { type CategoryId, type MediaType, type PostSource, type VisualKind } from "@/lib/types";
 
 const VISUAL_OPTIONS: Array<{ id: VisualKind | ""; label: string }> = [
@@ -188,9 +192,10 @@ export function CreateForm() {
     setBusy(true);
     try {
       const store = getStore();
-      let url = mediaUrl.trim();
-      let type: MediaType = mediaType;
+      const text = requirePostCaption(caption);
 
+      let uploadedUrl: string | null = null;
+      let uploadedType: MediaType | undefined;
       let thumbnailUrl: string | null = null;
 
       if (file) {
@@ -204,14 +209,22 @@ export function CreateForm() {
         }
 
         const uploaded = await store.uploadMedia(file);
-        url = uploaded.url;
-        type = uploaded.type;
-      } else if (url) {
-        if (!isHttpUrl(url)) throw new Error("メディアURLが正しくありません");
-        type = /\.(mp4|webm|mov)(\?|$)/i.test(url) ? "video" : "photo";
-      } else {
-        throw new Error("写真または動画を追加してください");
+        uploadedUrl = uploaded.url;
+        uploadedType = uploaded.type;
+      } else if (mediaUrl.trim()) {
+        if (!isHttpUrl(mediaUrl.trim())) {
+          throw new Error("メディアURLが正しくありません");
+        }
+        uploadedUrl = mediaUrl.trim();
+        uploadedType = /\.(mp4|webm|mov)(\?|$)/i.test(uploadedUrl)
+          ? "video"
+          : "photo";
       }
+
+      const media = normalizePostMedia({
+        mediaUrl: uploadedUrl,
+        mediaType: uploadedType,
+      });
 
       if (productUrl && !isHttpUrl(productUrl)) {
         throw new Error("商品リンクは http(s) のURLにしてください");
@@ -221,10 +234,10 @@ export function CreateForm() {
       }
 
       const created = await store.createPost(session!.userId, {
-        mediaType: type,
-        mediaUrl: url,
+        mediaType: media.mediaType,
+        mediaUrl: media.mediaUrl,
         thumbnailUrl,
-        caption: caption.trim(),
+        caption: text,
         category,
         productUrl: productUrl.trim() || null,
         productLabel: productLabel.trim() || null,
@@ -247,6 +260,29 @@ export function CreateForm() {
       <div>
         <h1 className="text-lg font-semibold">投稿する</h1>
       </div>
+
+      <label className="block space-y-1.5">
+        <span className="text-sm font-medium text-neutral-700">投稿内容</span>
+        <textarea
+          value={caption}
+          onChange={(e) => setCaption(e.target.value)}
+          placeholder="いま思っていることを書いてみよう"
+          rows={4}
+          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
+        />
+      </label>
+      <input
+        value={productUrl}
+        onChange={(e) => setProductUrl(e.target.value)}
+        placeholder="リンク（任意・商品URLなど）"
+        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
+      />
+      <input
+        value={productLabel}
+        onChange={(e) => setProductLabel(e.target.value)}
+        placeholder="ボタン名（任意・デフォルト：商品を見る）"
+        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
+      />
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <label className="cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-center text-sm font-semibold">
@@ -289,7 +325,7 @@ export function CreateForm() {
         ) : (
           <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-6 text-center">
             <span className="text-sm text-neutral-500">
-              写真または動画を追加してください
+              写真・動画は任意です
             </span>
           </div>
         )}
@@ -298,14 +334,7 @@ export function CreateForm() {
       <input
         value={mediaUrl}
         onChange={(e) => setMediaUrl(e.target.value)}
-        placeholder="またはメディアURL"
-        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
-      />
-      <textarea
-        value={caption}
-        onChange={(e) => setCaption(e.target.value)}
-        placeholder="キャプション"
-        rows={3}
+        placeholder="またはメディアURL（任意）"
         className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
       />
       <select
@@ -330,19 +359,6 @@ export function CreateForm() {
           </option>
         ))}
       </select>
-      <input
-        value={productUrl}
-        onChange={(e) => setProductUrl(e.target.value)}
-        placeholder="商品リンク（任意・外部EC / 公式サイト）"
-        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
-      />
-      <input
-        value={productLabel}
-        onChange={(e) => setProductLabel(e.target.value)}
-        placeholder="ボタン名（デフォルト：商品を見る）"
-        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
-      />
-
       {isBusiness ? (
         <div className="space-y-3 rounded-2xl bg-white p-3">
           <label className="flex items-center gap-2 text-sm">
@@ -383,7 +399,7 @@ export function CreateForm() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <button
         type="submit"
-        disabled={busy}
+        disabled={busy || !caption.trim()}
         className="w-full rounded-lg bg-[#C6FF00] py-2.5 text-sm font-semibold text-black disabled:opacity-50"
       >
         投稿
@@ -391,6 +407,7 @@ export function CreateForm() {
     </form>
   );
 }
+
 
 
 

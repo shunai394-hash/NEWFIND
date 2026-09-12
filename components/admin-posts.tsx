@@ -6,7 +6,7 @@ import { authHeaders } from "@/lib/auth/client-headers";
 
 type AdminPost = {
   id: string;
-  media_url: string;
+  media_url: string | null;
   caption: string;
   category: string;
   created_at: string;
@@ -78,8 +78,12 @@ export function AdminPosts() {
               {posts.map((post) => (
                 <tr key={post.id} className="border-b border-neutral-100 align-top">
                   <td className="py-2 pr-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={post.media_url} alt="" className="h-12 w-12 rounded object-cover" />
+                    {post.media_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={post.media_url} alt="" className="h-12 w-12 rounded object-cover" />
+                    ) : (
+                      <span className="text-neutral-400">本文</span>
+                    )}
                   </td>
                   <td className="py-2 pr-3">
                     <p className="line-clamp-2 font-semibold">{post.caption || "(no caption)"}</p>

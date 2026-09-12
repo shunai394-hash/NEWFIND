@@ -62,7 +62,7 @@ export type ResidentLifeDecision =
   | {
       type: "POST";
       caption: string;
-      subjectId: string;
+      subjectId?: string;
     }
   | {
       type: "SKIP_POST";
@@ -99,16 +99,19 @@ export async function decideResidentLifePost(
     "",
     "必ずJSONだけを返してください。",
     '{"type":"POST","subjectId":"題材ID","caption":"住民としての短い投稿文"}',
+    "商品がない日常のつぶやきなら:",
+    '{"type":"POST","caption":"短いつぶやき"}',
     "または",
     '{"type":"SKIP_POST","reason":"投稿しない理由"}',
     "",
     "POSTする場合:",
     "- captionは1〜3文。その住民がスマホで書く口調。",
     "- レビュー記事、箇条書き解説、広告文は禁止。",
-    "- 題材リストにある subjectId だけを使う。",
-    "- 存在しない商品名・URL・画像をcaptionに作らない。",
+    "- 商品を投稿するなら題材リストにある subjectId だけを使う。",
+    "- つぶやきなら subjectId は付けない。商品名・URL・画像を作らない。",
     "- 題材の商品名やURLを必要以上に繰り返さない。感想を書く。",
-    "SKIP_POSTは、本当に今は発信したくないときだけ。",
+    "- 毎回投稿しなくてよい。今日はSKIP_POSTでも自然。",
+    "SKIP_POSTは、本当に今は発信したくないとき、またはさっき投稿したばかりのとき。",
   ].join("\n");
 
   const result = await generateAIText(prompt, {
@@ -121,10 +124,10 @@ export async function decideResidentLifePost(
   if (parsed.type === "POST") {
     const caption = asNonEmpty(parsed.caption);
     const subjectId = asNonEmpty(parsed.subjectId);
-    if (!caption || !subjectId) {
-      return { type: "SKIP_POST", reason: "missing caption or subject" };
+    if (!caption) {
+      return { type: "SKIP_POST", reason: "missing caption" };
     }
-    return { type: "POST", caption, subjectId };
+    return subjectId ? { type: "POST", caption, subjectId } : { type: "POST", caption };
   }
 
   if (parsed.type === "SKIP_POST") {
@@ -161,6 +164,7 @@ export async function decideAIAction(context: string): Promise<AIAction> {
     "DISCOVER_PRODUCTは、対象投稿に実際の商品URLがあるときだけ。URLを作ってはいけない。",
     "REPLYは実在するコメントIDだけ。FOLLOWは実在する投稿者IDだけ。",
     "コメントは機械的にせず、その住民の言葉で短く書く。",
+    "商品がないつぶやきにも、普通にLIKE / COMMENT / REPLYしてよい。",
   ].join("\n");
 
   const result = await generateAIText(prompt, {

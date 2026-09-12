@@ -40,7 +40,7 @@
 
           echo "=== SET BUILD NUMBER ==="
           cd ios/App
-          agvtool new-version -all 11
+          agvtool new-version -all 12
           cd ../..
 
           echo "=== ARCHIVE ==="
@@ -97,6 +97,7 @@
     publishing:
       app_store_connect:
         auth: integration
+
 
 
 

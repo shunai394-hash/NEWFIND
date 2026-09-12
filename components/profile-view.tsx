@@ -1,13 +1,12 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { FollowListSheet } from "@/components/follow-list-sheet";
-import { MediaThumb } from "@/components/media-thumb";
 import { MoreIcon } from "@/components/icons";
+import { PostCard } from "@/components/post-card";
 import { PostOwnerMenu } from "@/components/post-owner-menu";
 import { ProductCard } from "@/components/product-card";
 import { ReportSheet } from "@/components/report-sheet";
@@ -374,46 +373,40 @@ export function ProfileView({ username }: { username: string }) {
       {blocked && !mine ? (
         <p className="px-4 py-16 text-center text-sm text-neutral-500">このユーザーの投稿は表示されません。</p>
       ) : !mine || tab === "posts" ? (
-        visiblePosts.length === 0 ? (
-          <p className="px-4 py-16 text-center text-sm text-neutral-500">投稿はありません。</p>
-        ) : (
-          <div className="grid grid-cols-3 gap-px bg-neutral-200">
-            {visiblePosts.map((post) => (
-              <div key={post.id} className="relative aspect-square bg-neutral-100">
-                <Link href={`/p/${post.id}`} className="block h-full w-full">
-                  <MediaThumb post={post} />
-                </Link>
-                {session ? (
-                  <PostOwnerMenu
-                    postId={post.id}
-                    userId={session.userId}
-                    onDeleted={(id) => setPosts((prev) => prev.filter((item) => item.id !== id))}
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )
+        <ProfilePostTimeline
+          posts={visiblePosts}
+          emptyText="投稿はありません。"
+          sessionUserId={session?.userId ?? null}
+          onChange={(next) =>
+            setPosts((prev) => prev.map((item) => (item.id === next.id ? next : item)))
+          }
+          onDeleted={(id) => setPosts((prev) => prev.filter((item) => item.id !== id))}
+        />
       ) : tab === "saved" ? (
         <SavedTab
           posts={savedPosts}
           products={savedProducts}
           alerts={alerts}
+          sessionUserId={session?.userId ?? null}
+          onChange={(next) =>
+            setSavedPosts((prev) => prev.map((item) => (item.id === next.id ? next : item)))
+          }
+          onDeleted={(id) => setSavedPosts((prev) => prev.filter((item) => item.id !== id))}
           onAlertToggle={async (id, next) => {
             await patchUserAlert(id, next).catch(() => null);
             setAlerts((prev) => prev.map((item) => (item.id === id ? { ...item, isEnabled: next } : item)));
           }}
         />
-      ) : likedPosts.length === 0 ? (
-        <p className="px-4 py-16 text-center text-sm text-neutral-500">いいねした投稿はありません。</p>
       ) : (
-        <div className="grid grid-cols-3 gap-px bg-neutral-200">
-          {likedPosts.map((post) => (
-            <Link key={post.id} href={`/p/${post.id}`} className="relative aspect-square bg-neutral-100">
-              <MediaThumb post={post} />
-            </Link>
-          ))}
-        </div>
+        <ProfilePostTimeline
+          posts={likedPosts}
+          emptyText="いいねした投稿はありません。"
+          sessionUserId={session?.userId ?? null}
+          onChange={(next) =>
+            setLikedPosts((prev) => prev.map((item) => (item.id === next.id ? next : item)))
+          }
+          onDeleted={(id) => setLikedPosts((prev) => prev.filter((item) => item.id !== id))}
+        />
       )}
 
       {followSheet ? (
@@ -441,10 +434,62 @@ export function ProfileView({ username }: { username: string }) {
   );
 }
 
+function sortPostsByCreatedAtDesc(posts: PostView[]) {
+  return [...posts].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
+}
+
+function ProfilePostTimeline({
+  posts,
+  emptyText,
+  sessionUserId,
+  onChange,
+  onDeleted,
+}: {
+  posts: PostView[];
+  emptyText: string;
+  sessionUserId: string | null;
+  onChange?: (post: PostView) => void;
+  onDeleted?: (postId: string) => void;
+}) {
+  const sorted = sortPostsByCreatedAtDesc(posts);
+
+  if (sorted.length === 0) {
+    return (
+      <p className="px-4 py-16 text-center text-sm text-neutral-500">{emptyText}</p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      {sorted.map((post) => (
+        <div key={post.id} className="relative">
+          <PostCard
+            post={post}
+            onChange={onChange}
+            onDeleted={onDeleted}
+          />
+          {sessionUserId && sessionUserId === post.authorId ? (
+            <PostOwnerMenu
+              postId={post.id}
+              userId={sessionUserId}
+              onDeleted={onDeleted}
+            />
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SavedTab({
   posts,
   products,
   alerts,
+  sessionUserId,
+  onChange,
+  onDeleted,
   onAlertToggle,
 }: {
   posts: PostView[];
@@ -456,6 +501,9 @@ function SavedTab({
     brand: string | null;
     isEnabled: boolean;
   }>;
+  sessionUserId: string | null;
+  onChange?: (post: PostView) => void;
+  onDeleted?: (postId: string) => void;
   onAlertToggle: (id: string, next: boolean) => Promise<void>;
 }) {
   if (posts.length === 0 && products.length === 0) {
@@ -471,13 +519,13 @@ function SavedTab({
         </div>
       ) : null}
       {posts.length > 0 ? (
-        <div className="grid grid-cols-3 gap-px bg-neutral-200">
-          {posts.map((post) => (
-            <Link key={post.id} href={`/p/${post.id}`} className="relative aspect-square bg-neutral-100">
-              <MediaThumb post={post} />
-            </Link>
-          ))}
-        </div>
+        <ProfilePostTimeline
+          posts={posts}
+          emptyText="保存した投稿はありません。"
+          sessionUserId={sessionUserId}
+          onChange={onChange}
+          onDeleted={onDeleted}
+        />
       ) : null}
       {alerts.length > 0 ? (
         <section className="border-t border-neutral-200 px-4 py-4">

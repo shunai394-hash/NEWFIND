@@ -2,6 +2,7 @@ import type { CreateAiPersonaInput } from "@/lib/ai-personas";
 
 export type FeaturedLivingResident = CreateAiPersonaInput & {
   username: string;
+  bio?: string;
 };
 
 export const FEATURED_LIVING_RESIDENTS: FeaturedLivingResident[] = [

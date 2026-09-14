@@ -423,6 +423,7 @@ export function ProfileView({ username }: { username: string }) {
       {reportOpen ? (
         <ReportSheet
           targetUserId={profile.id}
+          targetUsername={profile.username}
           onClose={() => setReportOpen(false)}
           onBlocked={(userId) => {
             addLocalBlock(userId);

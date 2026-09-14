@@ -234,10 +234,19 @@ function ActivityCard({ activity }: { activity: WorldActivity }) {
   return (
     <article className="rounded-3xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
       <div className="flex items-start gap-3">
-        <Avatar
-          profile={{ displayName: activity.actorName, avatarUrl: activity.actorAvatarUrl }}
-          size={42}
-        />
+        {activity.actorHref ? (
+          <Link href={activity.actorHref} className="shrink-0">
+            <Avatar
+              profile={{ displayName: activity.actorName, avatarUrl: activity.actorAvatarUrl }}
+              size={42}
+            />
+          </Link>
+        ) : (
+          <Avatar
+            profile={{ displayName: activity.actorName, avatarUrl: activity.actorAvatarUrl }}
+            size={42}
+          />
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {activity.actorHref ? <Link href={activity.actorHref}>{name}</Link> : name}
@@ -344,9 +353,9 @@ function ResidentCard({ resident }: { resident: WorldResidentCard }) {
         <p className="mt-2 text-[13px] leading-relaxed text-neutral-700">
           {resident.blurb}
         </p>
-        <p className="mt-3 text-[13px] font-semibold">
-          {resident.href ? "View profile" : "Meet in the world"} →
-        </p>
+        {resident.href ? (
+          <p className="mt-3 text-[13px] font-semibold">View profile →</p>
+        ) : null}
       </div>
     </>
   );
@@ -362,11 +371,7 @@ function ResidentCard({ resident }: { resident: WorldResidentCard }) {
     );
   }
 
-  return (
-    <Link href="/feed" className={className}>
-      {inner}
-    </Link>
-  );
+  return <div className={className}>{inner}</div>;
 }
 
 function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
@@ -414,7 +419,7 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
           {(people.length ? people : featured).map((resident) => (
             <Chip
               key={resident.name}
-              href={resident.href ?? "/feed"}
+              href={resident.href ?? undefined}
               dark
             >
               {resident.name + "'s discoveries"}
@@ -514,13 +519,20 @@ function DiscoveryStory({
             ) : null}
             {index === 4 ? (
               <div className="flex flex-wrap gap-2 border-t border-neutral-100 px-4 py-3">
-                {["Save", "Shop", "Share"].map((label) => (
-                  <span
-                    key={label}
+                {(
+                  [
+                    { label: "Save", href: product?.href ?? "/discover" },
+                    { label: "Shop", href: product?.href ?? "/discover" },
+                    { label: "Share", href: product?.href ?? "/discover" },
+                  ] as const
+                ).map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
                     className="rounded-full bg-[#C6FF00] px-3 py-1 text-[11px] font-semibold text-black"
                   >
-                    {label}
-                  </span>
+                    {item.label}
+                  </Link>
                 ))}
               </div>
             ) : null}
@@ -619,22 +631,31 @@ function MiniPostFace({
   face,
   quote,
 }: {
-  face?: { name: string; role: string; avatarUrl: string | null };
+  face?: { name: string; role: string; avatarUrl: string | null; href: string | null };
   quote?: string;
 }) {
   if (!face) return null;
+  const identity = (
+    <>
+      <Avatar
+        profile={{ displayName: face.name, avatarUrl: face.avatarUrl }}
+        size={28}
+      />
+      <div className="min-w-0">
+        <p className="truncate text-[12px] font-semibold">{face.name}</p>
+        <p className="text-[10px] text-neutral-400">{face.role}</p>
+      </div>
+    </>
+  );
   return (
     <div className="border-t border-neutral-100 bg-[#fafafa] px-4 py-3">
-      <div className="flex items-center gap-2">
-        <Avatar
-          profile={{ displayName: face.name, avatarUrl: face.avatarUrl }}
-          size={28}
-        />
-        <div className="min-w-0">
-          <p className="truncate text-[12px] font-semibold">{face.name}</p>
-          <p className="text-[10px] text-neutral-400">{face.role}</p>
-        </div>
-      </div>
+      {face.href ? (
+        <Link href={face.href} className="flex items-center gap-2">
+          {identity}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-2">{identity}</div>
+      )}
       {quote ? (
         <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-neutral-600">
           “{quote}”
@@ -649,19 +670,37 @@ function MiniPostFace({
 function MiniReactions({
   faces,
 }: {
-  faces: Array<{ name: string; avatarUrl: string | null }>;
+  faces: Array<{ name: string; avatarUrl: string | null; href: string | null }>;
 }) {
   return (
     <div className="flex items-center gap-2 border-t border-neutral-100 bg-[#fafafa] px-4 py-3">
       <div className="flex -space-x-2">
-        {faces.slice(0, 3).map((face) => (
-          <span key={face.name} className="rounded-full ring-2 ring-white">
+        {faces.slice(0, 3).map((face) => {
+          const avatar = (
             <Avatar
               profile={{ displayName: face.name, avatarUrl: face.avatarUrl }}
               size={24}
             />
-          </span>
-        ))}
+          );
+          const className = "rounded-full ring-2 ring-white";
+          if (face.href) {
+            return (
+              <Link
+                key={face.name}
+                href={face.href}
+                className={className}
+                aria-label={face.name}
+              >
+                {avatar}
+              </Link>
+            );
+          }
+          return (
+            <span key={face.name} className={className}>
+              {avatar}
+            </span>
+          );
+        })}
       </div>
       <p className="text-[11px] text-neutral-500">Liked · Saved · Followed</p>
     </div>
@@ -670,11 +709,17 @@ function MiniReactions({
 
 function MiniConversation({ activity }: { activity?: WorldActivity }) {
   if (!activity) return null;
+  const name = activity.actorHref ? (
+    <Link href={activity.actorHref} className="font-semibold">
+      {activity.actorName}
+    </Link>
+  ) : (
+    <span className="font-semibold">{activity.actorName}</span>
+  );
   return (
     <div className="space-y-2 border-t border-neutral-100 bg-[#fafafa] px-4 py-3">
       <p className="text-[12px] leading-relaxed">
-        <span className="font-semibold">{activity.actorName}</span>{" "}
-        “{activity.quote}”
+        {name} “{activity.quote}”
       </p>
       {activity.reply ? (
         <p className="text-[12px] leading-relaxed text-neutral-600">
@@ -768,22 +813,21 @@ function Chip({
   children,
   dark = false,
 }: {
-  href: string;
+  href?: string;
   children: ReactNode;
   dark?: boolean;
 }) {
-  return (
-    <Link
-      href={href}
-      className={`rounded-full px-3 py-1.5 text-[12px] font-medium ${
-        dark
-          ? "bg-white/10 text-white"
-          : "bg-neutral-100 text-neutral-700"
-      }`}
-    >
-      {children}
-    </Link>
-  );
+  const className = `rounded-full px-3 py-1.5 text-[12px] font-medium ${
+    dark ? "bg-white/10 text-white" : "bg-neutral-100 text-neutral-700"
+  }`;
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return <span className={className}>{children}</span>;
 }
 
 function heroFaces(data: Pick<WorldHomeData, "residents" | "featured">) {

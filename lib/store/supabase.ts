@@ -561,7 +561,11 @@ export const supabaseStore: Store = {
     try {
       const supabase = createClient();
       const { data } = await supabase.auth.getSession();
-      const user = data.session?.user ?? null;
+      let user = data.session?.user ?? null;
+      if (!user) {
+        const { data: userData } = await supabase.auth.getUser();
+        user = userData.user ?? null;
+      }
       if (!user) return null;
       return { userId: user.id, email: user.email ?? "" };
     } catch {
@@ -630,7 +634,16 @@ export const supabaseStore: Store = {
       provider,
       options: { redirectTo: redirectTo.toString() },
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (/provider is not enabled/i.test(error.message)) {
+        throw new Error(
+          provider === "google"
+            ? "Googleログインが有効になっていません。Supabase Auth の Google プロバイダー設定を確認してください。"
+            : "このログイン方法は現在有効になっていません。",
+        );
+      }
+      throw new Error(error.message);
+    }
   },
 
   async signOut() {

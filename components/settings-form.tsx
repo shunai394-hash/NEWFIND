@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useApp } from "@/lib/app-context";
+import { useApp, useRedirectIfGuest } from "@/lib/app-context";
 import { validateSocialUrl } from "@/lib/social-links";
 import { getStore } from "@/lib/store";
 import type { AccountType } from "@/lib/types";
@@ -12,6 +12,7 @@ import { profilePath } from "@/lib/username";
 export function SettingsForm() {
   const router = useRouter();
   const { ready, sessionResolved, session, me, refresh } = useApp();
+  useRedirectIfGuest("/settings");
 
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -36,12 +37,6 @@ export function SettingsForm() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
-
-  useEffect(() => {
-    if (ready && sessionResolved && !session) {
-      router.replace("/login?next=/settings");
-    }
-  }, [ready, sessionResolved, session, router]);
 
   useEffect(() => {
     if (!ready || !session || me) return;

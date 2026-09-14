@@ -22,8 +22,24 @@ export async function isBlocked(blockerId: string, blockedId: string) {
   return ids.includes(blockedId);
 }
 
+async function isAiResidentProfile(profileId: string) {
+  const { data, error } = await createAdminClient()
+    .from("ai_personas")
+    .select("id")
+    .eq("profile_id", profileId)
+    .limit(1);
+  if (error) {
+    if (missingTable(error.message)) return false;
+    throw new Error(error.message);
+  }
+  return Boolean(data?.[0]);
+}
+
 export async function blockUser(blockerId: string, blockedId: string) {
   if (blockerId === blockedId) throw new Error("自分はブロックできません");
+  if (await isAiResidentProfile(blockedId)) {
+    throw new Error("AI住民はブロックできません");
+  }
   const db = createAdminClient();
   const { error } = await db.from("user_blocks").upsert(
     { blocker_id: blockerId, blocked_id: blockedId },

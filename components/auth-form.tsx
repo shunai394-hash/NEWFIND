@@ -24,6 +24,14 @@ function oauthErrorLabel(code: string) {
   return code;
 }
 
+function oauthExceptionMessage(err: unknown, fallback: string) {
+  const message = err instanceof Error ? err.message : fallback;
+  if (/provider is not enabled/i.test(message)) {
+    return "Googleログインが有効になっていません。Supabase Auth の Google プロバイダー設定を確認してください。";
+  }
+  return message;
+}
+
 export function AuthForm() {
   const router = useRouter();
   const params = useSearchParams();
@@ -37,19 +45,19 @@ export function AuthForm() {
       (params.get("error") ? oauthErrorLabel(params.get("error")!) : ""),
   );
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [appleBusy, setAppleBusy] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const next = safeNextPath(params.get("next"));
   const local = storeMode() === "local";
 
   useEffect(() => {
-    if (ready && sessionResolved && session && me) {
-      if (needsSignupTermsConsent(me)) {
-        router.replace(signupConsentPath(next));
-        return;
-      }
-      router.replace(next);
+    if (!ready || !sessionResolved || !session) return;
+    if (me && needsSignupTermsConsent(me)) {
+      router.replace(signupConsentPath(next));
+      return;
     }
+    router.replace(next);
   }, [ready, sessionResolved, session, me, next, router]);
 
   async function submit(event: React.FormEvent) {
@@ -91,10 +99,12 @@ export function AuthForm() {
       }
       markSignupTermsCookie();
     }
+    setGoogleBusy(true);
     try {
       await getStore().signInOAuth("google", next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Google ログインに失敗しました");
+      setError(oauthExceptionMessage(err, "Google ログインに失敗しました"));
+      setGoogleBusy(false);
     }
   }
 
@@ -114,6 +124,14 @@ export function AuthForm() {
       setError(err instanceof Error ? err.message : "Apple ログインに失敗しました");
       setAppleBusy(false);
     }
+  }
+
+  if (!sessionResolved || session) {
+    return (
+      <div className="px-6 py-10">
+        <p className="text-center text-sm text-neutral-400">読み込み中...</p>
+      </div>
+    );
   }
 
   return (
@@ -186,10 +204,10 @@ export function AuthForm() {
         <button
           type="button"
           onClick={() => void oauthGoogle()}
-          disabled={mode === "signup" && !termsAccepted}
+          disabled={googleBusy || (mode === "signup" && !termsAccepted)}
           className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold disabled:opacity-50"
         >
-          Googleで続ける
+          {googleBusy ? "Google に接続中..." : "Googleで続ける"}
         </button>
         <button
           type="button"

@@ -1,24 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useApp } from "@/lib/app-context";
+import { useApp, useRedirectIfGuest } from "@/lib/app-context";
 import { authHeaders } from "@/lib/auth/client-headers";
 import type { AppNotification } from "@/lib/discovery/alerts";
 
 export function NotificationsView() {
-  const router = useRouter();
   const { ready, sessionResolved, session } = useApp();
+  useRedirectIfGuest("/notifications");
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!ready || !sessionResolved) return;
-    if (!session) {
-      router.replace("/login?next=/notifications");
-      return;
-    }
+    if (!session) return;
     let cancelled = false;
     authHeaders()
       .then((headers) => fetch("/api/notifications", { cache: "no-store", headers }))
@@ -39,7 +35,7 @@ export function NotificationsView() {
     return () => {
       cancelled = true;
     };
-  }, [ready, sessionResolved, session, router]);
+  }, [ready, sessionResolved, session]);
 
   if (!ready || !sessionResolved || loading) {
     return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;

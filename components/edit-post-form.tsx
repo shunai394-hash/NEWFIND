@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useApp } from "@/lib/app-context";
+import { useApp, useRedirectIfGuest } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { isHttpUrl } from "@/lib/media";
 import { getStore } from "@/lib/store";
@@ -26,6 +26,7 @@ const VISUAL_OPTIONS: Array<{ id: VisualKind | ""; label: string }> = [
 export function EditPostForm({ postId }: { postId: string }) {
   const router = useRouter();
   const { ready, sessionResolved, session } = useApp();
+  useRedirectIfGuest(`/p/${encodeURIComponent(postId)}/edit`);
 
   const [caption, setCaption] = useState("");
   const [category, setCategory] = useState<CategoryId>("fashion");
@@ -40,12 +41,6 @@ export function EditPostForm({ postId }: { postId: string }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (ready && sessionResolved && !session) {
-      router.replace(`/login?next=/p/${encodeURIComponent(postId)}/edit`);
-    }
-  }, [ready, sessionResolved, session, router, postId]);
 
   useEffect(() => {
     if (!session) return;

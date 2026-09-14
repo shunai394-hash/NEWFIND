@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { authHeaders } from "@/lib/auth/client-headers";
-import { addLocalBlock } from "@/lib/moderation/client";
+import { addLocalBlock, isAiResidentUsername } from "@/lib/moderation/client";
 import {
   REPORT_REASONS,
   reportReasonLabel,
@@ -13,11 +13,13 @@ import {
 export function ReportSheet({
   postId,
   targetUserId,
+  targetUsername,
   onClose,
   onBlocked,
 }: {
   postId?: string | null;
   targetUserId?: string | null;
+  targetUsername?: string | null;
   onClose: () => void;
   onBlocked?: (userId: string) => void;
 }) {
@@ -27,6 +29,9 @@ export function ReportSheet({
   const [blockBusy, setBlockBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const canBlock = Boolean(
+    targetUserId && !isAiResidentUsername(targetUsername),
+  );
 
   async function submitReport() {
     if (reportBusy || blockBusy) return;
@@ -70,7 +75,7 @@ export function ReportSheet({
   }
 
   async function block() {
-    if (!targetUserId || reportBusy || blockBusy) return;
+    if (!canBlock || !targetUserId || reportBusy || blockBusy) return;
 
     setBlockBusy(true);
     setError("");
@@ -175,7 +180,7 @@ export function ReportSheet({
           </button>
         )}
 
-        {targetUserId ? (
+        {canBlock ? (
           <button
             type="button"
             disabled={anyBusy}

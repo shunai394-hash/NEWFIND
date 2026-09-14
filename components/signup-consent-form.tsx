@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SignupTermsConsent } from "@/components/signup-terms-consent";
-import { useApp } from "@/lib/app-context";
+import { useApp, useRedirectIfGuest } from "@/lib/app-context";
 import { authHeaders } from "@/lib/auth/client-headers";
 import { safeNextPath } from "@/lib/config";
 import { needsSignupTermsConsent } from "@/lib/terms/consent";
@@ -13,16 +13,13 @@ export function SignupConsentForm() {
   const params = useSearchParams();
   const { me, refresh, session, sessionResolved } = useApp();
   const next = safeNextPath(params.get("next"));
+  useRedirectIfGuest("/signup/consent");
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!sessionResolved) return;
-    if (!session) {
-      router.replace("/login");
-      return;
-    }
+    if (!sessionResolved || !session) return;
     if (me && !needsSignupTermsConsent(me)) {
       router.replace(next);
     }

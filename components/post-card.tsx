@@ -260,6 +260,7 @@ export function PostCard({
         <ReportSheet
           postId={post.id}
           targetUserId={post.authorId}
+          targetUsername={post.author.username}
           onClose={() => setReportOpen(false)}
           onBlocked={() => {
             setHidden(true);

@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { PostCard } from "@/components/post-card";
 import { ProductCard } from "@/components/product-card";
-import { useApp } from "@/lib/app-context";
+import { useApp, useRedirectIfGuest } from "@/lib/app-context";
 import { fetchSavedProducts, fetchUserAlerts, patchUserAlert } from "@/lib/discovery/client-api";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { isVisibleTimelinePost } from "@/lib/posts/text-post";
@@ -16,8 +15,8 @@ import type { PostView } from "@/lib/types";
 type SavedTab = "posts" | "products";
 
 export function SavedView() {
-  const router = useRouter();
   const { ready, sessionResolved, session } = useApp();
+  useRedirectIfGuest("/saved");
   const [tab, setTab] = useState<SavedTab>("products");
   const [posts, setPosts] = useState<PostView[]>([]);
   const [products, setProducts] = useState<DiscoveryProduct[]>([]);
@@ -35,10 +34,7 @@ export function SavedView() {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!ready || !sessionResolved) return;
-    if (!session) {
-      router.replace("/login?next=/saved");
-      return;
-    }
+    if (!session) return;
     let cancelled = false;
     setLoading(true);
     Promise.all([
@@ -58,7 +54,7 @@ export function SavedView() {
     return () => {
       cancelled = true;
     };
-  }, [ready, sessionResolved, session, router]);
+  }, [ready, sessionResolved, session]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!ready || !sessionResolved) {

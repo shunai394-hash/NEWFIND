@@ -1,8 +1,8 @@
 ﻿"use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useApp } from "@/lib/app-context";
+import { useState } from "react";
+import { useApp, useRedirectIfGuest } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { isHttpUrl, mediaTypeFromFile } from "@/lib/media";
 import { getStore } from "@/lib/store";
@@ -150,6 +150,7 @@ async function createVideoThumbnail(file: File): Promise<File> {
 export function CreateForm() {
   const router = useRouter();
   const { ready, sessionResolved, session, me } = useApp();
+  useRedirectIfGuest("/create");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [mediaType, setMediaType] = useState<MediaType>("photo");
@@ -166,10 +167,6 @@ export function CreateForm() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const isBusiness = me?.accountType === "business";
-
-  useEffect(() => {
-    if (ready && sessionResolved && !session) router.replace("/login?next=/create");
-  }, [ready, sessionResolved, session, router]);
 
   if (!ready || !sessionResolved) {
     return <p className="px-4 py-16 text-center text-sm text-neutral-400">読み込み中...</p>;

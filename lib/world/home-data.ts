@@ -9,6 +9,7 @@ import {
   titleCaseTag,
 } from "@/lib/world/labels";
 import { resolveResidentAvatar } from "@/lib/world/featured-avatars";
+import { buildWorldResidentAvatarUrl } from "@/lib/ai/world-resident-avatar";
 
 export type WorldResident = {
   id: string;
@@ -75,6 +76,21 @@ export type WorldHomeData = {
   products: WorldProductChip[];
 };
 
+const FEATURED_PROFILE_USERNAMES = [
+  "yuna_ai",
+  "isla_ai",
+  "camille_ai",
+  "lina_home_ai",
+] as const;
+
+const LINA_FALLBACK_AVATAR = buildWorldResidentAvatarUrl({
+  username: "lina_home_ai",
+  displayName: "Lina",
+  residentRole: "product_hunter",
+  countryCode: "SE",
+  region: "Stockholm",
+});
+
 const FEATURED_BLUEPRINTS: WorldResidentCard[] = [
   {
     name: "Yuna",
@@ -111,13 +127,13 @@ const FEATURED_BLUEPRINTS: WorldResidentCard[] = [
   },
   {
     name: "Lina",
-    flag: "🇩🇪",
-    region: "Germany",
-    roleLabel: "AI Product Fan",
-    tags: ["Beauty", "Lifestyle", "Brands"],
-    blurb: "If she loves it, she'll tell everyone.",
-    href: null,
-    avatarUrl: null,
+    flag: "🇸🇪",
+    region: "Sweden",
+    roleLabel: "AI Product Hunter",
+    tags: ["Interior", "Kitchen", "Lifestyle"],
+    blurb: "She looks for objects that actually belong in a real home.",
+    href: "/u/lina_home_ai",
+    avatarUrl: LINA_FALLBACK_AVATAR,
     live: false,
   },
 ];
@@ -259,8 +275,11 @@ function cardFromResident(
       firstSentence(resident.bio) ||
       blueprint?.blurb ||
       "Exploring, reacting, and discovering in NEWFIND.",
-    href: resident.href,
-    avatarUrl: resolveResidentAvatar(resident.name, resident.avatarUrl),
+    href: resident.href ?? blueprint?.href ?? null,
+    avatarUrl: resolveResidentAvatar(
+      resident.name,
+      resident.avatarUrl ?? blueprint?.avatarUrl,
+    ),
     live: true,
   };
 }
@@ -281,22 +300,23 @@ function editorialActivities(
     fallbackName: string,
     fallbackRole: string,
     fallbackFlag: string,
+    fallbackHref: string | null,
   ) => ({
     name: match ? givenName(match.name) : fallbackName,
     role: match?.roleLabel || fallbackRole,
     flag: match ? flagEmoji(match.countryCode) || fallbackFlag : fallbackFlag,
-    href: match?.href ?? null,
+    href: match?.href ?? fallbackHref,
     avatarUrl: resolveResidentAvatar(
       match?.name ?? fallbackName,
       match?.avatarUrl,
     ),
   });
 
-  const a1 = actor(yuna ?? first ?? undefined, "Yuna", "AI Product Hunter", "🇯🇵");
-  const a2 = actor(isla ?? second ?? undefined, "Isla", "AI Fashion Critic", "🇬🇧");
-  const a3 = actor(camille ?? third ?? undefined, "Camille", "AI Beauty Curator", "🇫🇷");
+  const a1 = actor(yuna ?? first ?? undefined, "Yuna", "AI Product Hunter", "🇯🇵", "/u/yuna_ai");
+  const a2 = actor(isla ?? second ?? undefined, "Isla", "AI Fashion Critic", "🇬🇧", "/u/isla_ai");
+  const a3 = actor(camille ?? third ?? undefined, "Camille", "AI Beauty Curator", "🇫🇷", "/u/camille_ai");
   const productHref = product?.href ?? "/discover";
-  const discoveryHref = yuna?.href ?? first?.href ?? "/feed";
+  const discoveryHref = yuna?.href ?? first?.href ?? "/u/yuna_ai";
 
   return [
     {
@@ -401,6 +421,12 @@ export async function loadWorldHomeData(): Promise<WorldHomeData> {
     const residents = personas.map((persona) =>
       toResident(persona, profileById.get(persona.profile_id)),
     );
+    const featuredExtras = await loadFeaturedResidents(supabase, residents);
+    for (const extra of featuredExtras) {
+      if (!residents.some((resident) => resident.id === extra.id)) {
+        residents.push(extra);
+      }
+    }
 
     const products = await loadProducts(supabase);
     const discoveryCount = await countDiscoveries(supabase, products.length);
@@ -472,6 +498,58 @@ async function loadProfiles(
     return [];
   }
   return (data ?? []) as ProfileLite[];
+}
+
+async function loadFeaturedResidents(
+  supabase: SupabaseClient,
+  existing: WorldResident[],
+): Promise<WorldResident[]> {
+  const have = new Set(
+    existing
+      .map((resident) => resident.username?.toLowerCase())
+      .filter((name): name is string => Boolean(name)),
+  );
+  const missing = FEATURED_PROFILE_USERNAMES.filter(
+    (username) => !have.has(username),
+  );
+  if (!missing.length) return [];
+
+  const { data: profiles, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, bio, avatar_url")
+    .in("username", missing);
+  if (profileError) {
+    console.warn("[world-home] featured profiles", profileError.message);
+    return [];
+  }
+  const featuredProfiles = (profiles ?? []) as ProfileLite[];
+  if (!featuredProfiles.length) return [];
+
+  const ids = featuredProfiles.map((row) => row.id);
+  const full = await supabase
+    .from("ai_personas_public")
+    .select(
+      "id, profile_id, persona_name, is_active, resident_role, country_code, region, expertise, interests",
+    )
+    .in("profile_id", ids)
+    .eq("is_active", true);
+
+  const personas = (
+    full.error || !full.data
+      ? (
+          await supabase
+            .from("ai_personas_public")
+            .select("id, profile_id, persona_name, is_active")
+            .in("profile_id", ids)
+            .eq("is_active", true)
+        ).data
+      : full.data
+  ) as PublicPersonaRow[] | null;
+
+  const profileById = new Map(featuredProfiles.map((row) => [row.id, row]));
+  return (personas ?? []).map((persona) =>
+    toResident(persona, profileById.get(persona.profile_id)),
+  );
 }
 
 async function loadProducts(
@@ -580,12 +658,12 @@ async function loadLiveActivities(
             imageUrl:
               (row.thumbnail_url as string | null) ||
               (row.media_url as string | null),
-            href: resident.href ?? "/feed",
+            href: resident.href ?? "/discover",
           }
         : null,
       reply: null,
       ctaLabel: hasProduct ? "View discovery" : "See what’s happening",
-      ctaHref: resident.href ?? "/feed",
+      ctaHref: resident.href ?? "/discover",
     });
     if (activities.length >= 2) break;
   }

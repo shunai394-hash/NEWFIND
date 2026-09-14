@@ -5,7 +5,9 @@ function readLocal(): string[] {
   try {
     const raw = window.localStorage.getItem(BLOCKS_KEY);
     const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((id) => typeof id === "string")
+      : [];
   } catch {
     return [];
   }
@@ -20,6 +22,15 @@ export function localBlockedIds() {
   return readLocal();
 }
 
+export function setLocalBlocks(ids: string[]) {
+  writeLocal(ids);
+}
+
+export function clearLocalBlocks() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(BLOCKS_KEY);
+}
+
 export function addLocalBlock(userId: string) {
   writeLocal([...readLocal(), userId]);
 }
@@ -30,4 +41,10 @@ export function removeLocalBlock(userId: string) {
 
 export function isLocallyBlocked(userId: string) {
   return readLocal().includes(userId);
+}
+
+export function isAiResidentUsername(username: string | null | undefined) {
+  const key = (username ?? "").trim().toLowerCase();
+  if (!key) return false;
+  return key.endsWith("_ai") || key.startsWith("ai_");
 }

@@ -20,7 +20,7 @@ type FeedItem =
   | { type: "ai"; post: AIPostView };
 
 export function FeedView({ kind }: { kind: "foryou" | "following" }) {
-  const { session } = useApp();
+  const { session, blockedIds } = useApp();
   const [channel, setChannel] = useState<FeedChannelId>("today");
   const [posts, setPosts] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +90,12 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
           for (const post of page.posts) {
             if (seenHuman.has(post.id)) continue;
             if (!isVisibleTimelinePost(post)) continue;
-            if (session && isLocallyBlocked(post.authorId)) continue;
+            if (
+              session &&
+              (isLocallyBlocked(post.authorId) || blockedIds.includes(post.authorId))
+            ) {
+              continue;
+            }
 
             seenHuman.add(post.id);
             collectedHuman.push(post);
@@ -116,6 +121,14 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
           collectedAI = category
             ? aiPage.filter((post) => post.category === category)
             : aiPage;
+
+          if (session) {
+            collectedAI = collectedAI.filter(
+              (post) =>
+                !isLocallyBlocked(post.author.id) &&
+                !blockedIds.includes(post.author.id),
+            );
+          }
         }
 
         const aiCount = Math.min(
@@ -178,7 +191,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
         setLoadingMore(false);
       }
     },
-    [kind, session, selected.categories],
+    [kind, session, selected.categories, blockedIds],
   );
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {

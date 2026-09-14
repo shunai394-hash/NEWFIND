@@ -62,14 +62,14 @@ export function ReportSheet({
         throw new Error(
           typeof body.error === "string"
             ? body.error
-            : "騾壼ｱ縺ｫ螟ｱ謨励＠縺ｾ縺励◆",
+            : "通報に失敗しました",
         );
       }
 
       setDone(true);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "騾壼ｱ縺ｫ螟ｱ謨励＠縺ｾ縺励◆",
+        err instanceof Error ? err.message : "通報に失敗しました",
       );
     } finally {
       setReportBusy(false);
@@ -103,7 +103,7 @@ export function ReportSheet({
         throw new Error(
           typeof body.error === "string"
             ? body.error
-            : "繝悶Ο繝・け縺ｫ螟ｱ謨励＠縺ｾ縺励◆",
+            : "ブロックに失敗しました",
         );
       }
 
@@ -112,7 +112,7 @@ export function ReportSheet({
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "繝悶Ο繝・け縺ｫ螟ｱ謨励＠縺ｾ縺励◆",
+        err instanceof Error ? err.message : "ブロックに失敗しました",
       );
     } finally {
       setBlockBusy(false);
@@ -131,13 +131,11 @@ export function ReportSheet({
         onClick={(event) => event.stopPropagation()}
       >
         <p className="text-sm font-semibold">
-          {done ? "騾壼ｱ繧貞女縺台ｻ倥￠縺ｾ縺励◆" : "騾壼ｱ繝ｻ繝悶Ο繝・け"}
+          {done ? "通報を受け付けました" : "通報・ブロック"}
         </p>
 
         {done ? (
-          <p className="text-sm text-neutral-600">
-            蜀・ｮｹ繧堤｢ｺ隱阪＠縲√ぎ繧､繝峨Λ繧､繝ｳ縺ｫ豐ｿ縺｣縺ｦ蟇ｾ蠢懊＠縺ｾ縺吶ょｿ・ｦ√↑繧峨％縺ｮ繝ｦ繝ｼ繧ｶ繝ｼ繧偵ヶ繝ｭ繝・け縺ｧ縺阪∪縺吶・
-          </p>
+          <p className="text-sm text-neutral-600">内容を確認し、ガイドラインに沿って対応します。必要ならこのユーザーをブロックできます。</p>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2">
@@ -163,7 +161,7 @@ export function ReportSheet({
               onChange={(event) => setDetail(event.target.value)}
               rows={3}
               disabled={anyBusy}
-              placeholder="隧ｳ邏ｰ縺後≠繧後・蜈･蜉帙＠縺ｦ縺上□縺輔＞"
+              placeholder="詳細があれば入力してください"
               className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm disabled:opacity-50"
             />
           </>
@@ -180,7 +178,7 @@ export function ReportSheet({
             onClick={() => void submitReport()}
             className="w-full rounded-xl bg-black py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {reportBusy ? "騾∽ｿ｡荳ｭ..." : "騾壼ｱ縺吶ｋ"}
+            {reportBusy ? "送信中..." : "通報する"}
           </button>
         )}
 
@@ -191,7 +189,7 @@ export function ReportSheet({
             onClick={() => void block()}
             className="w-full rounded-xl bg-neutral-100 py-3 text-sm font-semibold text-red-600 disabled:opacity-50"
           >
-            {blockBusy ? "繝悶Ο繝・け荳ｭ..." : "繝悶Ο繝・け縺吶ｋ"}
+            {blockBusy ? "ブロック中..." : "ブロックする"}
           </button>
         ) : null}
 
@@ -201,7 +199,7 @@ export function ReportSheet({
           onClick={onClose}
           className="w-full py-2 text-sm text-neutral-500 disabled:opacity-50"
         >
-          繧ｭ繝｣繝ｳ繧ｻ繝ｫ
+          キャンセル
         </button>
       </div>
     </div>,

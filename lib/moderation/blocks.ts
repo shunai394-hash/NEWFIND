@@ -1,5 +1,4 @@
 import { lookupNamedWorldResident } from "@/lib/ai/named-world-residents";
-import { isAiResidentUsername } from "@/lib/moderation/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function missingTable(error: unknown) {
@@ -28,53 +27,11 @@ export async function isBlocked(blockerId: string, blockedId: string) {
   return ids.includes(blockedId);
 }
 
-async function isAiResidentProfile(profileId: string) {
-  try {
-    const db = createAdminClient();
-    const { data: profile, error: profileError } = await db
-      .from("profiles")
-      .select("username")
-      .eq("id", profileId)
-      .maybeSingle();
-
-    if (profileError) {
-      console.warn("[blocks] profile lookup failed", profileError.message);
-    } else {
-      const username = String(profile?.username ?? "");
-      if (
-        isAiResidentUsername(username) ||
-        Boolean(lookupNamedWorldResident(username))
-      ) {
-        return true;
-      }
-    }
-
-    const { data, error } = await db
-      .from("ai_personas")
-      .select("id")
-      .eq("profile_id", profileId)
-      .limit(1);
-
-    if (error) {
-      console.warn("[blocks] AI resident check failed", error.message);
-      return false;
-    }
-
-    return Boolean(data?.[0]);
-  } catch (error) {
-    console.warn("[blocks] AI resident check failed", error);
-    return false;
-  }
-}
-
 export async function blockUser(blockerId: string, blockedId: string) {
   if (blockerId === blockedId) {
-    throw new Error("自分自身をブロックすることはできません");
+    throw new Error("自分自身はブロックできません。");
   }
 
-  if (await isAiResidentProfile(blockedId)) {
-    throw new Error("AI住民をブロックすることはできません");
-  }
 
   const db = createAdminClient();
 

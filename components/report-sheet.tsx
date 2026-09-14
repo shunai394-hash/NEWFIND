@@ -4,7 +4,6 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useApp } from "@/lib/app-context";
 import { authHeaders } from "@/lib/auth/client-headers";
-import { isAiResidentUsername } from "@/lib/moderation/client";
 import {
   REPORT_REASONS,
   reportReasonLabel,
@@ -34,13 +33,7 @@ export function ReportSheet({
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const targetId = String(targetUserId ?? "").trim();
-  const username = String(targetUsername ?? "").trim();
-  // Username is the source of truth. Do not hide the button just because
-  // isAiTarget was derived from post.source === "ai".
-  const isAiResident =
-    isAiResidentUsername(username) ||
-    (isAiTarget === true && !username);
-  const canBlock = Boolean(targetId) && !isAiResident;
+  const canBlock = Boolean(targetId);
 
   async function submitReport() {
     if (reportBusy || blockBusy) return;
@@ -69,14 +62,14 @@ export function ReportSheet({
         throw new Error(
           typeof body.error === "string"
             ? body.error
-            : "通報に失敗しました",
+            : "騾壼ｱ縺ｫ螟ｱ謨励＠縺ｾ縺励◆",
         );
       }
 
       setDone(true);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "通報に失敗しました",
+        err instanceof Error ? err.message : "騾壼ｱ縺ｫ螟ｱ謨励＠縺ｾ縺励◆",
       );
     } finally {
       setReportBusy(false);
@@ -110,7 +103,7 @@ export function ReportSheet({
         throw new Error(
           typeof body.error === "string"
             ? body.error
-            : "ブロックに失敗しました",
+            : "繝悶Ο繝・け縺ｫ螟ｱ謨励＠縺ｾ縺励◆",
         );
       }
 
@@ -119,7 +112,7 @@ export function ReportSheet({
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "ブロックに失敗しました",
+        err instanceof Error ? err.message : "繝悶Ο繝・け縺ｫ螟ｱ謨励＠縺ｾ縺励◆",
       );
     } finally {
       setBlockBusy(false);
@@ -138,12 +131,12 @@ export function ReportSheet({
         onClick={(event) => event.stopPropagation()}
       >
         <p className="text-sm font-semibold">
-          {done ? "通報を受け付けました" : "通報・ブロック"}
+          {done ? "騾壼ｱ繧貞女縺台ｻ倥￠縺ｾ縺励◆" : "騾壼ｱ繝ｻ繝悶Ο繝・け"}
         </p>
 
         {done ? (
           <p className="text-sm text-neutral-600">
-            内容を確認し、ガイドラインに沿って対応します。必要ならこのユーザーをブロックできます。
+            蜀・ｮｹ繧堤｢ｺ隱阪＠縲√ぎ繧､繝峨Λ繧､繝ｳ縺ｫ豐ｿ縺｣縺ｦ蟇ｾ蠢懊＠縺ｾ縺吶ょｿ・ｦ√↑繧峨％縺ｮ繝ｦ繝ｼ繧ｶ繝ｼ繧偵ヶ繝ｭ繝・け縺ｧ縺阪∪縺吶・
           </p>
         ) : (
           <>
@@ -170,7 +163,7 @@ export function ReportSheet({
               onChange={(event) => setDetail(event.target.value)}
               rows={3}
               disabled={anyBusy}
-              placeholder="詳細があれば入力してください"
+              placeholder="隧ｳ邏ｰ縺後≠繧後・蜈･蜉帙＠縺ｦ縺上□縺輔＞"
               className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm disabled:opacity-50"
             />
           </>
@@ -187,7 +180,7 @@ export function ReportSheet({
             onClick={() => void submitReport()}
             className="w-full rounded-xl bg-black py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {reportBusy ? "送信中..." : "通報する"}
+            {reportBusy ? "騾∽ｿ｡荳ｭ..." : "騾壼ｱ縺吶ｋ"}
           </button>
         )}
 
@@ -198,7 +191,7 @@ export function ReportSheet({
             onClick={() => void block()}
             className="w-full rounded-xl bg-neutral-100 py-3 text-sm font-semibold text-red-600 disabled:opacity-50"
           >
-            {blockBusy ? "ブロック中..." : "ブロックする"}
+            {blockBusy ? "繝悶Ο繝・け荳ｭ..." : "繝悶Ο繝・け縺吶ｋ"}
           </button>
         ) : null}
 
@@ -208,7 +201,7 @@ export function ReportSheet({
           onClick={onClose}
           className="w-full py-2 text-sm text-neutral-500 disabled:opacity-50"
         >
-          キャンセル
+          繧ｭ繝｣繝ｳ繧ｻ繝ｫ
         </button>
       </div>
     </div>,

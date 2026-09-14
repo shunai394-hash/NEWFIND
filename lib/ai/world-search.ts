@@ -834,7 +834,10 @@ function lensFromHaystack(haystack: string): ProductSearchLens {
   }
   if (
     /wellness|self-care|bath|sleep|supplement|ボディケア/.test(text) &&
-    !/fitness|sports|training|フィットネス/.test(text)
+    !/fitness|sports|training|フィットネス/.test(text) &&
+    !/beauty|cosmetic|skincare|makeup|haircare|美容|コスメ|スキンケア|ヘアケア|美容家電/.test(
+      text,
+    )
   ) {
     return "wellness";
   }
@@ -842,7 +845,11 @@ function lensFromHaystack(haystack: string): ProductSearchLens {
       !/skincare|cosmetic|makeup|beauty|美容|コスメ/.test(text)) {
     return "fragrance";
   }
-  if (/beauty|cosmetic|skincare|makeup|美容|コスメ|スキンケア/.test(text)) {
+  if (
+    /beauty|cosmetic|skincare|makeup|haircare|beauty device|美容|コスメ|スキンケア|ヘアケア|美容家電/.test(
+      text,
+    )
+  ) {
     return "beauty";
   }
   if (/pet food|pet care|pet accessories|\bpet\b|ペット/.test(text)) {
@@ -851,16 +858,33 @@ function lensFromHaystack(haystack: string): ProductSearchLens {
   if (/fitness|sports|training|フィットネス/.test(text)) {
     return "fitness";
   }
-  if (/food|beverage|snack|sweet|食品|飲料/.test(text)) {
+  if (
+    /food|beverage|snack|sweet|cookware|kitchenware|seasoning|食品|飲料|調味料|調理器具/.test(
+      text,
+    )
+  ) {
     return "food";
   }
-  if (/gadget|electronics|audio|smart device|\btech\b|ガジェット/.test(text)) {
+  if (
+    /gadget|electronics|audio|headphones|pc accessory|smart device|\btech\b|ガジェット|オーディオ/.test(
+      text,
+    )
+  ) {
     return "tech";
   }
-  if (/interior|kitchen|household|\bhome\b|インテリア|キッチン/.test(text)) {
+  if (
+    /interior|furniture|household|storage|organizer|\bhome\b|インテリア|収納|生活雑貨/.test(
+      text,
+    ) &&
+    !/cookware|kitchenware|seasoning|調味料|調理器具/.test(text)
+  ) {
     return "home";
   }
-  if (/fashion|shoes|\bbags\b|ファッション|靴|バッグ/.test(text)) {
+  if (
+    /fashion|shoes|\bbags\b|accessor|jewelry|ファッション|靴|バッグ|アクセサリー|服飾/.test(
+      text,
+    )
+  ) {
     return "fashion";
   }
   return "general";

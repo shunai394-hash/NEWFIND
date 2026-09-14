@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
@@ -29,9 +29,9 @@ export function ReportSheet({
   const [blockBusy, setBlockBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
-  const canBlock = Boolean(
-    targetUserId && !isAiResidentUsername(targetUsername),
-  );
+
+  const isAiResident = isAiResidentUsername(targetUsername);
+  const canBlock = Boolean(targetUserId);
 
   async function submitReport() {
     if (reportBusy || blockBusy) return;
@@ -75,7 +75,15 @@ export function ReportSheet({
   }
 
   async function block() {
-    if (!canBlock || !targetUserId || reportBusy || blockBusy) return;
+    if (
+      !canBlock ||
+      !targetUserId ||
+      isAiResident ||
+      reportBusy ||
+      blockBusy
+    ) {
+      return;
+    }
 
     setBlockBusy(true);
     setError("");
@@ -180,7 +188,7 @@ export function ReportSheet({
           </button>
         )}
 
-        {canBlock ? (
+        {canBlock && !isAiResident ? (
           <button
             type="button"
             disabled={anyBusy}

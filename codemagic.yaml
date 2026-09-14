@@ -1,4 +1,4 @@
-﻿workflows:
+workflows:
   ios-release:
     name: NEWFIND iOS Release
     instance_type: mac_mini_m2
@@ -40,7 +40,7 @@
 
           echo "=== SET BUILD NUMBER ==="
           cd ios/App
-          agvtool new-version -all 12
+          agvtool new-version -all 14
           cd ../..
 
           echo "=== ARCHIVE ==="
@@ -97,24 +97,3 @@
     publishing:
       app_store_connect:
         auth: integration
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

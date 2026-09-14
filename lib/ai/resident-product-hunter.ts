@@ -10,9 +10,16 @@ import {
   type ProductHunterCandidate,
 } from "./product-hunter";
 import type { AiPersona } from "../ai-post-engine";
-import { saveDiscoveryProductToDb } from "@/lib/discovery/db";
+import { listDiscoveryProductsFromDb, saveDiscoveryProductToDb } from "@/lib/discovery/db";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import type { DiscoveryProductInput } from "@/lib/discovery/types";
+import { findDuplicate, prepareDiscoveryProduct, canonicalProductUrl } from "@/lib/discovery/rules";
+import { getSpecialistHunterByUsername } from "@/lib/ai/specialist-product-hunters";
+
+export type ResidentProductHunterDiscovery = {
+  candidateIndex: number;
+  discoveryProductId: string;
+};
 
 export type ResidentProductHunterResult = {
   residentId: string;
@@ -22,6 +29,7 @@ export type ResidentProductHunterResult = {
   worldNews: WorldSearchResult[];
   candidates: ProductHunterCandidate[];
   savedProductIds: string[];
+  discoveries: ResidentProductHunterDiscovery[];
 };
 
 function candidateToDiscoveryInput(
@@ -79,7 +87,13 @@ function candidateToDiscoveryInput(
 export async function runResidentProductHunter(
   persona: AiPersona,
   sharedWorldNews: WorldSearchResult[] = [],
+  options?: { dryRun?: boolean },
 ): Promise<ResidentProductHunterResult> {
+  const specialist = getSpecialistHunterByUsername(persona.username);
+  const huntingSpecialty =
+    specialist?.huntingSpecialty ||
+    (persona.expertise ?? []).slice(0, 3).join(" / ") ||
+    undefined;
   const query = buildResidentSearchQuery({
     residentName: persona.persona_name,
     interests: persona.interests ?? [],
@@ -89,6 +103,10 @@ export async function runResidentProductHunter(
     values: persona.values ?? [],
     country: persona.country_code || persona.region || null,
     language: persona.languages?.[0],
+    favoriteBrands: persona.favorite_brands ?? [],
+    region: persona.region,
+    discoveryKeywords: specialist?.discoveryKeywords ?? persona.interests ?? [],
+    huntingSpecialty,
   });
 
   const productResults = await searchWorld({
@@ -110,6 +128,7 @@ export async function runResidentProductHunter(
       worldNews: newsSignals,
       candidates: [],
       savedProductIds: [],
+      discoveries: [],
     };
   }
 
@@ -125,15 +144,67 @@ export async function runResidentProductHunter(
     region: persona.region,
     languages: persona.languages ?? [],
     culture: persona.culture,
+    huntingSpecialty,
     results: searchResults,
   });
-
   const savedProductIds: string[] = [];
+  const discoveries: ResidentProductHunterDiscovery[] = [];
 
-  for (const candidate of candidates) {
+  // Load existing discovery products so this run can skip duplicates.
+  let existingProducts = await listDiscoveryProductsFromDb({
+    admin: true,
+    status: "all",
+  });
+
+  for (
+    let candidateIndex = 0;
+    candidateIndex < candidates.length;
+    candidateIndex++
+  ) {
+    const candidate = candidates[candidateIndex];
+    if (candidate.origin === "catalog") {
+      console.log(
+        `[AI PRODUCT HUNTER] catalog fallback kept as candidate but not saved as this-cycle discovery: ${candidate.brand} / ${candidate.productName}`,
+      );
+      continue;
+    }
+
+    if (options?.dryRun) {
+      discoveries.push({
+        candidateIndex,
+        discoveryProductId: `dry-${candidateIndex}`,
+      });
+      continue;
+    }
+
     const input = candidateToDiscoveryInput(candidate, persona.id);
-    const saved = await saveDiscoveryProductToDb(input);
+    const prepared = prepareDiscoveryProduct(input);
+
+    const duplicate = findDuplicate(prepared, existingProducts);
+    const duplicateUrl = existingProducts.some(
+      (item) =>
+        canonicalProductUrl(item.productUrl) ===
+        canonicalProductUrl(candidate.productUrl),
+    );
+
+    if (duplicate || duplicateUrl) {
+      console.log(
+        `[AI PRODUCT HUNTER] duplicate skipped: ${candidate.brand} / ${candidate.productName} -> ${duplicate?.id ?? candidate.productUrl}`,
+      );
+      continue;
+    }
+
+    const saved = await saveDiscoveryProductToDb(prepared);
+
     savedProductIds.push(saved.id);
+
+    discoveries.push({
+      candidateIndex,
+      discoveryProductId: saved.id,
+    });
+
+    // Keep existingProducts in sync so later candidates in this run can detect duplicates.
+    existingProducts = [...existingProducts, saved];
   }
 
   return {
@@ -144,5 +215,6 @@ export async function runResidentProductHunter(
     worldNews: newsSignals,
     candidates,
     savedProductIds,
+    discoveries,
   };
 }

@@ -18,7 +18,7 @@ import {
   inferVisualKind,
   visualKindLabel,
 } from "@/lib/japan-context";
-import { isLocallyBlocked } from "@/lib/moderation/client";
+import { isAiResidentUsername, isLocallyBlocked } from "@/lib/moderation/client";
 import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import { isVisibleTimelinePost } from "@/lib/posts/text-post";
 import { getStore } from "@/lib/store";
@@ -35,14 +35,16 @@ export function PostCard({
   onDeleted?: (postId: string) => void;
   onUnavailable?: (postId: string) => void;
 }) {
-  const { ready, session, me } = useApp();
+  const { ready, session, me, blockedIds } = useApp();
   const [post, setPost] = useState(initial);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [muted, setMuted] = useState(true);
   const [mediaFailed, setMediaFailed] = useState(false);
-  const [hidden, setHidden] = useState(isLocallyBlocked(initial.authorId));
+  const [hidden, setHidden] = useState(
+    isLocallyBlocked(initial.authorId) || blockedIds.includes(initial.authorId),
+  );
   const videoRef = useRef<HTMLVideoElement>(null);
   const hasMedia = hasDisplayablePostMedia(post);
   const mine = me?.id === post.authorId;
@@ -52,9 +54,11 @@ export function PostCard({
   useEffect(() => {
     setPost(initial);
     setMediaFailed(false);
-    setHidden(isLocallyBlocked(initial.authorId));
+    setHidden(
+      isLocallyBlocked(initial.authorId) || blockedIds.includes(initial.authorId),
+    );
     notified.current = false;
-  }, [initial]);
+  }, [initial, blockedIds]);
 
   useEffect(() => {
     if (!hasMedia || !mediaFailed || notified.current) return;
@@ -261,6 +265,9 @@ export function PostCard({
           postId={post.id}
           targetUserId={post.authorId}
           targetUsername={post.author.username}
+          isAiTarget={
+            post.source === "ai" || isAiResidentUsername(post.author.username)
+          }
           onClose={() => setReportOpen(false)}
           onBlocked={() => {
             setHidden(true);

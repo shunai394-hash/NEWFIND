@@ -14,7 +14,8 @@ import { useApp } from "@/lib/app-context";
 import { fetchSavedProducts, fetchUserAlerts, patchUserAlert } from "@/lib/discovery/client-api";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { ALERT_TYPE_LABELS, type AlertType } from "@/lib/discovery/types";
-import { addLocalBlock, isLocallyBlocked, removeLocalBlock } from "@/lib/moderation/client";
+import { isAiResidentUsername, isLocallyBlocked } from "@/lib/moderation/client";
+import { lookupNamedWorldResident } from "@/lib/ai/named-world-residents";
 import { displayUrl, socialLinkEntries } from "@/lib/social-links";
 import { getStore } from "@/lib/store";
 import { normalizeUsername, usernamesMatch } from "@/lib/username";
@@ -28,7 +29,7 @@ type FollowSheetMode = "followers" | "following" | null;
 type ProfileTab = "posts" | "saved" | "liked";
 
 export function ProfileView({ username }: { username: string }) {
-  const { ready, session, me } = useApp();
+  const { ready, session, me, blockedIds, registerBlock, unregisterBlock } = useApp();
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
   const [state, setState] = useState<ViewState>("loading");
@@ -102,7 +103,9 @@ export function ProfileView({ username }: { username: string }) {
 
         if (!cancelled) {
           setProfile(found);
-          setBlocked(isLocallyBlocked(found.id));
+          setBlocked(
+            isLocallyBlocked(found.id) || blockedIds.includes(found.id),
+          );
           setState("success");
         }
 
@@ -181,6 +184,17 @@ export function ProfileView({ username }: { username: string }) {
     profile &&
     (session.userId === profile.id || me?.id === profile.id)
   );
+  const worldResident = lookupNamedWorldResident(profile?.username);
+  const isAiProfile =
+    Boolean(worldResident) || isAiResidentUsername(profile?.username);
+  const canBlockHuman = Boolean(session && profile && !mine && !isAiProfile);
+
+  useEffect(() => {
+    if (!profile) return;
+    setBlocked(
+      blockedIds.includes(profile.id) || isLocallyBlocked(profile.id),
+    );
+  }, [profile, blockedIds]);
 
   useEffect(() => {
     if (!mine || !session?.userId) return;
@@ -236,9 +250,23 @@ export function ProfileView({ username }: { username: string }) {
     setCounts(await getStore().getFollowCounts(profile.id));
   }
 
+  async function block() {
+    if (!profile || !canBlockHuman || profile.id === session?.userId) return;
+    const response = await fetch("/api/blocks", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify({ userId: profile.id, blocked: true }),
+    }).catch(() => undefined);
+    if (response && !response.ok && response.status !== 401) {
+      return;
+    }
+    registerBlock(profile.id);
+    setBlocked(true);
+  }
+
   async function unblock() {
     if (!profile) return;
-    removeLocalBlock(profile.id);
+    unregisterBlock(profile.id);
     await fetch("/api/blocks", {
       method: "POST",
       headers: { "content-type": "application/json", ...(await authHeaders()) },
@@ -284,6 +312,15 @@ export function ProfileView({ username }: { username: string }) {
           <div className="min-w-0">
             <p className="text-sm font-semibold">{profile.displayName}</p>
             <p className="text-xs text-neutral-400">@{profile.username}</p>
+            {worldResident?.huntingSpecialty ? (
+              <p className="mt-1 text-xs font-semibold text-neutral-700">
+                {worldResident.huntingSpecialty}を探す住民
+              </p>
+            ) : worldResident ? (
+              <p className="mt-1 text-xs font-semibold text-neutral-700">
+                NEWFIND世界の住民
+              </p>
+            ) : null}
             {profile.accountType === "business" ? (
               <p className="mt-1 text-xs font-semibold text-neutral-500">
                 ビジネスアカウント
@@ -335,6 +372,15 @@ export function ProfileView({ username }: { username: string }) {
             </button>
           )}
         </div>
+        {canBlockHuman && !blocked ? (
+          <button
+            type="button"
+            onClick={() => void block()}
+            className="mt-4 w-full rounded-xl bg-neutral-100 py-3 text-sm font-semibold text-red-600"
+          >
+            ブロックする
+          </button>
+        ) : null}
         {blocked ? (
           <div className="mt-4 rounded-xl bg-neutral-50 px-3 py-3">
             <p className="text-sm">このユーザーはブロックされています。</p>
@@ -424,9 +470,10 @@ export function ProfileView({ username }: { username: string }) {
         <ReportSheet
           targetUserId={profile.id}
           targetUsername={profile.username}
+          isAiTarget={isAiProfile}
           onClose={() => setReportOpen(false)}
           onBlocked={(userId) => {
-            addLocalBlock(userId);
+            registerBlock(userId);
             setBlocked(true);
           }}
         />

@@ -1,8 +1,15 @@
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { generateAIText, generateAITextWithImages } from "./groq";
 import {
+  extractProductImageFromHtml,
+  fetchPageHtml,
+  isAcceptableProductPageImage,
+} from "./product-page";
+import {
+  isLiveWorldProduct,
   isNewsSignal,
   isProductSource,
+  type WorldSearchOrigin,
   type WorldSearchResult,
 } from "./world-search";
 import type { DiscoveryCategory, TrendTag } from "@/lib/discovery/types";
@@ -19,6 +26,7 @@ export type ProductHunterInput = {
   region?: string | null;
   languages?: string[];
   culture?: string | null;
+  huntingSpecialty?: string;
   results: WorldSearchResult[];
 };
 
@@ -38,6 +46,7 @@ export type ProductHunterCandidate = {
   trendTags: TrendTag[];
   trendScore: number;
   confidenceScore: number;
+  origin: WorldSearchOrigin;
 };
 
 const CATEGORIES = new Set<string>([
@@ -137,9 +146,7 @@ function isLikelyConcreteProduct(
     return true;
   }
 
-  const genericPagePatterns = [
-    "shop",
-    "store",
+  const genericListingPatterns = [
     "category",
     "categories",
     "collection",
@@ -154,24 +161,27 @@ function isLikelyConcreteProduct(
     "magazine",
     "press release",
     "event",
-    "店舗",
-    "ショップ",
-    "ストア",
-    "カテゴリ",
-    "カテゴリー",
-    "コレクション",
-    "商品一覧",
-    "一覧",
-    "検索",
-    "記事",
-    "ニュース",
-    "雑誌",
-    "イベント",
   ];
-
+  const genericShopPatterns = ["shop", "store"];
   const genericPageText = `${productName} ${title}`.trim();
+  const hasProductPath =
+    /\/products?(?:\/|$)|\/items?(?:\/|$)|\/shop\/[^/?#]+|\/store\/[^/?#]+|\/p\/[^/?#]+|\/dp\/[a-z0-9]+|\/gp\/product\/[a-z0-9]+|\/goods\/[^/?#]+|\/pd\/[^/?#]+/u.test(
+      url,
+    );
 
-  if (genericPagePatterns.some((pattern) => genericPageText.includes(pattern))) {
+  if (genericListingPatterns.some((pattern) => genericPageText.includes(pattern))) {
+    console.log(
+      "PRODUCT HUNTER: rejected generic/non-product page:",
+      productName,
+      source.url,
+    );
+    return false;
+  }
+
+  if (
+    !hasProductPath &&
+    genericShopPatterns.some((pattern) => genericPageText.includes(pattern))
+  ) {
     console.log(
       "PRODUCT HUNTER: rejected generic/non-product page:",
       productName,
@@ -186,13 +196,11 @@ function isLikelyConcreteProduct(
     "ebook",
     "kindle",
     "magazine issue",
-    "書籍",
-    "本",
-    "小説",
-    "雑誌",
-    "電子書籍",
+    "book",
+    "novel",
+    "comic",
+    "electronic book",
   ];
-
   if (
     nonTargetContentPatterns.some(
       (pattern) =>
@@ -219,13 +227,8 @@ function isLikelyConcreteProduct(
   ].join(" ");
 
   const hasPurchaseSignal =
-    /add to cart|add to bag|buy now|shop now|price|sku|ingredients|volume|ml|oz|size|color|colour|購入|価格|容量|成分|サイズ|カラー|商品/u.test(
+    /add to cart|add to bag|buy now|shop now|price|sku|ingredients|volume|ml|oz|size|color|colour|驛｢・ｧ繝ｻ・ｫ驛｢譎｢・ｽ・ｼ驛｢譏ｴ繝ｻ鬮ｮ莨夲ｽｽ・ｼ髯ｷ闌ｨ・ｽ・･|髣憺屮・ｽ・｡髫ｴ・ｬ繝ｻ・ｼ|驛｢・ｧ繝ｻ・ｵ驛｢・ｧ繝ｻ・､驛｢・ｧ繝ｻ・ｺ|驛｢・ｧ繝ｻ・ｫ驛｢譎｢・ｽ・ｩ驛｢譎｢・ｽ・ｼ|髯懶｣ｰ郢晢ｽｻ陋ｻﾂ/u.test(
       productEvidence,
-    );
-
-  const hasProductPath =
-    /\/products?(?:\/|$)|\/items?(?:\/|$)|\/shop\/[^/?#]+|\/store\/[^/?#]+|\/p\/[^/?#]+|\/dp\/[a-z0-9]+/u.test(
-      url,
     );
 
   if (!hasPurchaseSignal && !hasProductPath) {
@@ -265,6 +268,7 @@ function formatSearchRow(
     `Domain: ${result.domain}`,
     `Source type: ${result.sourceType}`,
     `Source role: ${result.sourceRole ?? kind}`,
+    `Origin: ${result.origin ?? "web"}`,
     result.language ? `Language: ${result.language}` : "",
     result.sourceCountry ? `Country: ${result.sourceCountry}` : "",
     result.publishedAt ? `Published: ${result.publishedAt}` : "",
@@ -281,15 +285,40 @@ function buildSearchContext(
   news: WorldSearchResult[],
   products: WorldSearchResult[],
 ): string {
+  const liveProducts = products.filter(isLiveWorldProduct);
+  const catalogProducts = products.filter(
+    (result) => result.origin === "catalog",
+  );
+  const promptProducts = liveProducts.length > 0 ? liveProducts : catalogProducts;
+
   const newsBlock = news
     .slice(0, 8)
     .map((result, index) => formatSearchRow(result, index, "news"))
     .join("\n\n");
 
-  const productBlock = products
+  const productBlock = promptProducts
     .slice(0, 8)
     .map((result, index) => formatSearchRow(result, index, "product"))
     .join("\n\n");
+
+  const productHeader =
+    liveProducts.length > 0
+      ? "WEB / EXTRACTED / OPEN BEAUTY FACTS PRODUCT SOURCES"
+      : "CATALOG FALLBACK PRODUCT SOURCES";
+
+  const productRules =
+    liveProducts.length > 0
+      ? [
+          "These URLs were found in this search of the world, including pages extracted from discovered source pages.",
+          "productUrl and officialUrl must exactly match URLs from these product sources.",
+          "Do not invent URLs. Catalog fallback is not included because live product pages were found.",
+        ]
+      : [
+          "No live web product pages were found in this search.",
+          "These catalog URLs are fallback evidence only. They are not products the resident just found on the web.",
+          "productUrl and officialUrl must exactly match URLs from these product sources.",
+          "Do not invent URLs.",
+        ];
 
   return [
     "WORLD NEWS / DISCOVERY SIGNALS",
@@ -297,9 +326,8 @@ function buildSearchContext(
     "They are NOT product sources. Never use their URLs or images as productUrl, officialUrl, or productImageUrl.",
     newsBlock || "No news signals.",
     "",
-    "PRODUCT SOURCES",
-    "These are the only sources that may provide product URLs and official URLs.",
-    "productUrl and officialUrl must exactly match URLs from these product sources.",
+    productHeader,
+    ...productRules,
     productBlock || "No product sources.",
   ].join("\n");
 }
@@ -341,6 +369,9 @@ function buildHunterPrompt(
     `Languages: ${(input.languages ?? []).join(", ") || "unknown"}`,
     `Culture: ${input.culture || "unknown"}`,
     `Goals: ${input.goals.join(" / ") || "none"}`,
+    input.huntingSpecialty
+      ? `Hunting specialty: ${input.huntingSpecialty}`
+      : "",
     "",
     "WORLD NEWS IS A DISCOVERY SIGNAL ONLY.",
     "News may explain why a product is interesting, trending, culturally relevant, or newly noticed.",
@@ -351,11 +382,15 @@ function buildHunterPrompt(
     "productUrl must be copied exactly from one of the PRODUCT SOURCE URLs below.",
     "officialUrl must be copied exactly from a PRODUCT SOURCE URL.",
     "Never invent a product, brand, URL, price, or official website.",
+    "Never generate an image URL. productImageUrl is filled from the source page later.",
+    "Prefer Origin web, extracted, or open_beauty_facts over catalog.",
     "Select a concrete individual product that a person could actually purchase.",
     "Do not select stores, shops, category pages, collection pages, catalogs, search pages, articles, magazines, books, events, or generic landing pages.",
     "A product source URL must represent the specific product itself, not merely a website that sells products.",
     "",
     "Use the resident's expertise, values, culture, interests, and personality as the lens for deciding what is interesting.",
+    "attentionReason must be this resident's own reason for noticing the product. Do not write a generic recommendation.",
+    "Stay inside this resident's hunting specialty. Do not pick a product just because another resident might like it.",
     "Expertise such as economics should affect how the resident evaluates products, for example price, marketability, brand strategy, or value.",
     "Do not turn the resident into a political-news poster.",
     "",
@@ -385,7 +420,12 @@ export async function evaluateProductCandidates(
   input: ProductHunterInput,
 ): Promise<ProductHunterCandidate[]> {
   const news = input.results.filter(isNewsSignal);
-  const products = input.results.filter(isProductSource);
+  const allProducts = input.results.filter(isProductSource);
+  const liveProducts = allProducts.filter(isLiveWorldProduct);
+  const catalogProducts = allProducts.filter(
+    (result) => result.origin === "catalog",
+  );
+  const products = liveProducts.length > 0 ? liveProducts : catalogProducts;
 
   if (products.length === 0) {
     console.log(
@@ -394,6 +434,13 @@ export async function evaluateProductCandidates(
     return [];
   }
 
+  console.log(
+    "PRODUCT HUNTER: live product sources:",
+    liveProducts.length,
+    "catalog fallback:",
+    catalogProducts.length,
+  );
+
   const productUrlMap = new Map<string, WorldSearchResult>();
 
   for (const result of products) {
@@ -401,43 +448,14 @@ export async function evaluateProductCandidates(
     productUrlMap.set(normalizeUrl(result.url), result);
   }
 
-  const productBlock = products
-    .slice(0, 12)
-    .map(
-      (result, index) =>
-        `PRODUCT ${index + 1}\nTitle: ${result.title}\nURL: ${result.url}\nDomain: ${result.domain}\nSnippet: ${result.snippet.slice(0, 220)}`,
-    )
-    .join("\n\n");
-
-  const prompt = [
-    "You are a NEWFIND world resident discovering products.",
-    "Choose products that this resident would genuinely notice.",
-    "",
-    `Resident: ${input.residentName}`,
-    `Personality: ${input.personality}`,
-    `Interests: ${input.interests.join(", ")}`,
-    `Preferred categories: ${input.preferredCategories.join(", ")}`,
-    `Expertise: ${(input.expertise ?? []).join(", ") || "none"}`,
-    `Values: ${(input.values ?? []).join(", ") || "none"}`,
-    `Region: ${input.region || "unknown"}`,
-    `Culture: ${input.culture || "unknown"}`,
-    `Goals: ${input.goals.join(" / ") || "none"}`,
-    "",
-    "IMPORTANT RULES:",
-    "You may ONLY select URLs copied exactly from the PRODUCT SOURCES below.",
-    "Never invent a URL.",
-    "Never modify a URL.",
-    "Never select a news URL.",
-    "Never select books, magazines, articles, stores, shops, categories, collections, catalogs, search pages, events, or generic landing pages.",
-    "Select at most 3 concrete individual purchasable products.",
-    "If no suitable product exists, return an empty products array.",
-    "",
-    "Return JSON ONLY in this exact minimal format:",
-    '{"products":[{"productUrl":"EXACT_URL_FROM_SOURCE"}]}',
-    "",
-    "PRODUCT SOURCES:",
-    productBlock,
-  ].join("\n");
+  /*
+   * IMPORTANT:
+   * The resident evaluates the world, rather than merely selecting URLs.
+   *
+   * News = discovery/trend signal only.
+   * Product sources = the only allowed evidence for concrete products.
+   */
+  const prompt = buildHunterPrompt(input, news, products);
 
   console.log("=== AI PRODUCT HUNTER REQUEST ===");
   console.log("resident:", input.residentName);
@@ -488,6 +506,7 @@ export async function evaluateProductCandidates(
       if (!item || typeof item !== "object") continue;
 
       const candidate = item as Record<string, unknown>;
+
       const productUrl = safeString(candidate.productUrl);
 
       if (!productUrl || !isValidHttpUrl(productUrl)) {
@@ -495,9 +514,13 @@ export async function evaluateProductCandidates(
         continue;
       }
 
-      const normalized = normalizeUrl(productUrl);
+      const normalizedProductUrl = normalizeUrl(productUrl);
 
-      if (newsUrlSet.has(normalized)) {
+      /*
+       * Never allow the model to invent or modify URLs.
+       * The URL must exist in the original world-search product sources.
+       */
+      if (newsUrlSet.has(normalizedProductUrl)) {
         console.log(
           "PRODUCT HUNTER: rejected news URL:",
           productUrl,
@@ -505,7 +528,7 @@ export async function evaluateProductCandidates(
         continue;
       }
 
-      const source = productUrlMap.get(normalized);
+      const source = productUrlMap.get(normalizedProductUrl);
 
       if (!source) {
         console.log(
@@ -515,53 +538,169 @@ export async function evaluateProductCandidates(
         continue;
       }
 
-      const sourceCandidate: Record<string, unknown> = {
-        brand: source.title,
-        productName: source.title,
-        description: source.snippet,
-      };
-
-      if (!isLikelyConcreteProduct(sourceCandidate, source)) {
+      /*
+       * Validate the concrete product using both the model output
+       * and the original source evidence.
+       */
+      if (!isLikelyConcreteProduct(candidate, source)) {
+        console.log(
+          "PRODUCT HUNTER: rejected non-concrete product:",
+          productUrl,
+        );
         continue;
       }
 
       const brand =
+        safeString(candidate.brand) ||
         source.title.split(" - ")[0]?.trim() ||
         source.domain ||
         "Unknown";
 
       const productName =
+        safeString(candidate.productName) ||
         source.title.split(" - ").slice(1).join(" - ").trim() ||
         source.title.trim();
 
-      if (!productName) continue;
+      if (!brand || !productName) {
+        console.log(
+          "PRODUCT HUNTER: rejected candidate without brand/product name:",
+          productUrl,
+        );
+        continue;
+      }
 
-      const productImageUrl =
-        source.sourceRole !== "news" &&
-        isUsableProductImage(source.imageUrl)
+      const category = safeCategory(candidate.category);
+
+      const subcategory = safeString(candidate.subcategory).slice(0, 100);
+
+      const country =
+        safeString(candidate.country) ||
+        source.sourceCountry ||
+        null;
+
+      const description =
+        safeString(candidate.description).slice(0, 500) ||
+        source.snippet.slice(0, 500);
+
+      /*
+       * officialUrl must also come from an actual product source.
+       * Never trust an invented URL from the model.
+       */
+      let officialUrl: string | null = null;
+
+      const requestedOfficialUrl = safeString(candidate.officialUrl);
+
+      if (requestedOfficialUrl) {
+        const normalizedOfficialUrl = normalizeUrl(requestedOfficialUrl);
+        const officialSource = productUrlMap.get(normalizedOfficialUrl);
+
+        if (officialSource) {
+          officialUrl = officialSource.url;
+        } else {
+          console.log(
+            "PRODUCT HUNTER: rejected invented official URL:",
+            requestedOfficialUrl,
+          );
+        }
+      }
+
+      if (!officialUrl && source.sourceType === "brand_official") {
+        officialUrl = source.url;
+      }
+
+      /*
+       * IMPORTANT:
+       * Do not trust the image attached to the search result.
+       * The selected product URL is the source of truth.
+       *
+       * This prevents unrelated search/OG/social images from becoming
+       * the image of the NEWFIND product post.
+       */
+      let productImageUrl: string | null = null;
+
+      if (source.origin === "catalog") {
+        productImageUrl = isUsableProductImage(source.imageUrl)
           ? source.imageUrl ?? null
           : null;
+      } else if (source.sourceRole !== "news") {
+        try {
+          const productPageHtml = await fetchPageHtml(source.url);
+
+          if (productPageHtml) {
+            productImageUrl = extractProductImageFromHtml(
+              productPageHtml,
+              source.url,
+            );
+          }
+        } catch (error) {
+          console.error(
+            "PRODUCT HUNTER: product image extraction failed:",
+            source.url,
+            error,
+          );
+        }
+
+        /*
+         * A live product must have an image extracted from its own
+         * product page. Never fall back to the search-result image.
+         */
+        if (!isAcceptableProductPageImage(productImageUrl)) {
+          console.log(
+            "PRODUCT HUNTER: rejected product without canonical product image:",
+            productUrl,
+          );
+          continue;
+        }
+      }
+
+      const currency =
+        safeString(candidate.currency).toUpperCase().slice(0, 10) ||
+        "USD";
+
+      const price = safePrice(candidate.price);
+
+      const attentionReason =
+        safeString(candidate.attentionReason).slice(0, 200) ||
+        `${input.residentName} noticed this product.`;
+
+      const trendTags = safeTrendTags(candidate.trendTags);
+
+      const trendScore = safeScore(candidate.trendScore);
+
+      const confidenceScore = safeScore(candidate.confidenceScore);
+
+      if (confidenceScore < 50) {
+        console.log(
+          "PRODUCT HUNTER: rejected low-confidence candidate:",
+          productName,
+          confidenceScore,
+        );
+        continue;
+      }
 
       candidates.push({
         brand,
         productName,
-        category: "other",
-        subcategory: "",
-        country: source.sourceCountry ?? null,
-        description: source.snippet.slice(0, 500),
+        category,
+        subcategory,
+        country,
+        description,
         productUrl: source.url,
-        officialUrl:
-          source.sourceType === "brand_official" ? source.url : null,
+        officialUrl,
         productImageUrl,
-        currency: "USD",
-        price: null,
-        attentionReason: `Discovered by ${input.residentName}.`,
-        trendTags: [],
-        trendScore: 0,
-        confidenceScore: 60,
+        currency,
+        price,
+        attentionReason,
+        trendTags,
+        trendScore,
+        confidenceScore,
+        origin: source.origin ?? "web",
       });
     }
 
+    /*
+     * Final URL-level deduplication.
+     */
     const unique = new Map<string, ProductHunterCandidate>();
 
     for (const candidate of candidates) {
@@ -578,6 +717,25 @@ export async function evaluateProductCandidates(
       "PRODUCT HUNTER: final candidates:",
       finalCandidates.length,
     );
+
+    for (const candidate of finalCandidates) {
+      console.log("PRODUCT HUNTER: candidate:", {
+        resident: input.residentName,
+        brand: candidate.brand,
+        productName: candidate.productName,
+        category: candidate.category,
+        productUrl: candidate.productUrl,
+        officialUrl: candidate.officialUrl,
+        origin: candidate.origin,
+        productImageUrl: candidate.productImageUrl,
+        price: candidate.price,
+        currency: candidate.currency,
+        trendTags: candidate.trendTags,
+        trendScore: candidate.trendScore,
+        confidenceScore: candidate.confidenceScore,
+        attentionReason: candidate.attentionReason,
+      });
+    }
 
     return finalCandidates;
   } catch (error) {

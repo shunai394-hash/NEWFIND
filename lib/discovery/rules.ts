@@ -52,13 +52,36 @@ export function canApprove(product: Pick<
   return true;
 }
 
+export function canonicalProductUrl(value: string | null | undefined): string {
+  if (!value) return "";
+  try {
+    const url = new URL(value.trim());
+    url.hash = "";
+    url.hostname = url.hostname.replace(/^www\./, "").toLowerCase();
+    [
+      "utm_source",
+      "utm_medium",
+      "utm_campaign",
+      "utm_term",
+      "utm_content",
+      "gclid",
+      "fbclid",
+    ].forEach((key) => url.searchParams.delete(key));
+    return url.toString().replace(/\/$/, "").toLowerCase();
+  } catch {
+    return value.trim().replace(/\/$/, "").toLowerCase();
+  }
+}
+
 export function findDuplicate(product: DiscoveryProduct, others: DiscoveryProduct[]) {
   const brand = product.normalizedBrand || normalizeBrand(product.brand);
   const name = product.normalizedProductName || normalizeProductName(product.productName);
+  const productUrl = canonicalProductUrl(product.productUrl);
+  const officialUrl = canonicalProductUrl(product.officialUrl);
   return others.find((item) => {
     if (item.id === product.id || item.status === "rejected") return false;
-    if (product.productUrl && item.productUrl === product.productUrl) return item;
-    if (product.officialUrl && item.officialUrl === product.officialUrl) return item;
+    if (productUrl && canonicalProductUrl(item.productUrl) === productUrl) return item;
+    if (officialUrl && canonicalProductUrl(item.officialUrl) === officialUrl) return item;
     if (product.sku && item.sku && product.sku === item.sku) return item;
     return item.normalizedBrand === brand && item.normalizedProductName === name;
   }) ?? null;

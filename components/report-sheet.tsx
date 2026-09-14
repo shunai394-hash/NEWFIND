@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useApp } from "@/lib/app-context";
 import { authHeaders } from "@/lib/auth/client-headers";
-import { addLocalBlock, isAiResidentUsername } from "@/lib/moderation/client";
+import { isAiResidentUsername } from "@/lib/moderation/client";
 import {
   REPORT_REASONS,
   reportReasonLabel,
@@ -14,24 +15,28 @@ export function ReportSheet({
   postId,
   targetUserId,
   targetUsername,
+  isAiTarget,
   onClose,
   onBlocked,
 }: {
   postId?: string | null;
   targetUserId?: string | null;
   targetUsername?: string | null;
+  isAiTarget?: boolean;
   onClose: () => void;
   onBlocked?: (userId: string) => void;
 }) {
+  const { registerBlock } = useApp();
   const [reason, setReason] = useState<ReportReasonId>("spam");
   const [detail, setDetail] = useState("");
   const [reportBusy, setReportBusy] = useState(false);
   const [blockBusy, setBlockBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
-
-  const isAiResident = isAiResidentUsername(targetUsername);
-  const canBlock = Boolean(targetUserId);
+  const isAiResident =
+    isAiTarget === true ||
+    (isAiTarget !== false && isAiResidentUsername(targetUsername));
+  const canBlock = Boolean(targetUserId) && !isAiResident;
 
   async function submitReport() {
     if (reportBusy || blockBusy) return;
@@ -78,7 +83,6 @@ export function ReportSheet({
     if (
       !canBlock ||
       !targetUserId ||
-      isAiResident ||
       reportBusy ||
       blockBusy
     ) {
@@ -111,7 +115,7 @@ export function ReportSheet({
         );
       }
 
-      addLocalBlock(targetUserId);
+      registerBlock(targetUserId);
       onBlocked?.(targetUserId);
       onClose();
     } catch (err) {
@@ -188,7 +192,7 @@ export function ReportSheet({
           </button>
         )}
 
-        {canBlock && !isAiResident ? (
+        {canBlock ? (
           <button
             type="button"
             disabled={anyBusy}

@@ -14,7 +14,11 @@ import { AndroidImeSupport } from "@/components/android-ime";
 import { OAuthReturnListener } from "@/components/oauth-return-listener";
 import { authHeaders } from "@/lib/auth/client-headers";
 import {
+  addLocalBlock,
   clearLocalBlocks,
+  localBlockedIds,
+  removeLocalBlock,
+  setBlockOwner,
   setLocalBlocks,
 } from "@/lib/moderation/client";
 import { getStore, storeMode } from "@/lib/store";
@@ -27,6 +31,8 @@ type AppContextValue = {
   session: Session | null;
   me: Profile | null;
   blockedIds: string[];
+  registerBlock: (userId: string) => void;
+  unregisterBlock: (userId: string) => void;
   mode: "local" | "supabase";
   refresh: () => Promise<Session | null>;
   requireAuth: () => boolean;
@@ -82,6 +88,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (gen !== authGen.current) return;
       setSession(null);
       setMe(null);
+      setBlockOwner(null);
       clearLocalBlocks();
       setBlockedIds([]);
       markResolved();
@@ -92,6 +99,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const applySignedIn = useCallback(
     async (next: Session, gen: number) => {
       setSession(next);
+      setBlockOwner(next.userId);
+      setBlockedIds(localBlockedIds());
       try {
         const profile = await getStore().ensureMyProfile(next);
         if (gen !== authGen.current) return next;
@@ -107,6 +116,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     [markResolved, syncServerBlocks],
   );
+
+  const registerBlock = useCallback((userId: string) => {
+    if (!userId) return;
+    addLocalBlock(userId);
+    setBlockedIds((prev) => (prev.includes(userId) ? prev : [...prev, userId]));
+  }, []);
+
+  const unregisterBlock = useCallback((userId: string) => {
+    if (!userId) return;
+    removeLocalBlock(userId);
+    setBlockedIds((prev) => prev.filter((id) => id !== userId));
+  }, []);
+
 
   const refresh = useCallback(async () => {
     const gen = ++authGen.current;
@@ -202,11 +224,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       session,
       me,
       blockedIds,
+      registerBlock,
+      unregisterBlock,
       mode: storeMode(),
       refresh,
       requireAuth,
     }),
-    [ready, sessionResolved, session, me, blockedIds, refresh, requireAuth],
+    [
+      ready,
+      sessionResolved,
+      session,
+      me,
+      blockedIds,
+      registerBlock,
+      unregisterBlock,
+      refresh,
+      requireAuth,
+    ],
   );
 
   return (

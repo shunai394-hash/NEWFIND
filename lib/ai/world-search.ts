@@ -1,5 +1,14 @@
 import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
 import {
+  extractProductImageFromHtml,
+  extractUrlsFromText,
+  fetchPageHtml,
+  isAcceptableProductPageImage,
+  isAssetOrNonProductUrl,
+  isStoreOrBrandHomepage,
+  titleFromProductUrl,
+} from "./product-page";
+import {
   isBeautyWorldSearchQuery,
   OpenBeautyFactsWorldSearchProvider,
 } from "./open-beauty-facts";
@@ -14,9 +23,21 @@ export type WorldSearchQuery = {
   query: string;
   country?: string | null;
   language?: string;
+  favoriteBrands?: string[];
+  expertise?: string[];
+  values?: string[];
+  region?: string | null;
+  discoveryKeywords?: string[];
+  huntingSpecialty?: string;
 };
 
 export type WorldSearchSourceRole = "product" | "news" | "general";
+
+export type WorldSearchOrigin =
+  | "web"
+  | "extracted"
+  | "catalog"
+  | "open_beauty_facts";
 
 export type WorldSearchResult = {
   title: string;
@@ -38,6 +59,8 @@ export type WorldSearchResult = {
   sourceCountry?: string | null;
   publishedAt?: string | null;
   sourceRole?: WorldSearchSourceRole;
+  origin?: WorldSearchOrigin;
+  rawContent?: string | null;
 };
 
 export interface WorldSearchProvider {
@@ -52,6 +75,13 @@ export function isNewsSignal(result: WorldSearchResult) {
 
 export function isProductSource(result: WorldSearchResult) {
   return result.sourceRole === "product";
+}
+
+export function isLiveWorldProduct(result: WorldSearchResult) {
+  return (
+    result.sourceRole === "product" &&
+    result.origin !== "catalog"
+  );
 }
 
 /* =========================================================
@@ -100,7 +130,8 @@ function sourceTypeFromDomain(
     d.includes("cnn.com") ||
     d.includes("forbes.com") ||
     d.includes("businessinsider.com") ||
-    d.includes("theguardian.com")
+    d.includes("theguardian.com") ||
+    d.includes("livemint.com")
   ) {
     return "news";
   }
@@ -191,8 +222,7 @@ const NON_PRODUCT_PATH_PATTERNS = [
   /\/events?(?:\/|$)/i,
   /\/category(?:\/|$)/i,
   /\/categories(?:\/(?!.*\/p(?:\/|$))|$)/i,
-  /\/collection(?:\/|$)/i,
-  /\/collections(?:\/|$)/i,
+  /\/collection(?:s)?(?:\/(?!.*\/products\/[^/?#]+)|$)/i,
   /\/tag(?:\/|$)/i,
   /\/tags(?:\/|$)/i,
   /\/search(?:\/|$)/i,
@@ -203,6 +233,11 @@ const NON_PRODUCT_PATH_PATTERNS = [
   /\/about(?:\/|$)/i,
   /\/press-release(?:\/|$)/i,
   /\/press-releases(?:\/|$)/i,
+  /\/news(?:\/|$)/i,
+  /\/journal(?:\/|$)/i,
+  /\/lookbook(?:\/|$)/i,
+  /\/magazine(?:\/|$)/i,
+  /\/books?(?:\/|$)/i,
 ];
 
 const NON_PRODUCT_TITLE_PATTERNS = [
@@ -224,14 +259,17 @@ const NON_PRODUCT_TITLE_PATTERNS = [
 ];
 
 const PRODUCT_PATH_PATTERNS = [
-  /\/products?(?:\/|$)/i,
-  /\/item(?:\/|$)/i,
-  /\/items(?:\/|$)/i,
-  /\/shop(?:\/|$)/i,
-  /\/store(?:\/|$)/i,
-  /\/p(?:\/|$)/i,
-  /\/dp\/[a-z0-9]/i,
-  /\/sku(?:\/|$)/i,
+  /\/products?\/[^/?#]+/i,
+  /\/item\/[^/?#]+/i,
+  /\/items\/[^/?#]+/i,
+  /\/shop\/[^/?#]+/i,
+  /\/store\/[^/?#]+/i,
+  /\/p\/[^/?#]+/i,
+  /\/dp\/[a-z0-9]+/i,
+  /\/gp\/product\/[a-z0-9]+/i,
+  /\/sku\/[^/?#]+/i,
+  /\/goods\/[^/?#]+/i,
+  /\/pd\/[^/?#]+/i,
 ];
 
 const PRODUCT_TEXT_PATTERNS = [
@@ -264,6 +302,14 @@ export function classifyTavilyResult(
   try {
     const parsedUrl = new URL(url);
     const searchParams = parsedUrl.searchParams;
+
+    if (isStoreOrBrandHomepage(url)) {
+      return "general";
+    }
+
+    if (isAssetOrNonProductUrl(url)) {
+      return "general";
+    }
 
     if (["q", "query", "search", "k"].some((key) => searchParams.has(key))) {
       return "general";
@@ -363,16 +409,11 @@ export function classifyTavilyResult(
   }
 
   /*
-   * For unknown/brand domains, require product-specific
-   * evidence instead of assuming every page is a product.
+   * Unknown/brand domains need a concrete product path.
+   * Snippet words like buy/price are not enough; those also
+   * appear on brand homepages, listicles, and ads.
    */
-  const productSignals = PRODUCT_TEXT_PATTERNS.filter(
-    (pattern) => pattern.test(text),
-  ).length;
-
-  return productSignals >= 2
-    ? "product"
-    : "general";
+  return "general";
 }
 
 /* =========================================================
@@ -526,6 +567,7 @@ class CatalogWorldSearchProvider
         domain,
         imageUrl: product.imageUrl || null,
         publishedAt: product.publishedAt ?? null,
+        origin: "catalog",
         sourceRole:
           /\/news(?:\/|$)/i.test(getPath(url))
             ? "general"
@@ -577,7 +619,24 @@ class TavilyWorldSearchProvider
           search_depth: "advanced",
           max_results: 15,
           include_answer: false,
-          include_raw_content: false,
+          include_raw_content: true,
+          exclude_domains: [
+            "youtube.com",
+            "instagram.com",
+            "tiktok.com",
+            "facebook.com",
+            "x.com",
+            "twitter.com",
+            "pinterest.com",
+            "wikipedia.org",
+            "reuters.com",
+            "bbc.com",
+            "cnn.com",
+            "theguardian.com",
+            "apnews.com",
+            "medium.com",
+            "substack.com",
+          ],
         }),
         cache: "no-store",
       },
@@ -597,6 +656,7 @@ class TavilyWorldSearchProvider
         title?: string;
         url?: string;
         content?: string;
+        raw_content?: string | null;
         published_date?: string;
       }>;
     };
@@ -649,6 +709,11 @@ class TavilyWorldSearchProvider
             ? result.published_date
             : null,
         sourceRole,
+        origin: "web",
+        rawContent:
+          typeof result.raw_content === "string"
+            ? result.raw_content
+            : null,
       });
     }
 
@@ -665,68 +730,391 @@ class TavilyWorldSearchProvider
  * Open Beauty Facts results are real product pages.
  * ======================================================= */
 
-function specialistSearchFocus(input: {
+const MAX_EXTRACT_SOURCE_PAGES = 8;
+const MAX_EXTRACTED_PRODUCT_URLS = 8;
+const MAX_IMAGE_FETCHES = 5;
+const MIN_EXTRACT_HTML_BYTES = 8000;
+
+const LIFESTYLE_SEARCH_NOISE = new Set([
+  "cafe",
+  "cafes",
+  "coffee",
+  "travel",
+  "culture",
+  "trend",
+  "trends",
+  "lifestyle",
+  "photography",
+  "cycling",
+  "hiking",
+  "museum",
+  "museums",
+  "yoga",
+  "film",
+  "gardening",
+  "baking",
+  "climbing",
+  "tea",
+  "camping",
+  "book",
+  "books",
+  "vinyl",
+  "indie-games",
+  "architecture",
+  "street-food",
+  "home-cooking",
+  "pricing",
+  "styling",
+  "friends",
+  "people",
+  "media",
+  "news",
+  "daily",
+  "everyday",
+]);
+
+const PRODUCT_HUNT_SIGNAL =
+  /beauty|skincare|fragrance|perfume|cosmetic|makeup|fashion|shoe|sneaker|bag|watch|ceramic|stationer|notebook|\bpen\b|interior|gadget|electronic|audio|food|snack|beverage|fitness|pet|home|tech|jacket|apparel|accessor|serum|moisturizer|outdoor|camp|hiking|tent|backpack|baby|kids|child|stroller|garden|plant|planter|seed|wellness|bath|sleep|supplement|craft|diy|yarn|japan|香水|美容|コスメ|ファッション|靴|バッグ|スキンケア|香り|アウトドア|キャンプ|ベビー|キッズ|文房具|園芸|ウェルネス|日本製/;
+
+export function isLifestyleSearchNoise(value: string): boolean {
+  return LIFESTYLE_SEARCH_NOISE.has(value.trim().toLowerCase());
+}
+
+export function isProductHuntTerm(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed || isLifestyleSearchNoise(trimmed)) return false;
+  const lower = trimmed.toLowerCase();
+  return (
+    PRODUCT_HUNT_SIGNAL.test(lower) ||
+    lower.split(/[\s/_-]+/).some((part) => PRODUCT_HUNT_SIGNAL.test(part))
+  );
+}
+
+type ProductSearchLens =
+  | "beauty"
+  | "fragrance"
+  | "fashion"
+  | "food"
+  | "tech"
+  | "home"
+  | "fitness"
+  | "wellness"
+  | "pet"
+  | "outdoor"
+  | "kids"
+  | "stationery"
+  | "garden"
+  | "craft"
+  | "japan"
+  | "general";
+
+function lensFromHaystack(haystack: string): ProductSearchLens {
+  const text = haystack.toLowerCase();
+  if (/baby|kids|child|stroller|parenting|ベビー|キッズ/.test(text)) {
+    return "kids";
+  }
+  if (/outdoor|camping|hiking|tent|backpack|travel gear|アウトドア|キャンプ/.test(text)) {
+    return "outdoor";
+  }
+  if (/stationer|notebook|\bpen\b|pencil|desk tools|文房具/.test(text)) {
+    return "stationery";
+  }
+  if (/garden|planter|seeds|gardening|園芸/.test(text)) {
+    return "garden";
+  }
+  if (/\bdiy\b|handmade|yarn|workshop tools|クラフト道具/.test(text)) {
+    return "craft";
+  }
+  if (
+    /japanese products|japan brands|made in japan|japan_brands|日本製|日本商品/.test(
+      text,
+    )
+  ) {
+    return "japan";
+  }
+  if (
+    /wellness|self-care|bath|sleep|supplement|ボディケア/.test(text) &&
+    !/fitness|sports|training|フィットネス/.test(text)
+  ) {
+    return "wellness";
+  }
+  if (/fragrance|perfume|香水|フレグランス/.test(text) &&
+      !/skincare|cosmetic|makeup|beauty|美容|コスメ/.test(text)) {
+    return "fragrance";
+  }
+  if (/beauty|cosmetic|skincare|makeup|美容|コスメ|スキンケア/.test(text)) {
+    return "beauty";
+  }
+  if (/pet food|pet care|pet accessories|\bpet\b|ペット/.test(text)) {
+    return "pet";
+  }
+  if (/fitness|sports|training|フィットネス/.test(text)) {
+    return "fitness";
+  }
+  if (/food|beverage|snack|sweet|食品|飲料/.test(text)) {
+    return "food";
+  }
+  if (/gadget|electronics|audio|smart device|\btech\b|ガジェット/.test(text)) {
+    return "tech";
+  }
+  if (/interior|kitchen|household|\bhome\b|インテリア|キッチン/.test(text)) {
+    return "home";
+  }
+  if (/fashion|shoes|\bbags\b|ファッション|靴|バッグ/.test(text)) {
+    return "fashion";
+  }
+  return "general";
+}
+
+function detectSearchLens(input: {
   interests: string[];
   preferredCategories: string[];
   expertise: string[];
-}): string[] {
-  const haystack = [
-    ...input.expertise,
-    ...input.preferredCategories,
-    ...input.interests,
-  ]
-    .join(" ")
-    .toLowerCase();
+  huntingSpecialty?: string;
+}): ProductSearchLens {
+  const fromSpecialty = lensFromHaystack(input.huntingSpecialty ?? "");
+  if (fromSpecialty !== "general") return fromSpecialty;
+  const axis = lensFromHaystack(
+    [...input.expertise, ...input.preferredCategories].join(" "),
+  );
+  if (axis !== "general") return axis;
+  return lensFromHaystack(
+    input.interests.filter((item) => !isLifestyleSearchNoise(item)).join(" "),
+  );
+}
 
+function productPageIntent(lens: ProductSearchLens, language?: string): string {
+  const ja = (language || "").toLowerCase().startsWith("ja");
+  switch (lens) {
+    case "beauty":
+      return ja
+        ? "公式 商品ページ 美容液 化粧水 成分 容量 ml 購入"
+        : "official product page inurl:product serum moisturizer ingredients ml buy";
+    case "fragrance":
+      return ja
+        ? "公式 香水 商品ページ 容量 ml 購入"
+        : "official perfume product page inurl:product eau de parfum ml buy";
+    case "fashion":
+      return ja
+        ? "公式 商品ページ ジャケット スニーカー バッグ サイズ カラー 価格 購入"
+        : "official product page inurl:products sneakers bag size color price buy";
+    case "food":
+      return ja
+        ? "公式 商品ページ 原材料 内容量 購入"
+        : "official product page inurl:product ingredients buy";
+    case "tech":
+      return ja
+        ? "公式 商品ページ スペック sku 購入"
+        : "official product page inurl:dp specs sku buy";
+    case "home":
+      return ja
+        ? "公式 商品ページ サイズ 素材 購入"
+        : "official product page inurl:products dimensions buy";
+    case "fitness":
+      return ja
+        ? "公式 商品ページ サイズ スペック 購入"
+        : "official product page inurl:product size specs buy";
+    case "pet":
+      return ja
+        ? "公式 ペット用品 商品ページ 原材料 内容量 購入"
+        : "official pet product page inurl:product ingredients buy";
+    case "wellness":
+      return ja
+        ? "公式 商品ページ 入浴 睡眠 ボディケア 成分 購入"
+        : "official product page inurl:product bath sleep body care ingredients buy";
+    case "outdoor":
+      return ja
+        ? "公式 商品ページ キャンプ テント スペック 重量 購入"
+        : "official product page inurl:product tent pack specs weight buy";
+    case "kids":
+      return ja
+        ? "公式 ベビー キッズ 商品ページ サイズ 素材 購入"
+        : "official baby kids product page inurl:product size material buy";
+    case "stationery":
+      return ja
+        ? "公式 文房具 商品ページ ペン ノート 購入"
+        : "official stationery product page inurl:product pen notebook buy";
+    case "garden":
+      return ja
+        ? "公式 園芸 商品ページ 鉢 サイズ 購入"
+        : "official garden product page inurl:product planter size buy";
+    case "craft":
+      return ja
+        ? "公式 手芸 工具 商品ページ 材料 購入"
+        : "official craft diy product page inurl:product tools materials buy";
+    case "japan":
+      return ja
+        ? "公式 日本製 商品ページ 産地 容量 購入"
+        : "official made in Japan product page inurl:product buy";
+    default:
+      return ja
+        ? "公式 商品ページ 価格 購入"
+        : "official product page price buy";
+  }
+}
+
+function resultKey(url: string): string | null {
+  try {
+    const normalized = new URL(url);
+    normalized.hash = "";
+    return normalized.toString().replace(/\/$/, "").toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function stripRawContent(result: WorldSearchResult): WorldSearchResult {
+  const copy = { ...result };
+  delete copy.rawContent;
+  return copy;
+}
+
+function productResultFromUrl(
+  url: string,
+  origin: WorldSearchOrigin,
+  title = "",
+  snippet = "",
+): WorldSearchResult | null {
+  if (isAssetOrNonProductUrl(url) || isStoreOrBrandHomepage(url)) {
+    return null;
+  }
+  const domain = getDomain(url);
+  if (!domain) return null;
+  const sourceType = sourceTypeFromDomain(domain);
+  if (sourceType === "sns" || sourceType === "news") return null;
+  const path = getPath(url);
+  const hasProductPath = PRODUCT_PATH_PATTERNS.some((pattern) =>
+    pattern.test(path),
+  );
+  if (!hasProductPath) return null;
+  const sourceRole = classifyTavilyResult(
+    title || titleFromProductUrl(url),
+    url,
+    snippet,
+    sourceType,
+  );
+  if (sourceRole !== "product") return null;
+  return {
+    title: titleFromProductUrl(url, title),
+    url,
+    snippet:
+      snippet.slice(0, 400) ||
+      "Product page found on a discovered source page.",
+    sourceType,
+    domain,
+    imageUrl: null,
+    sourceRole: "product",
+    origin,
+  };
+}
+
+function extractProductResultsFromText(
+  source: WorldSearchResult,
+  text: string,
+  remaining: number,
+): WorldSearchResult[] {
+  if (remaining <= 0 || !text) return [];
+  if (source.sourceRole === "news" || source.sourceType === "sns") return [];
+
+  const extracted: WorldSearchResult[] = [];
+  const seen = new Set<string>();
+
+  for (const url of extractUrlsFromText(text, source.url)) {
+    if (extracted.length >= remaining) break;
+    const key = resultKey(url);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const product = productResultFromUrl(url, "extracted");
+    if (product) extracted.push(product);
+  }
+
+  return extracted;
+}
+
+async function extractProductResultsFromPages(
+  sources: WorldSearchResult[],
+  remaining: number,
+): Promise<WorldSearchResult[]> {
+  if (remaining <= 0) return [];
+
+  const pages = sources.filter(
+    (result) =>
+      result.sourceRole !== "news" &&
+      result.sourceType !== "sns" &&
+      result.sourceType !== "news" &&
+      !isAssetOrNonProductUrl(result.url) &&
+      Boolean(result.url),
+  );
+
+  const extracted: WorldSearchResult[] = [];
+  const seen = new Set<string>();
+  let fetchedPages = 0;
+
+  for (const page of pages) {
+    if (extracted.length >= remaining) break;
+    if (fetchedPages >= MAX_EXTRACT_SOURCE_PAGES) break;
+    const html = await fetchPageHtml(page.url);
+    if (!html || html.length < MIN_EXTRACT_HTML_BYTES) continue;
+    fetchedPages += 1;
+    for (const url of extractUrlsFromText(html, page.url)) {
+      if (extracted.length >= remaining) break;
+      const key = resultKey(url);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const product = productResultFromUrl(url, "extracted");
+      if (product) extracted.push(product);
+    }
+  }
+
+  return extracted;
+}
+
+function imageFetchPriority(result: WorldSearchResult): number {
+  if (result.origin === "open_beauty_facts") return 0;
+  if (result.origin === "extracted") return 1;
   if (
-    /beauty|cosmetic|skincare|fragrance|perfume|makeup|美容|コスメ|スキンケア/.test(
-      haystack,
+    /imall\.com|aliexpress\.|ebay\.|amazon\.|poshmark\.|made-in-china/.test(
+      result.domain,
     )
   ) {
-    return ["new cosmetics", "skincare", "fragrance", "beauty product"];
+    return 9;
   }
+  return 2;
+}
 
-  if (/pet food|pet care|pet accessories|\bpet\b/.test(haystack)) {
-    return ["pet product", "pet food", "pet care accessories"];
-  }
-
-  if (/fitness|sports|training|wellness/.test(haystack)) {
-    return ["fitness gear", "training equipment", "wellness product"];
-  }
-
-  if (/food|beverage|snack|sweet|食品/.test(haystack)) {
-    return ["new food product", "craft beverage", "regional snacks"];
-  }
-
-  if (/gadget|electronics|audio|smart device|\btech\b/.test(haystack)) {
-    return ["new gadget", "startup electronics", "audio device"];
-  }
-
-  if (/interior|kitchen|household|\bhome\b|インテリア/.test(haystack)) {
-    return ["interior product", "kitchen tool", "household design"];
-  }
-
-  if (/fashion|shoes|\bbags\b|ファッション/.test(haystack)) {
-    return [
-      "new fashion brand",
-      "independent fashion",
-      "shoes bags accessories",
-    ];
-  }
-
-  if (
-    /global products|emerging brands|japan imports|international trends/.test(
-      haystack,
+async function enrichProductImages(
+  results: WorldSearchResult[],
+): Promise<WorldSearchResult[]> {
+  const pending = results
+    .filter(
+      (result) =>
+        result.sourceRole === "product" &&
+        result.origin !== "catalog" &&
+        !isAssetOrNonProductUrl(result.url) &&
+        !isAcceptableProductPageImage(result.imageUrl),
     )
-  ) {
-    return [
-      "emerging brand",
-      "new product not in Japan",
-      "international launch",
-    ];
+    .sort((a, b) => imageFetchPriority(a) - imageFetchPriority(b));
+
+  const toFetch = pending.slice(0, MAX_IMAGE_FETCHES);
+  const fetched = await Promise.all(
+    toFetch.map(async (result) => {
+      const html = await fetchPageHtml(result.url);
+      if (!html) return result;
+      const imageUrl = extractProductImageFromHtml(html, result.url);
+      return imageUrl ? { ...result, imageUrl } : result;
+    }),
+  );
+
+  const byKey = new Map<string, WorldSearchResult>();
+  for (const result of fetched) {
+    const key = resultKey(result.url);
+    if (key) byKey.set(key, result);
   }
 
-  return [];
+  return results.map((result) => {
+    const key = resultKey(result.url);
+    return key && byKey.has(key) ? byKey.get(key)! : result;
+  });
 }
 
 class CombinedWorldSearchProvider
@@ -823,6 +1211,50 @@ class CombinedWorldSearchProvider
       );
     }
 
+    const extracted: WorldSearchResult[] = [];
+    const seenExtracted = new Set<string>();
+    const rememberExtracted = (items: WorldSearchResult[]) => {
+      for (const item of items) {
+        if (extracted.length >= MAX_EXTRACTED_PRODUCT_URLS) break;
+        const key = resultKey(item.url);
+        if (!key || seenExtracted.has(key)) continue;
+        if (webResults.some((result) => resultKey(result.url) === key)) {
+          continue;
+        }
+        seenExtracted.add(key);
+        extracted.push(item);
+      }
+    };
+
+    for (const result of webResults) {
+      if (extracted.length >= MAX_EXTRACTED_PRODUCT_URLS) break;
+      rememberExtracted(
+        extractProductResultsFromText(
+          result,
+          `${result.snippet}\n${result.rawContent ?? ""}`,
+          MAX_EXTRACTED_PRODUCT_URLS - extracted.length,
+        ),
+      );
+    }
+
+    const liveProductCount =
+      webResults.filter(isProductSource).length + extracted.length;
+
+    if (liveProductCount < 2) {
+      const pageExtracted = await extractProductResultsFromPages(
+        webResults.filter((result) => result.sourceRole === "general"),
+        MAX_EXTRACTED_PRODUCT_URLS - extracted.length,
+      );
+      rememberExtracted(pageExtracted);
+    }
+
+    if (extracted.length) {
+      console.log(
+        "WORLD SEARCH: extracted product urls:",
+        extracted.length,
+      );
+    }
+
     let catalogResults: WorldSearchResult[] =
       [];
 
@@ -843,9 +1275,23 @@ class CombinedWorldSearchProvider
       );
     }
 
-    const combined = [
+    const liveProducts = [
       ...beautyResults,
-      ...webResults,
+      ...webResults.filter(isProductSource),
+      ...extracted,
+    ];
+    const withImages = await enrichProductImages(liveProducts);
+
+    console.log(
+      "WORLD SEARCH: live products with images:",
+      withImages.filter((result) =>
+        isAcceptableProductPageImage(result.imageUrl),
+      ).length,
+    );
+
+    const combined = [
+      ...withImages,
+      ...webResults.filter((result) => result.sourceRole !== "product"),
       ...catalogResults,
     ];
 
@@ -856,29 +1302,14 @@ class CombinedWorldSearchProvider
       >();
 
     for (const result of combined) {
-      try {
-        const normalized =
-          new URL(result.url);
-
-        normalized.hash = "";
-
-        const key =
-          normalized
-            .toString()
-            .replace(/\/$/, "")
-            .toLowerCase();
-
-        if (!unique.has(key)) {
-          unique.set(key, result);
-        }
-      } catch {
-        continue;
-      }
+      const key = resultKey(result.url);
+      if (!key || unique.has(key)) continue;
+      unique.set(key, stripRawContent(result));
     }
 
     const results = [
       ...unique.values(),
-    ].slice(0, 25);
+    ].slice(0, 30);
 
     console.log(
       "WORLD SEARCH: final results:",
@@ -900,6 +1331,69 @@ export async function searchWorld(
   );
 }
 
+const GENERIC_SEARCH_TERMS = new Set([
+  "fashion",
+  "beauty",
+  "food",
+  "tech",
+  "home",
+  "lifestyle",
+  "product",
+  "products",
+  "trending",
+  "new brands",
+  "new product",
+]);
+
+const GENERIC_BRAND_PATTERN =
+  /independent|emerging|atelier|startup|maker|studio|house|label|overseas|regional|nordic|formula lab|not-yet-in-japan/i;
+
+function pickDistinctTerms(values: string[], max: number): string[] {
+  const picked: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+    if (GENERIC_SEARCH_TERMS.has(trimmed.toLowerCase())) continue;
+    if (picked.some((item) => item.toLowerCase() === trimmed.toLowerCase())) {
+      continue;
+    }
+    picked.push(trimmed);
+    if (picked.length >= max) break;
+  }
+  return picked;
+}
+
+function pickFavoriteBrands(brands: string[]): string[] {
+  return brands
+    .map((brand) => brand.trim())
+    .filter((brand) => brand && !GENERIC_BRAND_PATTERN.test(brand))
+    .slice(0, 2);
+}
+
+export function selectProductHuntTerms(input: {
+  interests: string[];
+  preferredCategories: string[];
+  expertise?: string[];
+  discoveryKeywords?: string[];
+}): string[] {
+  const categories = input.preferredCategories.filter(
+    (item) =>
+      item.trim() &&
+      !isLifestyleSearchNoise(item) &&
+      item.trim().toLowerCase() !== "lifestyle",
+  );
+  const specificCategories = categories.filter(
+    (item) => !GENERIC_SEARCH_TERMS.has(item.trim().toLowerCase()),
+  );
+  const huntInterests = input.interests.filter(isProductHuntTerm);
+  const huntExpertise = (input.expertise ?? []).filter(isProductHuntTerm);
+  const keywords = (input.discoveryKeywords ?? []).filter(isProductHuntTerm);
+  return pickDistinctTerms(
+    [...keywords, ...specificCategories, ...huntInterests, ...huntExpertise],
+    4,
+  );
+}
+
 /* =========================================================
  * Resident Search Query
  * ======================================================= */
@@ -914,52 +1408,55 @@ export function buildResidentSearchQuery(
     values?: string[];
     country?: string | null;
     language?: string;
+    favoriteBrands?: string[];
+    region?: string | null;
+    discoveryKeywords?: string[];
+    huntingSpecialty?: string;
   },
 ): WorldSearchQuery {
-  const interests =
-    input.interests.filter(Boolean);
-
-  const categories =
-    input.preferredCategories.filter(
-      Boolean,
-    );
-
-  const goals =
-    input.goals.filter(Boolean);
-
-  const expertise =
-    (input.expertise ?? []).filter(Boolean);
-
-  const values =
-    (input.values ?? []).filter(Boolean);
-
+  const interests = input.interests.filter(Boolean);
+  const categories = input.preferredCategories.filter(Boolean);
+  const goals = input.goals.filter(Boolean);
+  const expertise = (input.expertise ?? []).filter(Boolean);
+  const values = (input.values ?? []).filter(Boolean);
+  const discoveryKeywords = (input.discoveryKeywords ?? []).filter(Boolean);
+  const huntInterests = interests.filter(isProductHuntTerm);
+  const favoriteBrands = pickFavoriteBrands(input.favoriteBrands ?? []);
+  const lens = detectSearchLens({
+    huntingSpecialty: input.huntingSpecialty,
+    interests: [...discoveryKeywords, ...huntInterests],
+    preferredCategories: categories,
+    expertise,
+  });
+  const interestTerms = selectProductHuntTerms({
+    interests,
+    preferredCategories: categories,
+    expertise,
+    discoveryKeywords,
+  });
+  const region = (input.region || input.country || "").trim();
   const queryParts = [
-    ...specialistSearchFocus({
-      interests,
-      preferredCategories: categories,
-      expertise,
-    }),
-    ...categories,
-    ...interests,
-    ...expertise,
-    ...values,
-    ...goals,
-    "new product",
-    "trending",
-  ];
+    ...favoriteBrands,
+    ...interestTerms,
+    productPageIntent(lens, input.language),
+    region ? region : "",
+  ].filter(Boolean);
 
   return {
     residentId: "",
-    residentName:
-      input.residentName,
-    interests,
-    preferredCategories:
-      categories,
+    residentName: input.residentName,
+    interests: huntInterests.length ? huntInterests : interests,
+    preferredCategories: categories,
     goals,
-    query:
-      queryParts.join(" "),
+    query: queryParts.join(" ").replace(/\s+/g, " ").trim(),
     country: input.country ?? null,
     language: input.language ?? "en",
+    favoriteBrands: input.favoriteBrands ?? [],
+    expertise,
+    values,
+    region: input.region ?? null,
+    discoveryKeywords,
+    huntingSpecialty: input.huntingSpecialty,
   };
 }
 

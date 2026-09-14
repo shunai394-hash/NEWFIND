@@ -1,9 +1,16 @@
-const BLOCKS_KEY = "newfind.blocked-users";
+const LEGACY_BLOCKS_KEY = "newfind.blocked-users";
+const OWNER_KEY = "newfind.blocked-users.owner";
 
-function readLocal(): string[] {
+let ownerId: string | null = null;
+
+function ownerStorageKey(userId: string) {
+  return `${LEGACY_BLOCKS_KEY}.${userId}`;
+}
+
+function readOwnerList(userId: string): string[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(BLOCKS_KEY);
+    const raw = window.localStorage.getItem(ownerStorageKey(userId));
     const parsed = raw ? (JSON.parse(raw) as unknown) : [];
     return Array.isArray(parsed)
       ? parsed.filter((id) => typeof id === "string")
@@ -13,9 +20,54 @@ function readLocal(): string[] {
   }
 }
 
-function writeLocal(ids: string[]) {
+function writeOwnerList(userId: string, ids: string[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(BLOCKS_KEY, JSON.stringify([...new Set(ids)]));
+  window.localStorage.setItem(
+    ownerStorageKey(userId),
+    JSON.stringify([...new Set(ids)]),
+  );
+}
+
+function readLegacyList(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(LEGACY_BLOCKS_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((id) => typeof id === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function readLocal(): string[] {
+  if (!ownerId) return [];
+  return readOwnerList(ownerId);
+}
+
+function writeLocal(ids: string[]) {
+  if (!ownerId) return;
+  writeOwnerList(ownerId, ids);
+}
+
+export function setBlockOwner(userId: string | null) {
+  ownerId = userId;
+  if (typeof window === "undefined") return;
+
+  if (!userId) {
+    window.localStorage.removeItem(OWNER_KEY);
+    window.localStorage.removeItem(LEGACY_BLOCKS_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(OWNER_KEY, userId);
+
+  const legacy = readLegacyList();
+  if (legacy.length > 0 && readOwnerList(userId).length === 0) {
+    writeOwnerList(userId, legacy);
+  }
+  window.localStorage.removeItem(LEGACY_BLOCKS_KEY);
 }
 
 export function localBlockedIds() {
@@ -27,8 +79,10 @@ export function setLocalBlocks(ids: string[]) {
 }
 
 export function clearLocalBlocks() {
+  ownerId = null;
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(BLOCKS_KEY);
+  window.localStorage.removeItem(OWNER_KEY);
+  window.localStorage.removeItem(LEGACY_BLOCKS_KEY);
 }
 
 export function addLocalBlock(userId: string) {
@@ -46,5 +100,6 @@ export function isLocallyBlocked(userId: string) {
 export function isAiResidentUsername(username: string | null | undefined) {
   const key = (username ?? "").trim().toLowerCase();
   if (!key) return false;
-  return key.endsWith("_ai") || key.startsWith("ai_");
+  if (/^ai_[a-z0-9]+_\d+$/.test(key)) return true;
+  return key.endsWith("_ai");
 }

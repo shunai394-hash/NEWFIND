@@ -1,6 +1,7 @@
 import type { AIAction } from "./brain";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { saveDiscoveryProductToDb } from "@/lib/discovery/db";
+import { listDiscoveryProductsFromDb, saveDiscoveryProductToDb } from "@/lib/discovery/db";
+import { findDuplicate, prepareDiscoveryProduct, canonicalProductUrl } from "@/lib/discovery/rules";
 import { normalizePostMedia } from "@/lib/posts/text-post";
 import type {
   DiscoveryCategory,
@@ -61,6 +62,25 @@ function safeTrendTags(values: string[]): TrendTag[] {
 function safeScore(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function normalizeProductUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    return url.toString().replace(/\/$/, "").toLowerCase();
+  } catch {
+    return value.trim().replace(/\/$/, "").toLowerCase();
+  }
 }
 
 export async function executeAIAction(
@@ -344,6 +364,50 @@ export async function executeAIAction(
     }
 
     case "DISCOVER_PRODUCT": {
+      const supabase = createAdminClient();
+      const productUrl = action.productUrl.trim();
+
+      if (!productUrl || !isValidHttpUrl(productUrl)) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "invalid product url" },
+        };
+      }
+
+      const { data: targetPost, error: postError } = await supabase
+        .from("posts")
+        .select("id, product_url")
+        .eq("id", action.postId)
+        .maybeSingle();
+
+      if (postError) {
+        throw new Error(postError.message);
+      }
+
+      const postProductUrl = String(targetPost?.product_url ?? "").trim();
+      if (!postProductUrl || !isValidHttpUrl(postProductUrl)) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "post has no product url" },
+        };
+      }
+
+      if (normalizeProductUrl(postProductUrl) !== normalizeProductUrl(productUrl)) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "product url not on target post" },
+        };
+      }
+
+      const { data: personaRow } = await supabase
+        .from("ai_personas")
+        .select("id")
+        .eq("profile_id", userId)
+        .maybeSingle();
+
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
 
@@ -356,8 +420,14 @@ export async function executeAIAction(
         country: action.country?.trim() || null,
         description: action.description?.trim() || "",
         productImageUrl: null,
-        productUrl: action.productUrl.trim(),
-        officialUrl: action.officialUrl?.trim() || null,
+        productUrl: postProductUrl,
+        officialUrl:
+          action.officialUrl &&
+          isValidHttpUrl(action.officialUrl.trim()) &&
+          normalizeProductUrl(action.officialUrl.trim()) ===
+            normalizeProductUrl(postProductUrl)
+            ? action.officialUrl.trim()
+            : null,
         price:
           typeof action.price === "number" && Number.isFinite(action.price)
             ? action.price
@@ -367,6 +437,7 @@ export async function executeAIAction(
         trendScore: safeScore(action.trendScore),
         confidenceScore: safeScore(action.confidenceScore),
         discoverySource: "ai",
+        discoveredByResidentId: personaRow?.id ?? null,
         discoveredAt: now,
         attentionReason: action.attentionReason?.trim() || "",
         status: "pending",
@@ -375,7 +446,7 @@ export async function executeAIAction(
           {
             id: crypto.randomUUID(),
             sourceType: "sns",
-            sourceUrl: action.productUrl.trim(),
+            sourceUrl: postProductUrl,
             sourceTitle: action.productName.trim(),
             sourceDomain: null,
             publishedAt: null,
@@ -389,7 +460,25 @@ export async function executeAIAction(
         sales: [],
       };
 
-      const product = await saveDiscoveryProductToDb(input);
+      const prepared = prepareDiscoveryProduct(input);
+      const existingProducts = await listDiscoveryProductsFromDb({
+        admin: true,
+        status: "all",
+      });
+      const duplicate = findDuplicate(prepared, existingProducts);
+      if (duplicate) {
+        return {
+          executed: true,
+          action,
+          result: {
+            discoveryProductId: duplicate.id,
+            status: duplicate.status,
+            duplicate: true,
+          },
+        };
+      }
+
+      const product = await saveDiscoveryProductToDb(prepared);
 
       return {
         executed: true,
@@ -422,22 +511,84 @@ export type AIProductPostInput = {
   caption?: string | null;
 };
 
+async function findExistingAiProductPost(input: {
+  discoveryProductId: string;
+  productUrl: string;
+}) {
+  const supabase = createAdminClient();
+  const productUrl = input.productUrl.trim();
+  const canonical = canonicalProductUrl(productUrl);
+
+  const { data: byDiscovery, error: lookupError } = await supabase
+    .from("posts")
+    .select("id, author_id, product_url")
+    .eq("source", "ai")
+    .eq("discovery_product_id", input.discoveryProductId)
+    .limit(1)
+    .maybeSingle();
+
+  if (lookupError) {
+    if (/discovery_product_id|schema cache|42703/i.test(lookupError.message)) {
+      const { data: legacyExisting, error: legacyLookupError } = await supabase
+        .from("posts")
+        .select("id, author_id, product_url")
+        .eq("source", "ai")
+        .eq("source_ref", input.discoveryProductId)
+        .limit(1)
+        .maybeSingle();
+      if (legacyLookupError) throw new Error(legacyLookupError.message);
+      if (legacyExisting) return legacyExisting;
+    } else {
+      throw new Error(lookupError.message);
+    }
+  } else if (byDiscovery) {
+    return byDiscovery;
+  }
+
+  if (productUrl) {
+    const { data: byUrl, error: urlError } = await supabase
+      .from("posts")
+      .select("id, author_id, product_url")
+      .eq("source", "ai")
+      .eq("product_url", productUrl)
+      .limit(1)
+      .maybeSingle();
+    if (urlError) throw new Error(urlError.message);
+    if (byUrl) return byUrl;
+  }
+
+  if (canonical) {
+    const { data: recent, error: recentError } = await supabase
+      .from("posts")
+      .select("id, author_id, product_url")
+      .eq("source", "ai")
+      .not("product_url", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(400);
+    if (recentError) throw new Error(recentError.message);
+    const match = (recent ?? []).find(
+      (row) => canonicalProductUrl(String(row.product_url ?? "")) === canonical,
+    );
+    if (match) return match;
+  }
+
+  return null;
+}
+
 export async function publishAIProductPost(
   userId: string,
   input: AIProductPostInput,
 ) {
   const supabase = createAdminClient();
 
-  const { data: existing, error: lookupError } = await supabase
-    .from("posts")
-    .select("id")
-    .eq("author_id", userId)
-    .eq("source_ref", input.discoveryProductId)
-    .maybeSingle();
-
-  if (lookupError) {
-    throw new Error(lookupError.message);
-  }
+  /*
+   * AI product posts are globally unique per discovery product AND
+   * canonical product URL. Multiple hunters must not post the same item.
+   */
+  const existing = await findExistingAiProductPost({
+    discoveryProductId: input.discoveryProductId,
+    productUrl: input.productUrl,
+  });
 
   if (existing) {
     return {
@@ -485,11 +636,13 @@ export async function publishAIProductPost(
     /discovery_product_id|schema cache|42703/i.test(error.message)
   ) {
     delete payload.discovery_product_id;
+
     const retry = await supabase
       .from("posts")
       .insert(payload)
       .select("*")
       .single();
+
     post = retry.data;
     error = retry.error;
   }

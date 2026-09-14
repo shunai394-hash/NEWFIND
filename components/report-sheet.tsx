@@ -33,10 +33,14 @@ export function ReportSheet({
   const [blockBusy, setBlockBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const targetId = String(targetUserId ?? "").trim();
+  const username = String(targetUsername ?? "").trim();
+  // Username is the source of truth. Do not hide the button just because
+  // isAiTarget was derived from post.source === "ai".
   const isAiResident =
-    isAiTarget === true ||
-    (isAiTarget !== false && isAiResidentUsername(targetUsername));
-  const canBlock = Boolean(targetUserId) && !isAiResident;
+    isAiResidentUsername(username) ||
+    (isAiTarget === true && !username);
+  const canBlock = Boolean(targetId) && !isAiResident;
 
   async function submitReport() {
     if (reportBusy || blockBusy) return;
@@ -80,12 +84,7 @@ export function ReportSheet({
   }
 
   async function block() {
-    if (
-      !canBlock ||
-      !targetUserId ||
-      reportBusy ||
-      blockBusy
-    ) {
+    if (!canBlock || !targetId || reportBusy || blockBusy) {
       return;
     }
 
@@ -100,7 +99,7 @@ export function ReportSheet({
           ...(await authHeaders()),
         },
         body: JSON.stringify({
-          userId: targetUserId,
+          userId: targetId,
           blocked: true,
         }),
       });
@@ -115,8 +114,8 @@ export function ReportSheet({
         );
       }
 
-      registerBlock(targetUserId);
-      onBlocked?.(targetUserId);
+      registerBlock(targetId);
+      onBlocked?.(targetId);
       onClose();
     } catch (err) {
       setError(

@@ -263,11 +263,9 @@ export function PostCard({
       {reportOpen ? (
         <ReportSheet
           postId={post.id}
-          targetUserId={post.authorId}
+          targetUserId={post.authorId || post.author.id}
           targetUsername={post.author.username}
-          isAiTarget={
-            post.source === "ai" || isAiResidentUsername(post.author.username)
-          }
+          isAiTarget={isAiResidentUsername(post.author.username)}
           onClose={() => setReportOpen(false)}
           onBlocked={() => {
             setHidden(true);

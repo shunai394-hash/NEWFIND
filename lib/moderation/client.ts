@@ -97,9 +97,35 @@ export function isLocallyBlocked(userId: string) {
   return readLocal().includes(userId);
 }
 
+const AI_RESIDENT_USERNAMES = new Set([
+  "yuna_ai",
+  "isla_ai",
+  "camille_ai",
+  "noa_ai",
+  "mira_beauty_ai",
+  "leo_fashion_ai",
+  "kai_tech_ai",
+  "mei_food_ai",
+  "lina_home_ai",
+  "rio_fitness_ai",
+  "hana_pet_ai",
+  "noah_world_ai",
+  "aya_wellness_ai",
+  "jules_outdoor_ai",
+  "sora_kids_ai",
+  "kenji_japan_ai",
+  "elena_stationery_ai",
+  "theo_garden_ai",
+  "nia_craft_ai",
+  "maya_beauty_ai",
+  "liam_tech_ai",
+  "clara_home_ai",
+  "riku_food_ai",
+  "sofia_fashion_ai",
+]);
+
 export function isAiResidentUsername(username: string | null | undefined) {
   const key = (username ?? "").trim().toLowerCase();
   if (!key) return false;
-  if (/^ai_[a-z0-9]+_\d+$/.test(key)) return true;
-  return key.endsWith("_ai");
+  return AI_RESIDENT_USERNAMES.has(key);
 }

@@ -127,6 +127,15 @@ export async function assignDiscoveryToResident(input: {
     relatedProductId: input.productId,
     relatedRunId: input.runId ?? null,
   });
+  await logAiActivity({
+    personaId: chosen.id,
+    actorName: input.scoutName,
+    actorRole: "world_scout",
+    action: "handoff",
+    detail: `${input.title} → ${chosen.persona_name}`,
+    relatedProductId: input.productId,
+    relatedRunId: input.runId ?? null,
+  });
 
   return { personaId: chosen.id, personaName: chosen.persona_name };
 }

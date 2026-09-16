@@ -11,6 +11,7 @@ import {
   acquireEngineLock,
   finishEngineRun,
 } from "@/lib/ai/control-tower/runs";
+import { ensureAgentOs } from "@/lib/ai/agent-os";
 import type { EngineRunType, EngineTrigger } from "@/lib/ai/control-tower/types";
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 
@@ -188,6 +189,12 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       featuredResidents = await ensureFeaturedLivingResidents();
     } catch (error) {
       console.error("Featured living residents failed. Continuing.", error);
+    }
+
+    try {
+      await ensureAgentOs();
+    } catch (error) {
+      console.error("Agent OS ensure failed. Continuing.", error);
     }
 
     const personas = await getActiveAiPersonas();

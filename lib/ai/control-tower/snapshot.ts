@@ -3,6 +3,7 @@ import { CONTROL_TOWER_THRESHOLDS, residentActiveWindowMs } from "./thresholds";
 import { healthFromFreshness } from "./health";
 import { errorKindLabel } from "./errors";
 import { latestCronRuns, readEngineControl } from "./runs";
+import { loadAgentOsTower } from "@/lib/ai/agent-os/snapshot";
 import type {
   ActivityLogRow,
   ControlTowerAlert,
@@ -453,6 +454,11 @@ export async function loadControlTowerSnapshot(): Promise<ControlTowerSnapshot> 
     Date.now() - Date.parse(control?.running_since || "") <
       CONTROL_TOWER_THRESHOLDS.lockStaleMs;
 
+  const agentOs = await loadAgentOsTower({
+    paused: Boolean(control?.paused),
+    now,
+  });
+
   return {
     generatedAt: new Date(now).toISOString(),
     paused: Boolean(control?.paused),
@@ -492,6 +498,7 @@ export async function loadControlTowerSnapshot(): Promise<ControlTowerSnapshot> 
     residents,
     logs,
     alerts,
+    agentOs,
     cron: {
       lastScheduledAt: (lastCron?.started_at as string | null) ?? null,
       lastSuccessAt: (lastCronSuccess?.started_at as string | null) ?? null,

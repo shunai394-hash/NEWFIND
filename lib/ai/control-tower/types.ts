@@ -1,3 +1,5 @@
+import type { AgentOsTower } from "@/lib/ai/agent-os/types";
+
 export type EngineRunType =
   | "ai_engine"
   | "world_scout"
@@ -45,7 +47,8 @@ export type ActivityAction =
   | "paused"
   | "resumed"
   | "run_started"
-  | "run_finished";
+  | "run_finished"
+  | "handoff";
 
 export type ControlTowerAlert = {
   level: "red" | "yellow";
@@ -128,6 +131,7 @@ export type ControlTowerSnapshot = {
   residents: ResidentTowerRow[];
   logs: ActivityLogRow[];
   alerts: ControlTowerAlert[];
+  agentOs: AgentOsTower;
   cron: {
     lastScheduledAt: string | null;
     lastSuccessAt: string | null;

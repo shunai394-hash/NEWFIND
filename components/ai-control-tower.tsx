@@ -7,6 +7,7 @@ import { HEALTH_DOT, HEALTH_LABEL, hoursAgoLabel } from "@/lib/ai/control-tower/
 import { errorKindLabel } from "@/lib/ai/control-tower/errors";
 import { flagEmoji } from "@/lib/world/labels";
 import type { ControlTowerSnapshot } from "@/lib/ai/control-tower/types";
+import { EMPTY_AGENT_OS_TOWER, type AgentStatus } from "@/lib/ai/agent-os/types";
 
 const ACTIONS = [
   { id: "run_ai", label: "Run AI Now" },
@@ -14,6 +15,11 @@ const ACTIONS = [
   { id: "run_hunter", label: "Run Product Hunter" },
   { id: "retry_failed", label: "Retry Failed" },
 ] as const;
+
+function agentStatusLabel(status: string) {
+  const key = status as AgentStatus;
+  return `${HEALTH_DOT[key] ?? "⚪"} ${HEALTH_LABEL[key] ?? status.toUpperCase()}`;
+}
 
 export function AiControlTower() {
   const [snapshot, setSnapshot] = useState<ControlTowerSnapshot | null>(null);
@@ -72,6 +78,7 @@ export function AiControlTower() {
   const generated = snapshot
     ? new Date(snapshot.generatedAt).toLocaleString("ja-JP")
     : "";
+  const agentOs = snapshot?.agentOs ?? EMPTY_AGENT_OS_TOWER;
 
   return (
     <div className="space-y-6">
@@ -186,6 +193,100 @@ export function AiControlTower() {
                 {snapshot.lastError.message}
               </p>
             ) : null}
+          </section>
+
+          <section className="rounded-2xl border border-gray-200 bg-white px-4 py-4">
+            <h2 className="text-sm font-semibold">AGENTS</h2>
+            {agentOs.agents.length === 0 ? (
+              <p className="mt-2 text-sm text-neutral-500">
+                Agent OS はまだ初期化されていません。World Scout 実行後に表示されます。
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {agentOs.agents.map((agent) => (
+                  <div
+                    key={agent.agentId}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {agent.countryCode ? `${flagEmoji(agent.countryCode)} ` : ""}
+                        {agent.name}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {agent.type}
+                        {agent.region ? ` · ${agent.region}` : ""}
+                        {agent.beats.length
+                          ? ` / ${agent.beats.slice(0, 3).join(", ")}`
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="text-right text-xs text-neutral-600">
+                      <p>{agentStatusLabel(agent.status)}</p>
+                      <p>Last run: {hoursAgoLabel(agent.lastRunAt)}</p>
+                      {agent.lastRunStatus ? (
+                        <p className="uppercase">{agent.lastRunStatus}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="grid gap-3 lg:grid-cols-2">
+            <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4">
+              <h2 className="text-sm font-semibold">RUNS</h2>
+              {agentOs.runs.length === 0 ? (
+                <p className="mt-2 text-sm text-neutral-500">まだ研究ランがありません</p>
+              ) : (
+                <ul className="mt-3 space-y-2 text-sm">
+                  {agentOs.runs.map((run) => (
+                    <li key={run.id} className="border-b border-gray-100 pb-2 last:border-0">
+                      <p className="font-medium">
+                        {run.agentName}{" "}
+                        <span className="text-xs font-normal uppercase text-neutral-500">
+                          {run.status}
+                        </span>
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {hoursAgoLabel(run.startedAt)}
+                        {run.missionObjective ? ` · ${run.missionObjective}` : ""}
+                      </p>
+                      <p className="text-xs text-neutral-600">
+                        sources {run.sourcesChecked} · findings {run.findingsCount} ·
+                        verified {run.verifiedCount} · dup {run.duplicateCount}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4">
+              <h2 className="text-sm font-semibold">RESEARCH</h2>
+              <ul className="mt-3 space-y-1 text-sm">
+                <li>Sources: {agentOs.research.sources}</li>
+                <li>Findings: {agentOs.research.findings}</li>
+                <li>Verified: {agentOs.research.verified}</li>
+                <li>Duplicates: {agentOs.research.duplicates}</li>
+              </ul>
+              <h2 className="mt-4 text-sm font-semibold">HANDOFF</h2>
+              <ul className="mt-3 space-y-1 text-sm">
+                <li>Pending: {agentOs.handoff.pending}</li>
+                <li>Completed: {agentOs.handoff.completed}</li>
+                <li>Failed: {agentOs.handoff.failed}</li>
+              </ul>
+              {agentOs.handoff.recent.length > 0 ? (
+                <ul className="mt-3 space-y-2 text-xs text-neutral-600">
+                  {agentOs.handoff.recent.map((item) => (
+                    <li key={item.id}>
+                      {item.fromAgent} → {item.toName} · {item.status}
+                      <p className="text-neutral-500">{item.findingTitle}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           </section>
 
           <section className="rounded-2xl border border-gray-200 bg-white px-4 py-4">

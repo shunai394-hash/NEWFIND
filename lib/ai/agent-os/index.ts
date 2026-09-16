@@ -1,6 +1,7 @@
 export type {
   AgentMemory,
   AgentOsAgentRow,
+  AgentOsCoverageRow,
   AgentOsHandoffRow,
   AgentOsRunRow,
   AgentOsTower,
@@ -17,6 +18,7 @@ export type {
   MissionRecord,
   ResearchRunRecord,
   ResearchRunStatus,
+  ResearchSourceInput,
   ResearchSourceRecord,
   VerificationStatus,
 } from "./types";
@@ -40,10 +42,18 @@ export {
 } from "./catalog";
 export { ensureAgentOs } from "./ensure";
 export { loadAgentOsTower } from "./snapshot";
+export { loadResearchCoverage } from "./coverage";
+export { planResearchQueries } from "./query";
+export { assessSourceFreshness, filterFreshSources } from "./freshness";
+export { sourceQualityFromType } from "./quality";
+export { REJECTION_REASONS } from "./rejection";
+export { RESEARCH_LAYER } from "./boundaries";
 export {
   beginAgentResearch,
+  beginResearchSession,
   completeAgentResearch,
   recordCheckedSources,
+  recordFinding,
   recordProductFinding,
   recordResidentHandoff,
 } from "./research";

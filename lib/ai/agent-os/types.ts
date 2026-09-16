@@ -138,6 +138,16 @@ export type ResearchSourceRecord = {
   publishedAt: string | null;
   discoveredAt: string;
   sourceHash: string;
+  sourceQuality: number | null;
+};
+
+export type ResearchSourceInput = {
+  sourceUrl: string;
+  sourceName?: string | null;
+  sourceType?: string;
+  publishedAt?: string | null;
+  title?: string | null;
+  snippet?: string | null;
 };
 
 export type FindingRecord = {
@@ -179,6 +189,7 @@ export type AgentMemory = {
   recentFindings: string[];
   recentRejections: string[];
   recentDuplicates: string[];
+  recentVerifiedFindings: string[];
 };
 
 export type AgentResearchSession = {
@@ -195,6 +206,7 @@ export const EMPTY_AGENT_MEMORY: AgentMemory = {
   recentFindings: [],
   recentRejections: [],
   recentDuplicates: [],
+  recentVerifiedFindings: [],
 };
 
 export type AgentOsAgentRow = {
@@ -232,6 +244,20 @@ export type AgentOsHandoffRow = {
   createdAt: string;
 };
 
+export type AgentOsCoverageRow = {
+  agentId: string;
+  name: string;
+  region: string;
+  beats: string[];
+  runs: number;
+  sources: number;
+  findings: number;
+  verified: number;
+  rejected: number;
+  duplicates: number;
+  noAction: number;
+};
+
 export type AgentOsTower = {
   agents: AgentOsAgentRow[];
   runs: AgentOsRunRow[];
@@ -241,6 +267,7 @@ export type AgentOsTower = {
     verified: number;
     duplicates: number;
   };
+  coverage: AgentOsCoverageRow[];
   handoff: {
     pending: number;
     completed: number;
@@ -253,5 +280,6 @@ export const EMPTY_AGENT_OS_TOWER: AgentOsTower = {
   agents: [],
   runs: [],
   research: { sources: 0, findings: 0, verified: 0, duplicates: 0 },
+  coverage: [],
   handoff: { pending: 0, completed: 0, failed: 0, recent: [] },
 };

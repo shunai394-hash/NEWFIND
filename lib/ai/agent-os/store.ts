@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashSourceUrl } from "./hash";
+import { sourceQualityFromType } from "./quality";
 import type {
   AgentMemory,
   AgentRecord,
@@ -55,6 +56,28 @@ function mapMission(row: Record<string, unknown>): MissionRecord {
     frequency: String(row.frequency ?? "daily"),
     isActive: Boolean(row.is_active),
   };
+}
+
+export async function findAgentById(agentId: string) {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("ai_agents")
+      .select(
+        "id, agent_key, name, type, role, region, country_code, beats, status, capabilities, persona_id, home_app, last_run_at, last_action_at, created_at",
+      )
+      .eq("id", agentId)
+      .maybeSingle();
+    if (error) {
+      if (isAgentOsMissing(error.message)) return null;
+      throw new Error(error.message);
+    }
+    return data ? mapAgent(data as Record<string, unknown>) : null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (isAgentOsMissing(message)) return null;
+    throw error;
+  }
 }
 
 export async function findAgentByPersonaId(personaId: string) {
@@ -171,6 +194,10 @@ export async function loadAgentMemory(agentId: string): Promise<AgentMemory> {
       .filter((row) => row.status === "verified" || row.status === "needs_review")
       .map((row) => String(row.title ?? ""))
       .filter(Boolean);
+    const recentVerifiedFindings = findingRows
+      .filter((row) => row.status === "verified")
+      .map((row) => String(row.title ?? ""))
+      .filter(Boolean);
     const recentRejections = findingRows
       .filter((row) => row.status === "rejected")
       .map((row) => String(row.title ?? ""))
@@ -186,6 +213,7 @@ export async function loadAgentMemory(agentId: string): Promise<AgentMemory> {
       recentFindings: recentFindings.slice(0, 12),
       recentRejections: recentRejections.slice(0, 12),
       recentDuplicates: recentDuplicates.slice(0, 12),
+      recentVerifiedFindings: recentVerifiedFindings.slice(0, 12),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -283,6 +311,7 @@ export async function insertResearchSources(
     publishedAt?: string | null;
     title?: string | null;
     snippet?: string | null;
+    sourceQuality?: number | null;
   }[],
 ) {
   if (input.length === 0) return new Map<string, string>();
@@ -302,6 +331,8 @@ export async function insertResearchSources(
     source_type: item.sourceType ?? "other",
     published_at: item.publishedAt ?? null,
     source_hash: sourceHash,
+    source_quality:
+      item.sourceQuality ?? sourceQualityFromType(item.sourceType),
     title: item.title ?? null,
     snippet: (item.snippet ?? "").slice(0, 500),
   }));
@@ -310,6 +341,41 @@ export async function insertResearchSources(
     .from("ai_research_sources")
     .insert(rows)
     .select("id, source_hash");
+
+  if (error && /source_quality|42703/i.test(error.message)) {
+    const withoutQuality = rows.map((row) => {
+      const copy = { ...row };
+      delete (copy as { source_quality?: number }).source_quality;
+      return copy;
+    });
+    const retry = await admin
+      .from("ai_research_sources")
+      .insert(withoutQuality)
+      .select("id, source_hash");
+    if (retry.error) {
+      if (
+        isAgentOsMissing(retry.error.message) ||
+        /duplicate|23505/i.test(retry.error.message)
+      ) {
+        const existing = await admin
+          .from("ai_research_sources")
+          .select("id, source_hash")
+          .eq("run_id", input[0]?.runId)
+          .in("source_hash", [...unique.keys()]);
+        return new Map(
+          (existing.data ?? []).map((row) => [
+            String(row.source_hash),
+            String(row.id),
+          ]),
+        );
+      }
+      console.warn("insert research sources failed", retry.error.message);
+      return new Map<string, string>();
+    }
+    return new Map(
+      (retry.data ?? []).map((row) => [String(row.source_hash), String(row.id)]),
+    );
+  }
 
   if (error) {
     if (isAgentOsMissing(error.message) || /duplicate|23505/i.test(error.message)) {

@@ -290,6 +290,37 @@ export function AiControlTower() {
           </section>
 
           <section className="rounded-2xl border border-gray-200 bg-white px-4 py-4">
+            <h2 className="text-sm font-semibold">COVERAGE</h2>
+            {agentOs.coverage.length === 0 ? (
+              <p className="mt-2 text-sm text-neutral-500">
+                Research Run から算出。まだランがありません。
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {agentOs.coverage.map((row) => (
+                  <div
+                    key={row.agentId}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-2 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">{row.name}</p>
+                      <p className="text-xs text-neutral-500">
+                        {row.region}
+                        {row.beats.length ? ` / ${row.beats.slice(0, 3).join(", ")}` : ""}
+                      </p>
+                    </div>
+                    <p className="text-xs text-neutral-600">
+                      runs {row.runs} · sources {row.sources} · findings {row.findings} ·
+                      verified {row.verified} · rejected {row.rejected} · dup {row.duplicates} ·
+                      no_action {row.noAction}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-gray-200 bg-white px-4 py-4">
             <h2 className="text-sm font-semibold">ALERT</h2>
             {snapshot.alerts.length === 0 ? (
               <p className="mt-2 text-sm text-neutral-500">現在なし</p>

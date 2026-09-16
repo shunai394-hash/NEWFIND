@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CONTROL_TOWER_THRESHOLDS } from "@/lib/ai/control-tower/thresholds";
 import { isAgentOsMissing } from "./store";
+import { loadResearchCoverage } from "./coverage";
 import type { AgentOsTower, AgentStatus } from "./types";
 import { EMPTY_AGENT_OS_TOWER } from "./types";
 
@@ -190,6 +191,7 @@ export async function loadAgentOsTower(input: {
         verified: typeof verifiedRes.count === "number" ? verifiedRes.count : 0,
         duplicates: typeof duplicateRes.count === "number" ? duplicateRes.count : 0,
       },
+      coverage: await loadResearchCoverage(),
       handoff: {
         pending: typeof pendingRes.count === "number" ? pendingRes.count : 0,
         completed: typeof completedRes.count === "number" ? completedRes.count : 0,

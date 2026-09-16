@@ -33,6 +33,9 @@ import {
   runResidentProductHunter,
   type ResidentProductHunterResult,
 } from "@/lib/ai/resident-product-hunter";
+import { runWorldScoutCycle } from "@/lib/ai/world-scout-cycle";
+import { listAssignedDiscoveries } from "@/lib/ai/discovery-handoff";
+import { logAiActivity } from "@/lib/ai/control-tower/activity-log";
 import {
   getRolePlaybook,
   type RolePlaybook,
@@ -45,6 +48,7 @@ import {
 
 export type ResidentLifeCycleOptions = {
   dryRun?: boolean;
+  runId?: string | null;
 };
 
 export type ResidentLifeCycleResult = {
@@ -54,7 +58,7 @@ export type ResidentLifeCycleResult = {
   action: {
     type: "LIFE_CYCLE";
     work: {
-      type: "POST" | "SKIP_POST" | "PRODUCT_HUNT";
+      type: "POST" | "SKIP_POST" | "PRODUCT_HUNT" | "WORLD_SCOUT" | "NO_ACTION";
       posted?: boolean;
       skipReason?: string;
       caption?: string;
@@ -67,6 +71,7 @@ export type ResidentLifeCycleResult = {
     social: unknown;
   };
   productHunter: ResidentProductHunterResult | null;
+  worldScout?: import("@/lib/ai/world-scout-cycle").WorldScoutCycleResult | null;
   observation?: {
     sources: string[];
     query: string | null;
@@ -616,6 +621,35 @@ async function gatherPostSubjects(
   let n = 1;
   const allow = new Set(playbook.subjectKinds);
 
+  if (playbook.role !== "world_scout") {
+    try {
+      const assigned = await listAssignedDiscoveries(persona.id);
+      for (const product of assigned) {
+        const productUrl = String(product.product_url ?? "");
+        if (!isHttpUrl(productUrl)) continue;
+        subjects.push({
+          id: String(n++),
+          kind: "discovery",
+          label: `${product.brand} ${product.product_name}`.trim(),
+          productName: String(product.product_name ?? ""),
+          brand: String(product.brand ?? ""),
+          productUrl,
+          mediaUrl: isUsableProductImage(
+            (product.product_image_url as string | null) ?? null,
+          )
+            ? (product.product_image_url as string)
+            : null,
+          category: String(product.category ?? "other"),
+          sourceUrl: String(product.official_url || product.product_url || ""),
+          discoveryProductId: String(product.id),
+          sourceRef: String(product.id),
+        });
+      }
+    } catch (error) {
+      console.warn("assigned discoveries unavailable", error);
+    }
+  }
+
   if (allow.has("hunter") && hunter) {
     hunter.discoveries.forEach((discovery) => {
       const candidate = hunter.candidates[discovery.candidateIndex];
@@ -1009,6 +1043,58 @@ export async function runResidentLifeCycle(
 ): Promise<ResidentLifeCycleResult> {
   const dryRun = Boolean(options?.dryRun);
   const playbook = getRolePlaybook(persona.resident_role);
+
+  if (playbook.role === "world_scout") {
+    const scout = await runWorldScoutCycle(persona, worldNews, {
+      runId: options?.runId,
+    });
+    if (!dryRun) {
+      await persistPersonaState(
+        persona,
+        scout.noAction ? "NO_ACTION" : "WORLD_SCOUT",
+        scout.noAction
+          ? `Scouted ${scout.beatKey} with no durable candidate`
+          : `Scouted ${scout.beatKey}: saved ${scout.savedCount}, assigned ${scout.assigned.join(", ")}`,
+        { discoveryDelta: scout.savedCount },
+      );
+    }
+    return {
+      persona: persona.persona_name,
+      profileId: persona.profile_id,
+      residentRole: persona.resident_role,
+      action: {
+        type: "LIFE_CYCLE",
+        work: {
+          type: scout.noAction ? "NO_ACTION" : "WORLD_SCOUT",
+          posted: false,
+          subjectCount: scout.candidateCount,
+        },
+        social: { type: "IGNORE" },
+      },
+      result: { work: scout, social: { skipped: true } },
+      productHunter: null,
+      worldScout: scout,
+      observation: {
+        sources: playbook.sources,
+        query: scout.queries.join(" || "),
+        subjectKinds: [],
+        followingCount: 0,
+        feedCount: 0,
+        newsCount: worldNews.length,
+        trendCount: 0,
+        reason: `${playbook.work} | beat=${scout.beatKey} saved=${scout.savedCount}`,
+      },
+      social: {
+        persona: persona.persona_name,
+        profileId: persona.profile_id,
+        residentRole: persona.resident_role,
+        targetPostId: null,
+        action: { type: "IGNORE" },
+        result: { skipped: true },
+      },
+    };
+  }
+
   const relationships = await loadRelationships(persona);
   const followingIds = new Set(relationships.following.map((row) => row.id));
 
@@ -1293,6 +1379,15 @@ ${playbook.workBias}
             subject.id,
             workMemory.content,
           );
+          await logAiActivity({
+            personaId: persona.id,
+            actorName: persona.display_name || persona.persona_name,
+            actorRole: playbook.role,
+            action: "posted",
+            detail: posted.caption.slice(0, 180),
+            relatedProductId: subject.discoveryProductId ?? null,
+            relatedRunId: options?.runId ?? null,
+          });
         }
       }
     } else if (!posted.subjectId) {
@@ -1439,6 +1534,23 @@ ${candidateLines}
     ? { dryRun: true, action: socialAction.type }
     : await executeAIAction(socialAction, persona.profile_id);
 
+  if (
+    !dryRun &&
+    socialAction.type !== "IGNORE" &&
+    socialResult &&
+    typeof socialResult === "object" &&
+    !("error" in (socialResult as { error?: unknown }))
+  ) {
+    await logAiActivity({
+      personaId: persona.id,
+      actorName: persona.display_name || persona.persona_name,
+      actorRole: playbook.role,
+      action: "reacted",
+      detail: socialAction.type,
+      relatedRunId: options?.runId ?? null,
+    });
+  }
+
   if (!dryRun && socialAction.type !== "IGNORE") {
     const subjectId =
       "postId" in socialAction
@@ -1500,6 +1612,7 @@ ${candidateLines}
       social: socialResult,
     },
     productHunter: hunter,
+    worldScout: null,
     observation: {
       sources: playbook.sources,
       query: hunter?.searchQuery ?? null,

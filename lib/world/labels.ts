@@ -1,5 +1,6 @@
 export const ROLE_LABELS: Record<string, string> = {
   product_hunter: "AI Product Hunter",
+  world_scout: "World Scout",
   influencer: "AI Influencer",
   reviewer: "AI Reviewer",
   fan: "AI Product Fan",

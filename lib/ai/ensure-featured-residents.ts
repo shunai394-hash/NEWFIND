@@ -1,9 +1,19 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createAiPersona } from "@/lib/ai-personas";
 import {
+  FEATURED_INFLUENCER,
   FEATURED_LIVING_RESIDENTS,
   type FeaturedLivingResident,
 } from "@/lib/ai/featured-living-residents";
+import { SPECIALIST_PRODUCT_HUNTERS } from "@/lib/ai/specialist-product-hunters";
+import { WORLD_SCOUTS } from "@/lib/ai/world-scouts";
+
+const NAMED_RESIDENTS: FeaturedLivingResident[] = [
+  ...FEATURED_LIVING_RESIDENTS,
+  ...SPECIALIST_PRODUCT_HUNTERS,
+  ...WORLD_SCOUTS,
+];
+// FEATURED_INFLUENCER is not auto-created here. Use scripts/seed-named-influencer.ts.
 
 export type FeaturedResidentEnsureResult = {
   username: string;
@@ -49,13 +59,22 @@ async function syncExisting(
   spec: FeaturedLivingResident,
   persona: { id: string; profile_id: string },
 ) {
+  const profilePatch: {
+    display_name: string;
+    bio: string;
+    avatar_url?: string;
+  } = {
+    display_name: spec.displayName,
+    bio: spec.bio ?? spec.personality,
+  };
+
+  if (spec.avatarUrl) {
+    profilePatch.avatar_url = spec.avatarUrl;
+  }
+
   const { error: profileError } = await admin
     .from("profiles")
-    .update({
-      display_name: spec.displayName,
-      bio: spec.personality,
-      avatar_url: spec.avatarUrl ?? null,
-    })
+    .update(profilePatch)
     .eq("id", persona.profile_id);
 
   if (profileError) {
@@ -89,6 +108,7 @@ async function syncExisting(
       personality: spec.personality,
       interests: spec.interests ?? [],
       preferred_categories: spec.preferredCategories ?? [],
+      favorite_brands: spec.favoriteBrands ?? [],
       posting_style: spec.postingStyle ?? "",
       comment_style: spec.commentStyle ?? "",
       activity_level: spec.activityLevel ?? "medium",
@@ -110,37 +130,52 @@ async function syncExisting(
   }
 }
 
+async function ensureOne(
+  spec: FeaturedLivingResident,
+): Promise<FeaturedResidentEnsureResult> {
+  if (!spec.avatarUrl) {
+    return {
+      username: spec.username,
+      personaName: spec.personaName,
+      profileId: null,
+      status: "failed",
+      detail: "avatar_url is required for named AI residents",
+    };
+  }
+
+  const admin = createAdminClient();
+  const existing = await findPersona(admin, spec);
+
+  if (existing?.profile_id) {
+    await syncExisting(admin, spec, {
+      id: existing.id,
+      profile_id: existing.profile_id,
+    });
+    return {
+      username: spec.username,
+      personaName: spec.personaName,
+      profileId: existing.profile_id,
+      status: "updated",
+    };
+  }
+
+  const created = await createAiPersona(spec);
+  return {
+    username: spec.username,
+    personaName: spec.personaName,
+    profileId: created.profileId,
+    status: "created",
+  };
+}
+
 export async function ensureFeaturedLivingResidents(): Promise<
   FeaturedResidentEnsureResult[]
 > {
-  const admin = createAdminClient();
   const results: FeaturedResidentEnsureResult[] = [];
 
-  for (const spec of FEATURED_LIVING_RESIDENTS) {
+  for (const spec of NAMED_RESIDENTS) {
     try {
-      const existing = await findPersona(admin, spec);
-
-      if (existing?.profile_id) {
-        await syncExisting(admin, spec, {
-          id: existing.id,
-          profile_id: existing.profile_id,
-        });
-        results.push({
-          username: spec.username,
-          personaName: spec.personaName,
-          profileId: existing.profile_id,
-          status: "updated",
-        });
-        continue;
-      }
-
-      const created = await createAiPersona(spec);
-      results.push({
-        username: spec.username,
-        personaName: spec.personaName,
-        profileId: created.profileId,
-        status: "created",
-      });
+      results.push(await ensureOne(spec));
     } catch (error) {
       console.error(
         "Featured resident ensure failed:",
@@ -158,4 +193,8 @@ export async function ensureFeaturedLivingResidents(): Promise<
   }
 
   return results;
+}
+
+export async function ensureNamedInfluencer(): Promise<FeaturedResidentEnsureResult> {
+  return ensureOne(FEATURED_INFLUENCER);
 }

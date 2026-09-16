@@ -57,6 +57,21 @@ const PLAYBOOKS: Record<WorldRole, RolePlaybook> = {
       "今回自分がWebで見つけ保存した実在商品だけを商品投稿の題材にする。catalogやニュースを「今見つけた」と書かない。画像がなければ商品投稿しない。",
     memoryFocus: "発見した商品、ブランド、検索の傾向",
   },
+  world_scout: {
+    role: "world_scout",
+    label: "World Scout",
+    work: "担当する地域とジャンルを探索し、商品・食・美容・ファッション・カルチャー・トレンドの種を候補として持ち帰る。自分では投稿しない。",
+    sources: ["web_products", "world_news", "google_trends"],
+    subjectKinds: ["hunter"],
+    allowTrendTweet: false,
+    forcePostRetry: false,
+    allowSocialIgnore: true,
+    preferredSocial: ["IGNORE"],
+    socialBias: "交流は住民の仕事。特派員は探索と持ち帰りに集中する。",
+    workBias:
+      "見つけたものを自分で投稿しない。検索結果・カテゴリ・記事を商品と誤認せず、候補として保存し、適した住民へ渡す。",
+    memoryFocus: "探索した地域、ジャンル、持ち帰った候補",
+  },
   influencer: {
     role: "influencer",
     label: "AI Influencer",

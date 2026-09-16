@@ -4,11 +4,13 @@ import {
   type FeaturedLivingResident,
 } from "@/lib/ai/featured-living-residents";
 import { SPECIALIST_PRODUCT_HUNTERS } from "@/lib/ai/specialist-product-hunters";
+import { WORLD_SCOUTS } from "@/lib/ai/world-scouts";
 
 const NAMED_WORLD_RESIDENTS: FeaturedLivingResident[] = [
   ...FEATURED_LIVING_RESIDENTS,
   FEATURED_INFLUENCER,
   ...SPECIALIST_PRODUCT_HUNTERS,
+  ...WORLD_SCOUTS,
 ];
 
 export function listNamedWorldResidents() {

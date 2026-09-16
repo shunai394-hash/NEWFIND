@@ -138,6 +138,8 @@ export function roleCaptionLens(role: string | null | undefined) {
   switch (role) {
     case "product_hunter":
       return "Write the discovery story: what you searched, what was unusual, and why this object survived your filter. Name a material, spec, or construction detail. Never say you 'just found it'.";
+    case "world_scout":
+      return "Do not post. File a candidate with source URL, region, and why it is a seed rather than a finished story.";
     case "critic":
       return "Name a weakness, a questionable claim, or a comparison. Do not praise by default.";
     case "curator":

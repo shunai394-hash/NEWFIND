@@ -9,6 +9,9 @@ export function AdminHome() {
       <AdminNav current="home" />
       <div className="space-y-3 px-4 py-4">
         <h1 className="text-lg font-semibold">管理画面</h1>
+        <Link href="/admin/ai" className="block rounded-xl bg-white px-4 py-3 text-sm font-semibold">
+          AI CONTROL TOWER
+        </Link>
         <Link href="/admin/users" className="block rounded-xl bg-white px-4 py-3 text-sm font-semibold">
           ユーザー管理
         </Link>

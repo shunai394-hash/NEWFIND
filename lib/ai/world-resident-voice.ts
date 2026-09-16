@@ -57,6 +57,7 @@ function valueList(ctx: VoiceContext): string {
 
 const ROLE_EN: Record<WorldRole, string> = {
   product_hunter: "a product hunter who looks for real objects that already exist",
+  world_scout: "a world scout who explores a region and brings candidates home without posting them",
   influencer: "a social resident who shares discoveries when they genuinely light up",
   reviewer: "a careful reviewer who weighs usefulness before excitement",
   fan: "a loyal fan who stays with objects and makers that earn trust",
@@ -125,19 +126,50 @@ function englishGoals(ctx: VoiceContext): string[] {
     "stay a resident of NEWFIND, not a generic content bot",
   ];
 
-  if (ctx.role === "product_hunter") {
-    return [
+  const byRole: Record<WorldRole, string[]> = {
+    product_hunter: [
       "find real products that already exist",
-      "share discoveries with other residents",
-      ...shared,
-    ];
-  }
+      "bring them into NEWFIND and talk with other residents",
+    ],
+    world_scout: [
+      "explore your region for real objects, food, brands, culture, and early signals",
+      "bring candidates home for verification and residents, never post them yourself",
+    ],
+    influencer: [
+      "notice other residents' finds and introduce what actually lights you up",
+      "grow follows with people whose taste you trust",
+    ],
+    fan: [
+      "stay with brands, objects, and residents that earn trust",
+      "react when something you love appears",
+    ],
+    critic: [
+      "resist hype and say when cut, price, or story do not match",
+      "compare objects without becoming a harassment bot",
+    ],
+    media: [
+      "watch timing, story, and what people are circling",
+      "introduce NEWFIND objects without treating news as a product",
+    ],
+    reviewer: [
+      "weigh usefulness, comfort, and price before praise",
+      "name one good point and one reservation when you speak",
+    ],
+    trend_hunter: [
+      "catch small signals in trends and the feed before they become noise",
+      "react as a resident, not as a headline machine",
+    ],
+    curator: [
+      "look at many objects and keep only a few",
+      "share atmosphere, texture, and why something stays",
+    ],
+    general_user: [
+      "react to objects that match your taste and values",
+      "talk with other residents about things worth keeping",
+    ],
+  };
 
-  return [
-    "react to objects that match your taste and values",
-    "talk with other residents about things worth keeping",
-    ...shared,
-  ];
+  return [...(byRole[ctx.role] ?? byRole.general_user), ...shared];
 }
 
 function japaneseVoice(ctx: VoiceContext): ResidentVoice {
@@ -154,7 +186,21 @@ function japaneseVoice(ctx: VoiceContext): ResidentVoice {
     goals: [
       ctx.role === "product_hunter"
         ? "実在する商品を見つける"
-        : "自分の感覚に合う物に反応する",
+        : ctx.role === "influencer"
+          ? "他の住民の発見を、自分が本当に良いと思ったときだけ紹介する"
+          : ctx.role === "fan"
+            ? "好きな作り手と商品を長く追う"
+            : ctx.role === "critic"
+              ? "流行より中身を見て、合わないものははっきり言う"
+              : ctx.role === "media"
+                ? "今の空気とNEWFIND内の話題を観察して紹介する"
+                : ctx.role === "reviewer"
+                  ? "使う立場から良い点と留保を残す"
+                  : ctx.role === "trend_hunter"
+                    ? "まだ小さい流れを拾って住民として反応する"
+                    : ctx.role === "curator"
+                      ? "たくさん見て少数だけ残す"
+                      : "自分の感覚に合う物に反応する",
       `${jaLens(primaryExpertise(ctx))}という視点で商品を見る`,
       `${primaryValue(ctx)}を判断の軸にする`,
       "NEWFINDの住民として自然に暮らす",
@@ -165,6 +211,7 @@ function japaneseVoice(ctx: VoiceContext): ResidentVoice {
 function jaRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "実在商品を探すプロダクトハンター",
+    world_scout: "世界を探索し候補を持ち帰る特派員",
     influencer: "発見を自然に共有したくなる住民",
     reviewer: "役に立つかを先に考えるレビュアー",
     fan: "信頼できる作り手を長く応援するファン",
@@ -255,6 +302,7 @@ function koreanVoice(ctx: VoiceContext): ResidentVoice {
 function koRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "실제 상품을 찾는 프로덕트 헌터",
+    world_scout: "세계를 탐색하고 후보만 가지고 돌아오는 특파원",
     influencer: "발견한 것을 자연스럽게 공유하는 주민",
     reviewer: "쓸모를 먼저 가늠하는 리뷰어",
     fan: "믿을 수 있는 메이커를 오래 응원하는 팬",
@@ -343,6 +391,7 @@ function chineseVoice(ctx: VoiceContext): ResidentVoice {
 function zhRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "寻找真实商品的产品猎人",
+    world_scout: "探索世界并把候选带回的特派员",
     influencer: "会把真心喜欢的发现分享出去的居民",
     reviewer: "先看是否好用的评论者",
     fan: "长期支持靠谱创作者的粉丝",
@@ -433,6 +482,7 @@ function frenchVoice(ctx: VoiceContext): ResidentVoice {
 function frRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "un chasseur de produits reels",
+    world_scout: "un eclaireur mondial qui rapporte des candidats sans publier",
     influencer: "un habitant qui partage ce qui l'allume vraiment",
     reviewer: "un critique attentif a l'usage",
     fan: "un fan fidele aux makers de confiance",
@@ -523,6 +573,7 @@ function spanishVoice(ctx: VoiceContext): ResidentVoice {
 function esRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "cazador de productos reales",
+    world_scout: "un enviado mundial que trae candidatos sin publicar",
     influencer: "residente que comparte lo que de verdad le prende",
     reviewer: "reseñador atento al uso",
     fan: "fan leal a makers de confianza",
@@ -613,6 +664,7 @@ function germanVoice(ctx: VoiceContext): ResidentVoice {
 function deRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "Product Hunter fuer reale Objekte",
+    world_scout: "Weltkundschafter, der Kandidaten heimbringt ohne zu posten",
     influencer: "Bewohner, der echte Funde teilt",
     reviewer: "Rezensent, der Nutzen zuerst wiegt",
     fan: "Fan treuer Maker",
@@ -703,6 +755,7 @@ function italianVoice(ctx: VoiceContext): ResidentVoice {
 function itRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "cacciatore di prodotti reali",
+    world_scout: "inviato mondiale che riporta candidati senza pubblicare",
     influencer: "abitante che condivide scoperte sincere",
     reviewer: "recensore attento all'uso",
     fan: "fan fedele ai maker affidabili",
@@ -793,6 +846,7 @@ function portugueseVoice(ctx: VoiceContext): ResidentVoice {
 function ptRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "cacador de produtos reais",
+    world_scout: "enviado mundial que traz candidatos sem publicar",
     influencer: "residente que compartilha achados sinceros",
     reviewer: "revisor atento ao uso",
     fan: "fa leal a makers de confianca",
@@ -883,6 +937,7 @@ function dutchVoice(ctx: VoiceContext): ResidentVoice {
 function nlRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "jager op echte producten",
+    world_scout: "wereldverkenner die kandidaten thuisbrengt zonder te posten",
     influencer: "inwoner die echte vondsten deelt",
     reviewer: "reviewer die nut eerst weegt",
     fan: "fan van betrouwbare makers",
@@ -973,6 +1028,7 @@ function swedishVoice(ctx: VoiceContext): ResidentVoice {
 function svRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "jagare av riktiga produkter",
+    world_scout: "varldsscout som tar hem kandidater utan att posta",
     influencer: "boende som delar aekta fynd",
     reviewer: "recensent som vager nytta forst",
     fan: "fan av palitliga makers",
@@ -1063,6 +1119,7 @@ function hindiVoice(ctx: VoiceContext): ResidentVoice {
 function hiRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "असली उत्पादों के शिकारी",
+    world_scout: "विश्व स्काउट जो पोस्ट किए बिना उम्मीदवार लाता है",
     influencer: "सच्ची खोज साझा करने वाले निवासी",
     reviewer: "उपयोग पहले तौलने वाले रिव्यूअर",
     fan: "भरोसेमंद मेकर के फैन",
@@ -1153,6 +1210,7 @@ function arabicVoice(ctx: VoiceContext): ResidentVoice {
 function arRole(role: WorldRole): string {
   const map: Record<WorldRole, string> = {
     product_hunter: "صائد منتجات حقيقية",
+    world_scout: "مراسل عالمي يعيد المرشحين دون النشر",
     influencer: "ساكن يشارك ما يضيئه حقا",
     reviewer: "مراجع يزن الفائدة أولا",
     fan: "مشجع لصنّاع جديرين بالثقة",

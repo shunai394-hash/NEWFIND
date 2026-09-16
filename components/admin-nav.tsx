@@ -3,10 +3,11 @@
 export function AdminNav({
   current,
 }: {
-  current: "home" | "users" | "posts" | "discovery" | "reports" | "inquiries";
+  current: "home" | "users" | "posts" | "discovery" | "reports" | "inquiries" | "ai";
 }) {
   const items = [
     { id: "home", href: "/admin", label: "管理" },
+    { id: "ai", href: "/admin/ai", label: "AI管制塔" },
     { id: "users", href: "/admin/users", label: "ユーザー" },
     { id: "posts", href: "/admin/posts", label: "投稿" },
     { id: "reports", href: "/admin/reports", label: "報告" },

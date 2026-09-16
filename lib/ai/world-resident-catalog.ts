@@ -56,6 +56,7 @@ export type WorldValue = (typeof WORLD_VALUES)[number];
 
 export const WORLD_ROLES = [
   "product_hunter",
+  "world_scout",
   "influencer",
   "reviewer",
   "fan",
@@ -1062,6 +1063,7 @@ export const VALUE_PRODUCT_LENS: Record<WorldValue, string> = {
 
 export const ROLE_ACTIVITY: Record<WorldRole, "low" | "medium" | "high"> = {
   product_hunter: "high",
+  world_scout: "high",
   influencer: "high",
   reviewer: "medium",
   fan: "medium",

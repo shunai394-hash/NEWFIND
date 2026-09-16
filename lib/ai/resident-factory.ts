@@ -262,8 +262,9 @@ export type WorldResidentBlueprint = CreateAiPersonaInput & {
 export function composeWorldResident(slotNumber: number): WorldResidentBlueprint {
   const region =
     WORLD_REGIONS[pickCoprime(WORLD_REGIONS.length, slotNumber, 1)];
+  const LIVING_WORLD_ROLES = WORLD_ROLES.filter((role) => role !== "world_scout");
   const role =
-    WORLD_ROLES[pickCoprime(WORLD_ROLES.length, slotNumber, 4)];
+    LIVING_WORLD_ROLES[pickCoprime(LIVING_WORLD_ROLES.length, slotNumber, 4)];
   const expertisePrimary =
     WORLD_EXPERTISE[pickCoprime(WORLD_EXPERTISE.length, slotNumber, 5)];
   const valuePrimary =

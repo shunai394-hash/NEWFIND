@@ -394,17 +394,12 @@ function editorialActivities(
 
 function mergeActivities(
   live: WorldActivity[],
-  residents: WorldResident[],
-  product: WorldProductChip | null,
+  _residents: WorldResident[],
+  _product: WorldProductChip | null,
 ) {
-  if (live.length >= 4) return live.slice(0, 4);
-  const stories = editorialActivities(residents, product);
-  const merged = [...live];
-  for (const story of stories) {
-    if (merged.length >= 4) break;
-    merged.push(story);
-  }
-  return merged;
+  return live
+    .filter((activity) => activity.live)
+    .slice(0, 4);
 }
 
 export async function loadWorldHomeData(): Promise<WorldHomeData> {

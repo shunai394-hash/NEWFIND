@@ -8,6 +8,7 @@ import {
 import {
   NATIVE_OAUTH_CALLBACK, isCapacitorNative,
 } from "@/lib/capacitor/platform";
+import { openNativeOAuthUrl } from "@/lib/capacitor/oauth-browser";
 import { createClient } from "@/lib/supabase/client";
 import { listDiscoveryProductsByIdsFromDb } from "@/lib/discovery/db";
 import type { Store } from "@/lib/store/types";
@@ -625,15 +626,29 @@ export const supabaseStore: Store = {
 
   async signInOAuth(provider, next = "/") {
     const supabase = createClient();
-    // Capacitor iOS / Android: custom scheme so the system browser can return into the app. Web uses the same-origin /auth/callback route.
-    const redirectTo = isCapacitorNative() ? new URL(NATIVE_OAUTH_CALLBACK) : new URL("/auth/callback", window.location.origin);
+    // Capacitor: open the OAuth page inside Safari View Controller via @capacitor/browser,
+    // then return to the app through the custom URL scheme.
+    const redirectTo = isCapacitorNative()
+      ? new URL(NATIVE_OAUTH_CALLBACK)
+      : new URL("/auth/callback", window.location.origin);
+
     if (next.startsWith("/") && !next.startsWith("//")) {
       redirectTo.searchParams.set("next", next);
     }
-    const { error } = await supabase.auth.signInWithOAuth({
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: redirectTo.toString() },
+      options: {
+        redirectTo: redirectTo.toString(),
+        ...(isCapacitorNative() ? { skipBrowserRedirect: true } : {}),
+      },
     });
+
+    if (!error && isCapacitorNative() && data?.url) {
+      await openNativeOAuthUrl(data.url);
+      return;
+    }
+
     if (error) {
       if (/provider is not enabled/i.test(error.message)) {
         throw new Error(

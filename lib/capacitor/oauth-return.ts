@@ -1,3 +1,4 @@
+import { Browser } from "@capacitor/browser";
 import { safeNextPath } from "@/lib/config";
 import { createClient } from "@/lib/supabase/client";
 import { isCapacitorNative } from "@/lib/capacitor/platform";
@@ -61,6 +62,9 @@ export async function handleOAuthReturnUrl(rawUrl: string): Promise<boolean> {
   }
 
   if (!isOAuthCallbackUrl(url)) return false;
+
+  // Close the Capacitor Safari View Controller when OAuth returns to the app.
+  await Browser.close().catch(() => {});
 
   const oauthError = oauthErrorMessage(url);
   if (oauthError) {

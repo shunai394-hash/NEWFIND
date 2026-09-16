@@ -106,10 +106,13 @@ export async function decideResidentLifePost(
     "",
     "POSTする場合:",
     "- captionは1〜3文。その住民がスマホで書く口調。",
+    "- 「見つけました」「気になりました」「面白い商品です」などの定型は禁止。",
     "- レビュー記事、箇条書き解説、広告文は禁止。",
     "- 商品を投稿するなら題材リストにある subjectId だけを使う。",
     "- つぶやきなら subjectId は付けない。商品名・URL・画像を作らない。",
     "- 題材の商品名やURLを必要以上に繰り返さない。感想を書く。",
+    "- 他の住民の投稿本文をコピーしない。ほぼ同じ文、長文の言い換えも禁止。",
+    "- 要約BOTにならない。見たものについて、その住民の意見を短く書く。",
     "- 毎回投稿しなくてよい。今日はSKIP_POSTでも自然。",
     "SKIP_POSTは、本当に今は発信したくないとき、またはさっき投稿したばかりのとき。",
   ].join("\n");
@@ -159,11 +162,13 @@ export async function decideAIAction(context: string): Promise<AIAction> {
     '{"type":"DISCOVER_PRODUCT","postId":"投稿ID","brand":"ブランド名","productName":"商品名","category":"fashion","subcategory":"subcategory","country":"国またはnull","description":"商品の説明","productUrl":"対象投稿に存在するURL","officialUrl":"公式URLまたはnull","currency":"USD","price":null,"attentionReason":"なぜ注目したのか","trendTags":[],"trendScore":0,"confidenceScore":0}',
     '{"type":"IGNORE"}',
     "",
-    "IGNOREは、候補が空のときか、どうしても何もしたくないときだけ。",
+    "IGNOREは、候補が空のとき、または critic のように値しないものへ反応しないとき。",
     "普段の住民はLIKE / COMMENT / REPLY / FOLLOW / SAVEのいずれかをします。",
+    "ただし critic は LIKE しなくてよい。curator は SAVE を優先してよい。fan はフォロー中を優先。",
     "DISCOVER_PRODUCTは、対象投稿に実際の商品URLがあるときだけ。URLを作ってはいけない。",
     "REPLYは実在するコメントIDだけ。FOLLOWは実在する投稿者IDだけ。",
     "コメントは機械的にせず、その住民の言葉で短く書く。",
+    "他の住民の投稿本文をコピー・ほぼコピーしない。自分の反応だけ書く。",
     "商品がないつぶやきにも、普通にLIKE / COMMENT / REPLYしてよい。",
   ].join("\n");
 

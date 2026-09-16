@@ -33,6 +33,11 @@ type ProductRow = {
   price: number | null;
   currency: string | null;
   sku: string | null;
+  gtin?: string | null;
+  model_number?: string | null;
+  launch_date?: string | null;
+  canonical_url?: string | null;
+  discovery_report?: Record<string, unknown> | null;
   trend_score: number | null;
   confidence_score: number | null;
   discovery_source: string | null;
@@ -163,6 +168,11 @@ function mapProduct(
     price: row.price,
     currency: row.currency ?? "USD",
     sku: row.sku,
+    gtin: row.gtin ?? null,
+    modelNumber: row.model_number ?? null,
+    launchDate: row.launch_date ?? null,
+    canonicalUrl: row.canonical_url ?? null,
+    discoveryReport: row.discovery_report ?? null,
     trendScore: row.trend_score ?? 0,
     confidenceScore: row.confidence_score ?? 0,
     discoverySource: row.discovery_source,
@@ -335,6 +345,11 @@ export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
     price: input.price,
     currency: input.currency || "USD",
     sku: input.sku,
+    gtin: input.gtin ?? null,
+    model_number: input.modelNumber ?? null,
+    launch_date: input.launchDate ?? null,
+    canonical_url: input.canonicalUrl ?? null,
+    discovery_report: input.discoveryReport ?? null,
     trend_score: input.trendScore ?? 0,
     confidence_score: input.confidenceScore ?? 0,
     discovery_source: input.discoverySource,
@@ -352,9 +367,14 @@ export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
     .from("discovery_products")
     .upsert(productPayload, { onConflict: "id" });
   if (productError) {
-    if (/discovered_at|attention_reason|42703/i.test(productError.message)) {
+    if (/discovered_at|attention_reason|gtin|model_number|launch_date|canonical_url|discovery_report|42703/i.test(productError.message)) {
       delete productPayload.discovered_at;
       delete productPayload.attention_reason;
+      delete productPayload.gtin;
+      delete productPayload.model_number;
+      delete productPayload.launch_date;
+      delete productPayload.canonical_url;
+      delete productPayload.discovery_report;
       const retry = await supabase.from("discovery_products").upsert(productPayload, { onConflict: "id" });
       if (retry.error) throw new Error(retry.error.message);
     } else {

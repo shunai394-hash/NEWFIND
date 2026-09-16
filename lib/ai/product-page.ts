@@ -560,3 +560,157 @@ export function extractProductImageFromHtml(
 
   return null;
 }
+
+export type ProductPageFacts = {
+  brand: string | null;
+  productName: string | null;
+  description: string | null;
+  sku: string | null;
+  gtin: string | null;
+  modelNumber: string | null;
+  price: number | null;
+  currency: string | null;
+  launchDate: string | null;
+  officialUrl: string | null;
+  imageUrl: string | null;
+};
+
+function textFromUnknown(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (typeof record.name === "string") return record.name.trim();
+    if (typeof record.brand === "string") return record.brand.trim();
+  }
+  return null;
+}
+
+function firstOffer(value: unknown): Record<string, unknown> | null {
+  if (Array.isArray(value)) {
+    const found = value.find((item) => item && typeof item === "object");
+    return found ? (found as Record<string, unknown>) : null;
+  }
+  if (value && typeof value === "object") return value as Record<string, unknown>;
+  return null;
+}
+
+function factsFromProductNode(record: Record<string, unknown>): ProductPageFacts {
+  const offer = firstOffer(record.offers);
+  const priceRaw = offer?.price ?? offer?.lowPrice ?? record.price;
+  const price = Number(priceRaw);
+  const gtin =
+    textFromUnknown(record.gtin) ||
+    textFromUnknown(record.gtin13) ||
+    textFromUnknown(record.gtin12) ||
+    textFromUnknown(record.gtin14) ||
+    textFromUnknown(record.ean) ||
+    null;
+  const images: string[] = [];
+  collectImageLike(record.image, images);
+  return {
+    brand: textFromUnknown(record.brand) || textFromUnknown(record.manufacturer),
+    productName: textFromUnknown(record.name),
+    description: textFromUnknown(record.description),
+    sku: textFromUnknown(record.sku),
+    gtin,
+    modelNumber:
+      textFromUnknown(record.model) || textFromUnknown(record.mpn) || null,
+    price: Number.isFinite(price) ? price : null,
+    currency:
+      textFromUnknown(offer?.priceCurrency) ||
+      textFromUnknown(record.priceCurrency),
+    launchDate:
+      textFromUnknown(record.releaseDate) ||
+      textFromUnknown(record.datePublished) ||
+      null,
+    officialUrl: textFromUnknown(record.url),
+    imageUrl: images[0] ?? null,
+  };
+}
+
+function jsonLdProductNodes(html: string): Record<string, unknown>[] {
+  const nodes: Record<string, unknown>[] = [];
+  const scripts = html.matchAll(
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  );
+  for (const script of scripts) {
+    const raw = script[1]?.trim();
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      const graph =
+        parsed &&
+        typeof parsed === "object" &&
+        Array.isArray((parsed as { "@graph"?: unknown })["@graph"])
+          ? ((parsed as { "@graph": unknown[] })["@graph"] ?? [])
+          : null;
+      const list = Array.isArray(parsed) ? parsed : graph ? graph : [parsed];
+      for (const node of list) {
+        if (!node || typeof node !== "object") continue;
+        const record = node as Record<string, unknown>;
+        if (isProductJsonLdType(record["@type"])) nodes.push(record);
+      }
+    } catch {
+      // Ignore broken JSON-LD.
+    }
+  }
+  return nodes;
+}
+
+export function extractProductFactsFromHtml(
+  html: string,
+  pageUrl: string,
+): ProductPageFacts {
+  const fromLd = jsonLdProductNodes(html)[0];
+  const facts = fromLd
+    ? factsFromProductNode(fromLd)
+    : {
+        brand: null,
+        productName: null,
+        description: null,
+        sku: null,
+        gtin: null,
+        modelNumber: null,
+        price: null,
+        currency: null,
+        launchDate: null,
+        officialUrl: null,
+        imageUrl: null,
+      };
+
+  const sku =
+    facts.sku ||
+    metaContent(html, ["product:retailer_item_id", "sku", "product:sku"]);
+  const priceMeta = metaContent(html, ["product:price:amount", "og:price:amount"]);
+  const currencyMeta = metaContent(html, [
+    "product:price:currency",
+    "og:price:currency",
+  ]);
+  const imageUrl = facts.imageUrl || extractProductImageFromHtml(html, pageUrl);
+  const price =
+    facts.price ??
+    (priceMeta && Number.isFinite(Number(priceMeta)) ? Number(priceMeta) : null);
+
+  return {
+    ...facts,
+    sku,
+    price,
+    currency: facts.currency || currencyMeta,
+    imageUrl,
+    officialUrl: facts.officialUrl || pageUrl,
+    productName:
+      facts.productName ||
+      metaContent(html, ["og:title", "twitter:title"]),
+    description:
+      facts.description ||
+      metaContent(html, ["og:description", "description"]),
+  };
+}
+
+export function productFactsAreSufficient(facts: ProductPageFacts) {
+  const identity = Boolean(facts.sku || facts.gtin || facts.modelNumber);
+  const priced = facts.price != null;
+  const named = Boolean(facts.productName && facts.brand);
+  const imaged = Boolean(facts.imageUrl);
+  return imaged && named && (identity || priced || Boolean(facts.description));
+}

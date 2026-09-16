@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import { ANDROID_OAUTH_CALLBACK } from "@/lib/capacitor/platform";
+import { NATIVE_OAUTH_CALLBACK } from "@/lib/capacitor/platform";
 import { APPLE_SERVICES_ID, appleWebRedirectUri } from "@/lib/apple/config";
 import { findOrCreateAppleUser, issueAppleLoginTicket } from "@/lib/apple/session";
 import { decodeAppleState } from "@/lib/apple/state";
@@ -136,8 +136,8 @@ async function completeAppleLogin(request: Request) {
       created: user.created,
     });
 
-    if (state.platform === "android") {
-      const deep = new URL(ANDROID_OAUTH_CALLBACK);
+    if (state.platform === "android" || state.platform === "ios") {
+      const deep = new URL(NATIVE_OAUTH_CALLBACK);
       deep.searchParams.set("token_hash", tokenHash);
       deep.searchParams.set("type", "magiclink");
       deep.searchParams.set("provider", "apple");

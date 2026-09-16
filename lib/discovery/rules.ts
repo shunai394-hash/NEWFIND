@@ -1,3 +1,4 @@
+import { classifyProductMatch } from "@/lib/ai/product-identity";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { isDummyUrl } from "@/lib/products/discovery-filter";
 import { normalizeBrand, normalizeProductName, sourceDomain } from "@/lib/discovery/normalize";
@@ -74,17 +75,20 @@ export function canonicalProductUrl(value: string | null | undefined): string {
 }
 
 export function findDuplicate(product: DiscoveryProduct, others: DiscoveryProduct[]) {
-  const brand = product.normalizedBrand || normalizeBrand(product.brand);
-  const name = product.normalizedProductName || normalizeProductName(product.productName);
-  const productUrl = canonicalProductUrl(product.productUrl);
-  const officialUrl = canonicalProductUrl(product.officialUrl);
-  return others.find((item) => {
-    if (item.id === product.id || item.status === "rejected") return false;
-    if (productUrl && canonicalProductUrl(item.productUrl) === productUrl) return item;
-    if (officialUrl && canonicalProductUrl(item.officialUrl) === officialUrl) return item;
-    if (product.sku && item.sku && product.sku === item.sku) return item;
-    return item.normalizedBrand === brand && item.normalizedProductName === name;
-  }) ?? null;
+  const match = classifyProductMatch(
+    {
+      brand: product.brand,
+      productName: product.productName,
+      sku: product.sku,
+      gtin: product.gtin,
+      modelNumber: product.modelNumber,
+      productUrl: product.productUrl,
+      officialUrl: product.officialUrl,
+      price: product.price,
+    },
+    others.filter((item) => item.id !== product.id),
+  );
+  return match.kind === "duplicate" ? match.match : null;
 }
 
 export function prepareDiscoveryProduct(input: DiscoveryProductInput): DiscoveryProduct {
@@ -120,6 +124,11 @@ export function emptyDiscoveryProduct(): DiscoveryProductInput {
     price: null,
     currency: "USD",
     sku: null,
+    gtin: null,
+    modelNumber: null,
+    launchDate: null,
+    canonicalUrl: null,
+    discoveryReport: null,
     trendScore: 0,
     confidenceScore: 0,
     discoverySource: "admin",

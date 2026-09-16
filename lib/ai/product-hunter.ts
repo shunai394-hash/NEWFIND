@@ -1,10 +1,17 @@
 import { isUsableProductImage } from "@/lib/discovery/media";
-import { generateAIText, generateAITextWithImages } from "./groq";
+import { generateAIText } from "./groq";
 import {
+  extractProductFactsFromHtml,
   extractProductImageFromHtml,
   fetchPageHtml,
   isAcceptableProductPageImage,
+  productFactsAreSufficient,
 } from "./product-page";
+import {
+  emptyDiscoveryReport,
+  scoreDiscoveryEvidence,
+  type DiscoveryReport,
+} from "./discovery-report";
 import {
   isLiveWorldProduct,
   isNewsSignal,
@@ -42,11 +49,16 @@ export type ProductHunterCandidate = {
   productImageUrl: string | null;
   currency: string;
   price: number | null;
+  sku: string | null;
+  gtin: string | null;
+  modelNumber: string | null;
+  launchDate: string | null;
   attentionReason: string;
   trendTags: TrendTag[];
   trendScore: number;
   confidenceScore: number;
   origin: WorldSearchOrigin;
+  report: DiscoveryReport;
 };
 
 const CATEGORIES = new Set<string>([
@@ -578,9 +590,7 @@ export async function evaluateProductCandidates(
         source.sourceCountry ||
         null;
 
-      const description =
-        safeString(candidate.description).slice(0, 500) ||
-        source.snippet.slice(0, 500);
+      const requestedDescription = safeString(candidate.description).slice(0, 500);
 
       /*
        * officialUrl must also come from an actual product source.
@@ -609,41 +619,78 @@ export async function evaluateProductCandidates(
       }
 
       /*
-       * IMPORTANT:
-       * Do not trust the image attached to the search result.
-       * The selected product URL is the source of truth.
-       *
-       * This prevents unrelated search/OG/social images from becoming
-       * the image of the NEWFIND product post.
+       * Investigate the live product page. Search snippets are not
+       * enough to post; facts must come from the page itself.
        */
       let productImageUrl: string | null = null;
+      let sku: string | null = null;
+      let gtin: string | null = null;
+      let modelNumber: string | null = null;
+      let launchDate: string | null = null;
+      let pageDescription = "";
+      let pagePrice = safePrice(candidate.price);
+      let pageCurrency =
+        safeString(candidate.currency).toUpperCase().slice(0, 10) || "USD";
+      const evidence: string[] = [`search:${source.origin ?? "web"}`];
 
       if (source.origin === "catalog") {
         productImageUrl = isUsableProductImage(source.imageUrl)
           ? source.imageUrl ?? null
           : null;
+        evidence.push("catalog");
+        if (!isAcceptableProductPageImage(productImageUrl)) {
+          console.log(
+            "PRODUCT HUNTER: catalog fallback without usable image skipped:",
+            source.url,
+          );
+          continue;
+        }
       } else if (source.sourceRole !== "news") {
         try {
           const productPageHtml = await fetchPageHtml(source.url);
 
           if (productPageHtml) {
-            productImageUrl = extractProductImageFromHtml(
+            const facts = extractProductFactsFromHtml(
               productPageHtml,
               source.url,
             );
+            productImageUrl =
+              extractProductImageFromHtml(productPageHtml, source.url) ||
+              facts.imageUrl;
+            sku = facts.sku;
+            gtin = facts.gtin;
+            modelNumber = facts.modelNumber;
+            launchDate = facts.launchDate;
+            if (facts.price != null) pagePrice = facts.price;
+            if (facts.currency) pageCurrency = facts.currency.toUpperCase();
+            if (facts.description) {
+              pageDescription = facts.description.slice(0, 500);
+            }
+            if (facts.officialUrl && !officialUrl) {
+              officialUrl = facts.officialUrl;
+            }
+            if (!productFactsAreSufficient(facts) && !productImageUrl) {
+              console.log(
+                "PRODUCT HUNTER: rejected product with thin page evidence:",
+                source.url,
+              );
+              continue;
+            }
+            if (facts.sku || facts.gtin || facts.modelNumber) {
+              evidence.push("identity");
+            }
+            if (facts.price != null) evidence.push("price");
+            if (facts.launchDate) evidence.push("launch");
+            evidence.push("product-page");
           }
         } catch (error) {
           console.error(
-            "PRODUCT HUNTER: product image extraction failed:",
+            "PRODUCT HUNTER: product page investigation failed:",
             source.url,
             error,
           );
         }
 
-        /*
-         * A live product must have an image extracted from its own
-         * product page. Never fall back to the search-result image.
-         */
         if (!isAcceptableProductPageImage(productImageUrl)) {
           console.log(
             "PRODUCT HUNTER: rejected product without canonical product image:",
@@ -653,20 +700,28 @@ export async function evaluateProductCandidates(
         }
       }
 
-      const currency =
-        safeString(candidate.currency).toUpperCase().slice(0, 10) ||
-        "USD";
+      const description =
+        pageDescription ||
+        (requestedDescription && requestedDescription !== source.snippet.slice(0, 500)
+          ? requestedDescription
+          : "");
+      if (!description) {
+        console.log(
+          "PRODUCT HUNTER: rejected snippet-only description:",
+          productUrl,
+        );
+        continue;
+      }
 
-      const price = safePrice(candidate.price);
+      const currency = pageCurrency;
+      const price = pagePrice;
 
       const attentionReason =
         safeString(candidate.attentionReason).slice(0, 200) ||
         `${input.residentName} noticed this product.`;
 
       const trendTags = safeTrendTags(candidate.trendTags);
-
       const trendScore = safeScore(candidate.trendScore);
-
       const confidenceScore = safeScore(candidate.confidenceScore);
 
       if (confidenceScore < 50) {
@@ -674,6 +729,45 @@ export async function evaluateProductCandidates(
           "PRODUCT HUNTER: rejected low-confidence candidate:",
           productName,
           confidenceScore,
+        );
+        continue;
+      }
+
+      const report = emptyDiscoveryReport({
+        brand,
+        productName,
+        category,
+        subcategory,
+        country,
+        productUrl: source.url,
+        officialUrl,
+        productImageUrl,
+        price,
+        currency,
+        launchDate,
+        sku,
+        gtin,
+        modelNumber,
+        canonicalUrl: source.url,
+        sourceUrls: [source.url, officialUrl].filter(Boolean) as string[],
+        evidence,
+        whyNow: attentionReason,
+        whyThisResident: attentionReason,
+        trendSignals: trendTags,
+        noveltyScore: trendScore,
+        residentFitScore: Math.min(100, confidenceScore + 10),
+        humanInterestScore: Math.min(100, trendScore + (price != null ? 10 : 0)),
+        duplicateRisk: 0,
+        confidenceScore,
+      });
+      report.evidenceScore = scoreDiscoveryEvidence(report);
+      report.confidenceScore = Math.min(confidenceScore, report.evidenceScore + 20);
+
+      if (report.evidenceScore < 50) {
+        console.log(
+          "PRODUCT HUNTER: rejected low-evidence report:",
+          productName,
+          report.evidenceScore,
         );
         continue;
       }
@@ -690,11 +784,16 @@ export async function evaluateProductCandidates(
         productImageUrl,
         currency,
         price,
+        sku,
+        gtin,
+        modelNumber,
+        launchDate,
         attentionReason,
         trendTags,
         trendScore,
-        confidenceScore,
+        confidenceScore: report.confidenceScore,
         origin: source.origin ?? "web",
+        report,
       });
     }
 

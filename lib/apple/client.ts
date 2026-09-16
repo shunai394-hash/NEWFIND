@@ -1,8 +1,10 @@
 "use client";
 
 import { NativeAppleSignIn } from "@/lib/capacitor/sign-in-with-apple";
+import { openNativeOAuthUrl } from "@/lib/capacitor/oauth-browser";
 import {
   isAndroidCapacitor,
+  isCapacitorNative,
   isIosCapacitor,
 } from "@/lib/capacitor/platform";
 import { createClient } from "@/lib/supabase/client";
@@ -84,6 +86,13 @@ export async function startAppleSignIn(next = "/") {
 
   const start = new URL("/api/auth/apple/start", window.location.origin);
   start.searchParams.set("next", next);
+  if (isIosCapacitor()) start.searchParams.set("platform", "ios");
   if (isAndroidCapacitor()) start.searchParams.set("platform", "android");
+
+  if (isCapacitorNative()) {
+    await openNativeOAuthUrl(start.toString());
+    return;
+  }
+
   window.location.assign(start.toString());
 }

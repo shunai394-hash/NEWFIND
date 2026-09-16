@@ -28,12 +28,58 @@ function circlePath(c, r) {
   return `M ${round(c.x - r)} ${round(c.y)} a ${radius} ${radius} 0 1 1 ${round(r * 2)} 0 a ${radius} ${radius} 0 1 1 ${round(-r * 2)} 0`;
 }
 
-function masterSvg({ background, padding = 0, size = MASTER }) {
-  const scale = size / MASTER;
+/**
+ * Geometric 5x7 bitmap for NEWFIND. Drawn as SVG rects so the App Store
+ * 1024 icon stays recognizable without depending on system fonts.
+ */
+const WORDMARK = {
+  N: ["10001", "11001", "10101", "10011", "10001"],
+  E: ["11111", "10000", "11110", "10000", "11111"],
+  W: ["10001", "10001", "10101", "10101", "01110"],
+  F: ["11111", "10000", "11110", "10000", "10000"],
+  I: ["11111", "00100", "00100", "00100", "11111"],
+  D: ["11110", "10001", "10001", "10001", "11110"],
+};
+
+function wordmarkSvg(cx, cy, cell = 14, gap = 18) {
+  const letters = "NEWFIND".split("");
+  const letterWidth = 5 * cell;
+  const letterHeight = 5 * cell;
+  const total =
+    letters.length * letterWidth + (letters.length - 1) * gap;
+  let x = cx - total / 2;
+  const y = cy - letterHeight / 2;
+  const rects = [];
+
+  for (const letter of letters) {
+    const grid = WORDMARK[letter];
+    grid.forEach((row, rowIndex) => {
+      [...row].forEach((bit, colIndex) => {
+        if (bit !== "1") return;
+        rects.push(
+          `<rect x="${round(x + colIndex * cell)}" y="${round(y + rowIndex * cell)}" width="${cell}" height="${cell}" fill="${LIME}"/>`,
+        );
+      });
+    });
+    x += letterWidth + gap;
+  }
+
+  return rects.join("");
+}
+
+function masterSvg({
+  background,
+  padding = 0,
+  size = MASTER,
+  wordmark = false,
+  markScale = 1,
+  markY = 0,
+} = {}) {
+  const scale = (size / MASTER) * markScale;
   const inset = padding;
   const view = size + inset * 2;
-  const tx = inset;
-  const ty = inset;
+  const tx = inset + (size - size * markScale) / 2;
+  const ty = inset + (size - size * markScale) / 2 + markY;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${view} ${view}" width="${view}" height="${view}" role="img" aria-label="NEWFIND">
@@ -48,6 +94,7 @@ function masterSvg({ background, padding = 0, size = MASTER }) {
     <circle cx="${C1.x}" cy="${C1.y}" r="${RADIUS}" fill="none" stroke="${LIME}" stroke-width="${STROKE}"/>
     <circle cx="${C2.x}" cy="${C2.y}" r="${RADIUS}" fill="none" stroke="${LIME}" stroke-width="${STROKE}"/>
   </g>
+  ${wordmark ? wordmarkSvg(view / 2, view * 0.86, 13, 16) : ""}
 </svg>
 `;
 }
@@ -133,7 +180,11 @@ function androidVector() {
 `;
 }
 
-async function pngFromSvg(svg, size, { flatten = true, transparent = false } = {}) {
+async function pngFromSvg(
+  svg,
+  size,
+  { flatten = true, transparent = false, opaque = false } = {},
+) {
   let image = sharp(Buffer.from(svg)).resize(size, size, {
     fit: "fill",
     kernel: "lanczos3",
@@ -141,10 +192,15 @@ async function pngFromSvg(svg, size, { flatten = true, transparent = false } = {
 
   if (transparent) {
     image = image.ensureAlpha().png();
+  } else if (opaque) {
+    image = image
+      .flatten({ background: BLACK })
+      .removeAlpha()
+      .png({ compressionLevel: 9, force: true });
   } else if (flatten) {
-    image = image.flatten({ background: BLACK }).ensureAlpha().png();
+    image = image.flatten({ background: BLACK }).png();
   } else {
-    image = image.ensureAlpha().png();
+    image = image.png();
   }
 
   return image.toBuffer();
@@ -155,6 +211,129 @@ async function writeFile(rel, contents) {
   fs.mkdirSync(path.dirname(abs), { recursive: true });
   fs.writeFileSync(abs, contents);
   console.log("wrote", rel);
+}
+
+function iosContentsJson() {
+  return `${JSON.stringify(
+    {
+      images: [
+        {
+          filename: "icon-20@2x.png",
+          idiom: "iphone",
+          scale: "2x",
+          size: "20x20",
+        },
+        {
+          filename: "icon-20@3x.png",
+          idiom: "iphone",
+          scale: "3x",
+          size: "20x20",
+        },
+        {
+          filename: "icon-29@2x.png",
+          idiom: "iphone",
+          scale: "2x",
+          size: "29x29",
+        },
+        {
+          filename: "icon-29@3x.png",
+          idiom: "iphone",
+          scale: "3x",
+          size: "29x29",
+        },
+        {
+          filename: "icon-40@2x.png",
+          idiom: "iphone",
+          scale: "2x",
+          size: "40x40",
+        },
+        {
+          filename: "icon-40@3x.png",
+          idiom: "iphone",
+          scale: "3x",
+          size: "40x40",
+        },
+        {
+          filename: "icon-60@2x.png",
+          idiom: "iphone",
+          scale: "2x",
+          size: "60x60",
+        },
+        {
+          filename: "icon-60@3x.png",
+          idiom: "iphone",
+          scale: "3x",
+          size: "60x60",
+        },
+        {
+          filename: "icon-20.png",
+          idiom: "ipad",
+          scale: "1x",
+          size: "20x20",
+        },
+        {
+          filename: "icon-20@2x.png",
+          idiom: "ipad",
+          scale: "2x",
+          size: "20x20",
+        },
+        {
+          filename: "icon-29.png",
+          idiom: "ipad",
+          scale: "1x",
+          size: "29x29",
+        },
+        {
+          filename: "icon-29@2x.png",
+          idiom: "ipad",
+          scale: "2x",
+          size: "29x29",
+        },
+        {
+          filename: "icon-40.png",
+          idiom: "ipad",
+          scale: "1x",
+          size: "40x40",
+        },
+        {
+          filename: "icon-40@2x.png",
+          idiom: "ipad",
+          scale: "2x",
+          size: "40x40",
+        },
+        {
+          filename: "icon-76.png",
+          idiom: "ipad",
+          scale: "1x",
+          size: "76x76",
+        },
+        {
+          filename: "icon-76@2x.png",
+          idiom: "ipad",
+          scale: "2x",
+          size: "76x76",
+        },
+        {
+          filename: "icon-83.5@2x.png",
+          idiom: "ipad",
+          scale: "2x",
+          size: "83.5x83.5",
+        },
+        {
+          filename: "AppIcon.png",
+          idiom: "ios-marketing",
+          scale: "1x",
+          size: "1024x1024",
+        },
+      ],
+      info: {
+        author: "xcode",
+        version: 1,
+      },
+    },
+    null,
+    2,
+  )}\n`;
 }
 
 function icoFromPngs(entries) {
@@ -199,12 +378,18 @@ async function splashPng(width, height, logo) {
 }
 
 async function main() {
-  const withBg = masterSvg({ background: true });
-  const foreground = masterSvg({ background: false });
+  const withBg = masterSvg({ background: true, markScale: 1.08 });
+  const marketing = masterSvg({
+    background: true,
+    markScale: 0.82,
+    markY: -70,
+    wordmark: true,
+  });
+  const foreground = masterSvg({ background: false, markScale: 1.08 });
   const compact = compactSvg();
   const compactFg = compactFgSvg();
 
-  await writeFile("public/brand/app-icon.svg", withBg);
+  await writeFile("public/brand/app-icon.svg", marketing);
   await writeFile("public/brand/n-mark.svg", compact);
   await writeFile("public/brand/n-mark-fg.svg", compactFg);
   await writeFile("app/icon.svg", compact);
@@ -217,26 +402,56 @@ async function main() {
     androidVector(),
   );
 
-  const master1024 = await pngFromSvg(withBg, 1024);
-  const apple180 = await pngFromSvg(withBg, 180);
-  const icon32 = await pngFromSvg(compact, 32);
-  const icon256 = await pngFromSvg(withBg, 256);
+  const master1024 = await pngFromSvg(withBg, 1024, { opaque: true });
+  const marketing1024 = await pngFromSvg(marketing, 1024, { opaque: true });
+  const apple180 = await pngFromSvg(withBg, 180, { opaque: true });
+  const icon32 = await pngFromSvg(compact, 32, { opaque: true });
+  const icon256 = await pngFromSvg(withBg, 256, { opaque: true });
   const fg432 = await pngFromSvg(foreground, 432, { transparent: true });
   const favicon = icoFromPngs([
     { width: 32, height: 32, png: icon32 },
     { width: 256, height: 256, png: icon256 },
   ]);
 
-  await writeFile("public/brand/icon-1024.png", master1024);
+  await writeFile("public/brand/icon-1024.png", marketing1024);
   await writeFile("public/brand/icon-32.png", icon32);
   await writeFile("public/brand/apple-touch-icon.png", apple180);
   await writeFile("app/apple-icon.png", apple180);
   await writeFile("app/icon.png", icon32);
   await writeFile("app/favicon.ico", favicon);
-  await writeFile(
-    "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
-    master1024,
-  );
+
+  const iosDir = "ios/App/App/Assets.xcassets/AppIcon.appiconset";
+  const iosIcons = [
+    ["icon-20.png", 20],
+    ["icon-20@2x.png", 40],
+    ["icon-20@3x.png", 60],
+    ["icon-29.png", 29],
+    ["icon-29@2x.png", 58],
+    ["icon-29@3x.png", 87],
+    ["icon-40.png", 40],
+    ["icon-40@2x.png", 80],
+    ["icon-40@3x.png", 120],
+    ["icon-60@2x.png", 120],
+    ["icon-60@3x.png", 180],
+    ["icon-76.png", 76],
+    ["icon-76@2x.png", 152],
+    ["icon-83.5@2x.png", 167],
+  ];
+
+  for (const [name, size] of iosIcons) {
+    await writeFile(
+      `${iosDir}/${name}`,
+      await pngFromSvg(withBg, size, { opaque: true }),
+    );
+  }
+  await writeFile(`${iosDir}/AppIcon.png`, marketing1024);
+  await writeFile(`${iosDir}/Contents.json`, iosContentsJson());
+
+  const leftover = path.join(ROOT, `${iosDir}/AppIcon-512@2x.png`);
+  if (fs.existsSync(leftover)) {
+    fs.unlinkSync(leftover);
+    console.log("removed", "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png");
+  }
 
   const mipmap = [
     ["mdpi", 48, 108],
@@ -248,9 +463,11 @@ async function main() {
 
   for (const [density, launcher, foregroundSize] of mipmap) {
     const base = `android/app/src/main/res/mipmap-${density}`;
-    const full = await pngFromSvg(withBg, launcher);
-    const round = await pngFromSvg(withBg, launcher);
-    const fg = await pngFromSvg(foreground, foregroundSize, { transparent: true });
+    const full = await pngFromSvg(withBg, launcher, { opaque: true });
+    const round = await pngFromSvg(withBg, launcher, { opaque: true });
+    const fg = await pngFromSvg(foreground, foregroundSize, {
+      transparent: true,
+    });
     await writeFile(`${base}/ic_launcher.png`, full);
     await writeFile(`${base}/ic_launcher_round.png`, round);
     await writeFile(`${base}/ic_launcher_foreground.png`, fg);
@@ -277,14 +494,14 @@ async function main() {
 
   for (const [rel, width, height] of androidSplashes) {
     const logoSize = Math.round(Math.min(width, height) * 0.22);
-    const logo = await pngFromSvg(withBg, logoSize);
+    const logo = await pngFromSvg(withBg, logoSize, { opaque: true });
     await writeFile(
       `android/app/src/main/res/${rel}`,
       await splashPng(width, height, logo),
     );
   }
 
-  const iosLogo = await pngFromSvg(withBg, 600);
+  const iosLogo = await pngFromSvg(withBg, 600, { opaque: true });
   const iosSplash = await splashPng(2732, 2732, iosLogo);
   for (const name of [
     "splash-2732x2732.png",
@@ -296,6 +513,9 @@ async function main() {
       iosSplash,
     );
   }
+
+  // Keep a copy of the home-screen mark for web/docs.
+  await writeFile("public/brand/icon-home-1024.png", master1024);
 
   console.log("icon render complete");
 }

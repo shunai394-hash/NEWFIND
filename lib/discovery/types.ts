@@ -247,6 +247,11 @@ export type DiscoveryProduct = {
   price: number | null;
   currency: string;
   sku: string | null;
+  gtin?: string | null;
+  modelNumber?: string | null;
+  launchDate?: string | null;
+  canonicalUrl?: string | null;
+  discoveryReport?: Record<string, unknown> | null;
   trendScore: number;
   confidenceScore: number;
   discoverySource: string | null;

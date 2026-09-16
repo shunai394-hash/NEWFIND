@@ -64,19 +64,25 @@ export function emptyDiscoveryReport(
   };
 }
 
-export function scoreDiscoveryEvidence(report: Pick<
-  DiscoveryReport,
-  | "productUrl"
-  | "officialUrl"
-  | "productImageUrl"
-  | "price"
-  | "sku"
-  | "gtin"
-  | "modelNumber"
-  | "sourceUrls"
-  | "evidence"
-  | "launchDate"
->): number {
+export function scoreDiscoveryEvidence(
+  report: Pick<
+    DiscoveryReport,
+    | "productUrl"
+    | "officialUrl"
+    | "productImageUrl"
+    | "price"
+    | "sku"
+    | "gtin"
+    | "modelNumber"
+    | "sourceUrls"
+    | "evidence"
+    | "launchDate"
+  >,
+  options?: {
+    marketplace?: boolean;
+    preferredSource?: boolean;
+  },
+): number {
   let score = 0;
   if (report.productUrl) score += 20;
   if (report.officialUrl) score += 10;
@@ -86,15 +92,18 @@ export function scoreDiscoveryEvidence(report: Pick<
   if (report.launchDate) score += 5;
   if (report.sourceUrls.length >= 2) score += 10;
   if (report.evidence.length >= 2) score += 10;
+  if (options?.preferredSource) score += 10;
+  if (options?.marketplace) score -= 15;
   return clampScore(score);
 }
 
 export function isPostableDiscovery(report: DiscoveryReport) {
   if (!report.productUrl || !report.productImageUrl) return false;
   if (!report.brand.trim() || !report.productName.trim()) return false;
-  if (report.evidenceScore < 50) return false;
+  if (report.price == null) return false;
+  if (report.evidenceScore < 55) return false;
   if (report.confidenceScore < 55) return false;
-  if (report.residentFitScore < 45) return false;
+  if (report.residentFitScore < 50) return false;
   if (report.duplicateRisk >= 80) return false;
   return true;
 }

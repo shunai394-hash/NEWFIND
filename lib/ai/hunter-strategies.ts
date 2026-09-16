@@ -10,6 +10,34 @@ export type HunterStrategy = {
   noveltyPreference: "high" | "medium";
   evaluationCriteria: string[];
   postingLens: string;
+  includeDomains?: string[];
+};
+
+const SOURCE_DOMAIN_MAP: Record<string, string[]> = {
+  "openbeautyfacts.org": ["openbeautyfacts.org"],
+  ssense: ["ssense.com"],
+  matchesfashion: ["matchesfashion.com"],
+  sneakersnstuff: ["sneakersnstuff.com"],
+  endclothing: ["endclothing.com"],
+  luckyscent: ["luckyscent.com"],
+  twistedlily: ["twistedlily.com"],
+  jetpens: ["jetpens.com"],
+  "rei pdp": ["rei.com"],
+  "backcountry pdp": ["backcountry.com"],
+  crutchfield: ["crutchfield.com"],
+  bhphotovideo: ["bhphotovideo.com"],
+  finnishdesignshop: ["finnishdesignshop.com"],
+  "29cm": ["29cm.co.kr"],
+  farfetch: ["farfetch.com"],
+  mrporter: ["mrporter.com"],
+  needsupply: ["needsupply.com"],
+  sephora: ["sephora.com"],
+  oliveyoung: ["oliveyoung.com"],
+  muji: ["muji.com"],
+  uniqlo: ["uniqlo.com"],
+  designshop: ["finnishdesignshop.com"],
+  vitra: ["vitra.com"],
+  toiro: ["toirokitchen.com"],
 };
 
 const STRATEGIES: Record<string, HunterStrategy> = {
@@ -453,14 +481,39 @@ export function rotateVocabulary(
   strategy: HunterStrategy | null,
   seed: string,
   count = 3,
+  skip = 0,
 ) {
   const words = strategy?.searchVocabulary ?? [];
   if (words.length === 0) return [];
   const offset =
-    Math.abs(
+    (Math.abs(
       [...seed].reduce((sum, char) => sum + char.charCodeAt(0), 0),
-    ) % words.length;
+    ) +
+      skip) %
+    words.length;
   return Array.from({ length: Math.min(count, words.length) }, (_, index) => {
     return words[(offset + index) % words.length];
   });
+}
+
+export function preferredSearchDomains(strategy: HunterStrategy | null): string[] {
+  if (!strategy) return [];
+  const domains = new Set<string>();
+  for (const source of [
+    ...(strategy.includeDomains ?? []),
+    ...strategy.preferredSources,
+  ]) {
+    const trimmed = source.trim().toLowerCase();
+    if (!trimmed) continue;
+    if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(trimmed)) {
+      domains.add(trimmed.replace(/^www\./, ""));
+      continue;
+    }
+    for (const [token, hosts] of Object.entries(SOURCE_DOMAIN_MAP)) {
+      if (trimmed.includes(token)) {
+        for (const host of hosts) domains.add(host);
+      }
+    }
+  }
+  return [...domains].slice(0, 4);
 }

@@ -1,5 +1,4 @@
 import {
-  buildResidentSearchQuery,
   isNewsSignal,
   isProductSource,
   searchWorld,
@@ -14,10 +13,13 @@ import { listDiscoveryProductsFromDb, saveDiscoveryProductToDb } from "@/lib/dis
 import { isUsableProductImage } from "@/lib/discovery/media";
 import type { DiscoveryProductInput } from "@/lib/discovery/types";
 import { prepareDiscoveryProduct } from "@/lib/discovery/rules";
-import { classifyProductMatch } from "@/lib/ai/product-identity";
+import { classifyProductMatch, coreProductName } from "@/lib/ai/product-identity";
 import { getSpecialistHunterByUsername } from "@/lib/ai/specialist-product-hunters";
-import { getHunterStrategy, rotateVocabulary } from "@/lib/ai/hunter-strategies";
+import { getHunterStrategy } from "@/lib/ai/hunter-strategies";
 import { planNextHunt } from "@/lib/ai/explore-next";
+import { buildPrecisionHuntQueries } from "@/lib/ai/hunter-queries";
+import { loadResidentHumanSignals } from "@/lib/ai/human-signals";
+import { resultFitsHunterSpecialty } from "@/lib/ai/specialty-fit";
 
 export type ResidentProductHunterDiscovery = {
   candidateIndex: number;
@@ -122,16 +124,43 @@ export async function runResidentProductHunter(
     specialist?.huntingSpecialty ||
     (persona.expertise ?? []).slice(0, 3).join(" / ") ||
     undefined;
+
+  let existingProducts: Awaited<ReturnType<typeof listDiscoveryProductsFromDb>> = [];
+  try {
+    existingProducts = await listDiscoveryProductsFromDb({
+      admin: true,
+      status: "all",
+    });
+  } catch (error) {
+    console.warn("AI PRODUCT HUNTER: existing products unavailable", error);
+  }
+  const recentMine = existingProducts
+    .filter((item) => item.discoveredByResidentId === persona.id)
+    .slice(0, 8)
+    .map((item) => item.productName);
+
+  let signals = null;
+  try {
+    if (persona.profile_id) {
+      signals = await loadResidentHumanSignals({
+        profileId: persona.profile_id,
+        discoveryProductIds: existingProducts
+          .filter((item) => item.discoveredByResidentId === persona.id)
+          .map((item) => item.id)
+          .slice(0, 40),
+      });
+    }
+  } catch (error) {
+    console.warn("AI PRODUCT HUNTER: human signals unavailable", error);
+  }
+
   const nextHunt = planNextHunt({
     persona,
+    signals,
+    recentProductNames: recentMine,
     worldHints: sharedWorldNews.slice(0, 3).map((item) => item.title),
   });
-  const rotated = rotateVocabulary(
-    strategy,
-    `${persona.id}:${new Date().toISOString().slice(0, 10)}`,
-    3,
-  );
-  const baseQuery = buildResidentSearchQuery({
+  const huntQueries = buildPrecisionHuntQueries({
     residentName: persona.persona_name,
     interests: persona.interests ?? [],
     preferredCategories: persona.preferred_categories ?? [],
@@ -142,44 +171,49 @@ export async function runResidentProductHunter(
     language: persona.languages?.[0],
     favoriteBrands: persona.favorite_brands ?? [],
     region: persona.region,
-    discoveryKeywords: [
-      ...(specialist?.discoveryKeywords ?? persona.interests ?? []),
-      ...nextHunt.vocabulary,
-    ],
+    discoveryKeywords: specialist?.discoveryKeywords ?? persona.interests ?? [],
     huntingSpecialty,
+    username: persona.username,
+    nextHunt,
+    strategy,
   });
-  const exploratoryQuery = {
-    ...baseQuery,
-    query: [baseQuery.query, ...rotated, strategy?.newnessPreference === "launch" ? "new release" : ""]
-      .filter(Boolean)
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim(),
-  };
 
-  const [primaryResults, extraResults] = await Promise.all([
-    searchWorld({
-      ...baseQuery,
-      residentId: persona.id,
-      residentName: persona.persona_name,
-    }),
-    searchWorld({
-      ...exploratoryQuery,
-      residentId: persona.id,
-      residentName: persona.persona_name,
-    }),
-  ]);
+  console.log(
+    `[AI PRODUCT HUNTER] ${persona.persona_name} queries:`,
+    huntQueries.map((item) => `${item.label}=${item.query}`).join(" || "),
+  );
 
-  const productResults = mergeSearchResults([primaryResults, extraResults]);
+  const searched = await Promise.all(
+    huntQueries.map((query) =>
+      searchWorld({
+        ...query,
+        residentId: persona.id,
+        residentName: persona.persona_name,
+      }),
+    ),
+  );
+
+  const productResults = mergeSearchResults(searched);
   const newsSignals = sharedWorldNews.filter(isNewsSignal);
-  const productSources = productResults.filter(isProductSource);
+  const productSources = productResults.filter((result) => {
+    if (!isProductSource(result)) return false;
+    return resultFitsHunterSpecialty({
+      title: result.title,
+      url: result.url,
+      snippet: result.snippet,
+      username: persona.username,
+      huntingSpecialty,
+      strategy,
+    });
+  });
   const searchResults = [...newsSignals, ...productSources];
+  const searchQuery = huntQueries.map((item) => item.query).join(" || ");
 
   if (productSources.length === 0) {
     return {
       residentId: persona.id,
       residentName: persona.persona_name,
-      searchQuery: `${baseQuery.query} || ${exploratoryQuery.query}`,
+      searchQuery,
       searchResults,
       worldNews: newsSignals,
       candidates: [],
@@ -201,15 +235,14 @@ export async function runResidentProductHunter(
     languages: persona.languages ?? [],
     culture: persona.culture,
     huntingSpecialty,
+    hunterUsername: persona.username ?? undefined,
     results: searchResults,
   });
   const savedProductIds: string[] = [];
   const discoveries: ResidentProductHunterDiscovery[] = [];
-
-  let existingProducts = await listDiscoveryProductsFromDb({
-    admin: true,
-    status: "all",
-  });
+  const avoidNames = new Set(
+    nextHunt.avoid.map((name) => coreProductName(name)).filter(Boolean),
+  );
 
   for (
     let candidateIndex = 0;
@@ -220,6 +253,14 @@ export async function runResidentProductHunter(
     if (candidate.origin === "catalog") {
       console.log(
         `[AI PRODUCT HUNTER] catalog fallback kept as candidate but not saved as this-cycle discovery: ${candidate.brand} / ${candidate.productName}`,
+      );
+      continue;
+    }
+
+    const avoided = coreProductName(candidate.productName);
+    if (avoided && avoidNames.has(avoided)) {
+      console.log(
+        `[AI PRODUCT HUNTER] avoided recent/ignored product: ${candidate.brand} / ${candidate.productName}`,
       );
       continue;
     }
@@ -281,7 +322,7 @@ export async function runResidentProductHunter(
   return {
     residentId: persona.id,
     residentName: persona.persona_name,
-    searchQuery: `${baseQuery.query} || ${exploratoryQuery.query}`,
+    searchQuery,
     searchResults,
     worldNews: newsSignals,
     candidates,

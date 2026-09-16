@@ -33,6 +33,30 @@ export function coreProductName(value: string) {
     .trim();
 }
 
+export function extractUrlIdentity(url: string | null | undefined): {
+  asin: string | null;
+  handle: string | null;
+  pathKey: string;
+} {
+  if (!url) return { asin: null, handle: null, pathKey: "" };
+  try {
+    const parsed = new URL(url.trim());
+    const host = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+    const path = parsed.pathname.replace(/\/$/, "").toLowerCase();
+    const asinMatch = path.match(/\/(?:dp|gp\/product)\/([a-z0-9]{8,})/i);
+    const handleMatch = path.match(
+      /\/(?:products?|goods|items?|sku|pd|detail|prod)\/([^/?#]+)/i,
+    );
+    return {
+      asin: asinMatch?.[1]?.toUpperCase() ?? null,
+      handle: handleMatch?.[1] ?? null,
+      pathKey: `${host}${path}`,
+    };
+  } catch {
+    return { asin: null, handle: null, pathKey: "" };
+  }
+}
+
 export function productIdentityKey(input: ProductIdentityInput) {
   const gtin = compact(input.gtin);
   if (gtin.length >= 8) return `gtin:${gtin}`;
@@ -41,6 +65,12 @@ export function productIdentityKey(input: ProductIdentityInput) {
   if (sku && brand) return `sku:${brand}:${sku}`;
   const model = compact(input.modelNumber);
   if (model && brand) return `model:${brand}:${model}`;
+  const urlId = extractUrlIdentity(input.officialUrl || input.productUrl);
+  if (urlId.asin) return `asin:${urlId.asin}`;
+  if (urlId.handle) {
+    const host = urlId.pathKey.split("/")[0];
+    return `handle:${host}:${urlId.handle}`;
+  }
   const name = coreProductName(input.productName);
   if (brand && name) return `name:${brand}:${name}`;
   return `url:${canonicalProductUrl(input.officialUrl || input.productUrl)}`;
@@ -61,7 +91,7 @@ export function isRediscoveryCandidate(input: {
   if (REDISCOVERY_HINT.test(haystack)) return true;
   if (
     (input.trendTags ?? []).some((tag) =>
-      ["new_release", "re_discovered", "rising"].includes(tag),
+      ["new_release", "re_discovered"].includes(tag),
     )
   ) {
     return true;
@@ -94,6 +124,9 @@ export function classifyProductMatch(
   const candidateKey = productIdentityKey(candidate);
   const candidateUrl = canonicalProductUrl(candidate.productUrl);
   const candidateOfficial = canonicalProductUrl(candidate.officialUrl);
+  const candidateUrlId = extractUrlIdentity(
+    candidate.officialUrl || candidate.productUrl,
+  );
   const brand = normalizeBrand(candidate.brand);
   const name = normalizeProductName(candidate.productName);
   const coreName = coreProductName(candidate.productName);
@@ -102,6 +135,17 @@ export function classifyProductMatch(
     existing.find((item) => {
       if (item.status === "rejected") return false;
       if (productIdentityKey(item) === candidateKey) return true;
+      const itemUrlId = extractUrlIdentity(item.officialUrl || item.productUrl);
+      if (candidateUrlId.asin && itemUrlId.asin === candidateUrlId.asin) {
+        return true;
+      }
+      if (
+        candidateUrlId.handle &&
+        itemUrlId.handle === candidateUrlId.handle &&
+        candidateUrlId.pathKey.split("/")[0] === itemUrlId.pathKey.split("/")[0]
+      ) {
+        return true;
+      }
       if (candidateUrl && canonicalProductUrl(item.productUrl) === candidateUrl) {
         return true;
       }

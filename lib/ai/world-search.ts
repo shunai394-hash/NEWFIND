@@ -29,6 +29,8 @@ export type WorldSearchQuery = {
   region?: string | null;
   discoveryKeywords?: string[];
   huntingSpecialty?: string;
+  includeDomains?: string[];
+  excludeDomains?: string[];
 };
 
 export type WorldSearchSourceRole = "product" | "news" | "general";
@@ -103,6 +105,23 @@ function getPath(url: string): string {
     return new URL(url).pathname.toLowerCase();
   } catch {
     return "";
+  }
+}
+
+const JUNK_PRODUCT_DOMAINS =
+  /(^|\.)(cna\.st|bit\.ly|t\.co|tinyurl\.com|aliexpress\.|alibaba\.|made-in-china|dhgate\.|temu\.|shein\.)$/i;
+
+function isGarbageProductUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    if (JUNK_PRODUCT_DOMAINS.test(host)) return true;
+    const slug = parsed.pathname.split("/").filter(Boolean).pop() ?? "";
+    if (slug.length >= 80) return true;
+    if (slug.length >= 48 && !/-/.test(slug)) return true;
+    return false;
+  } catch {
+    return true;
   }
 }
 
@@ -238,6 +257,11 @@ const NON_PRODUCT_PATH_PATTERNS = [
   /\/lookbook(?:\/|$)/i,
   /\/magazine(?:\/|$)/i,
   /\/books?(?:\/|$)/i,
+  /\/wholesale(?:\/|$)/i,
+  /\/best-sellers?(?:\/|$)/i,
+  /\/new-arrivals?(?:\/|$)/i,
+  /\/shop-all(?:\/|$)/i,
+  /\/all-products?(?:\/|$)/i,
 ];
 
 const NON_PRODUCT_TITLE_PATTERNS = [
@@ -256,6 +280,10 @@ const NON_PRODUCT_TITLE_PATTERNS = [
   /\binterview\b/i,
   /\breview\b/i,
   /\btrend report\b/i,
+  /\bbest sellers?\b/i,
+  /\bshop all\b/i,
+  /\bnew arrivals?\b/i,
+  /\blookbook\b/i,
 ];
 
 const PRODUCT_PATH_PATTERNS = [
@@ -270,6 +298,11 @@ const PRODUCT_PATH_PATTERNS = [
   /\/sku\/[^/?#]+/i,
   /\/goods\/[^/?#]+/i,
   /\/pd\/[^/?#]+/i,
+  /\/detail\/[^/?#]+/i,
+  /\/product-detail\/[^/?#]+/i,
+  /\/prod\/[^/?#]+/i,
+  /\/commodity\/[^/?#]+/i,
+  /\/t\/[^/?#]+/i,
 ];
 
 const PRODUCT_TEXT_PATTERNS = [
@@ -308,6 +341,10 @@ export function classifyTavilyResult(
     }
 
     if (isAssetOrNonProductUrl(url)) {
+      return "general";
+    }
+
+    if (isGarbageProductUrl(url)) {
       return "general";
     }
 
@@ -617,9 +654,12 @@ class TavilyWorldSearchProvider
           api_key: apiKey,
           query: query.query,
           search_depth: "advanced",
-          max_results: 15,
+          max_results: query.includeDomains?.length ? 12 : 15,
           include_answer: false,
           include_raw_content: true,
+          include_domains: query.includeDomains?.length
+            ? query.includeDomains
+            : undefined,
           exclude_domains: [
             "youtube.com",
             "instagram.com",
@@ -636,6 +676,18 @@ class TavilyWorldSearchProvider
             "apnews.com",
             "medium.com",
             "substack.com",
+            "reddit.com",
+            "quora.com",
+            "linkedin.com",
+            "aliexpress.com",
+            "alibaba.com",
+            "made-in-china.com",
+            "dhgate.com",
+            "temu.com",
+            "shein.com",
+            "cna.st",
+            "bit.ly",
+            ...(query.excludeDomains ?? []),
           ],
         }),
         cache: "no-store",
@@ -774,7 +826,7 @@ const LIFESTYLE_SEARCH_NOISE = new Set([
 ]);
 
 const PRODUCT_HUNT_SIGNAL =
-  /beauty|skincare|fragrance|perfume|cosmetic|makeup|fashion|shoe|sneaker|bag|watch|ceramic|stationer|notebook|\bpen\b|interior|gadget|electronic|audio|food|snack|beverage|fitness|pet|home|tech|jacket|apparel|accessor|serum|moisturizer|outdoor|camp|hiking|tent|backpack|baby|kids|child|stroller|garden|plant|planter|seed|wellness|bath|sleep|supplement|craft|diy|yarn|japan|香水|美容|コスメ|ファッション|靴|バッグ|スキンケア|香り|アウトドア|キャンプ|ベビー|キッズ|文房具|園芸|ウェルネス|日本製/;
+  /beauty|skincare|fragrance|perfume|cosmetic|makeup|fashion|shoe|sneaker|colorway|bag|watch|ceramic|stationer|notebook|\bpen\b|interior|gadget|electronic|audio|food|snack|beverage|fitness|pet|home|tech|jacket|leather|atelier|apparel|accessor|serum|moisturizer|outdoor|camp|hiking|tent|backpack|baby|kids|child|stroller|garden|plant|planter|seed|wellness|bath|sleep|supplement|craft|diy|yarn|japan|usb|charger|keyboard|controller|extrait|perfume|香水|美容|コスメ|ファッション|靴|バッグ|スキンケア|香り|アウトドア|キャンプ|ベビー|キッズ|文房具|園芸|ウェルネス|日本製/;
 
 export function isLifestyleSearchNoise(value: string): boolean {
   return LIFESTYLE_SEARCH_NOISE.has(value.trim().toLowerCase());
@@ -810,6 +862,9 @@ type ProductSearchLens =
 
 function lensFromHaystack(haystack: string): ProductSearchLens {
   const text = haystack.toLowerCase();
+  if (/sneaker|colorway|trainer|kicks/.test(text)) {
+    return "fashion";
+  }
   if (/baby|kids|child|stroller|parenting|ベビー|キッズ/.test(text)) {
     return "kids";
   }
@@ -911,69 +966,37 @@ function productPageIntent(lens: ProductSearchLens, language?: string): string {
   const ja = (language || "").toLowerCase().startsWith("ja");
   switch (lens) {
     case "beauty":
-      return ja
-        ? "公式 商品ページ 美容液 化粧水 成分 容量 ml 購入"
-        : "official product page inurl:product serum moisturizer ingredients ml buy";
+      return ja ? "公式 商品ページ 成分 購入" : '"product page" ingredients buy';
     case "fragrance":
-      return ja
-        ? "公式 香水 商品ページ 容量 ml 購入"
-        : "official perfume product page inurl:product eau de parfum ml buy";
+      return ja ? "公式 香水 商品ページ 購入" : '"product page" parfum buy';
     case "fashion":
-      return ja
-        ? "公式 商品ページ ジャケット スニーカー バッグ サイズ カラー 価格 購入"
-        : "official product page inurl:products sneakers bag size color price buy";
+      return ja ? "公式 商品ページ 購入" : '"product page" buy';
     case "food":
-      return ja
-        ? "公式 商品ページ 原材料 内容量 購入"
-        : "official product page inurl:product ingredients buy";
+      return ja ? "公式 商品ページ 購入" : '"product page" ingredients buy';
     case "tech":
-      return ja
-        ? "公式 商品ページ スペック sku 購入"
-        : "official product page inurl:dp specs sku buy";
+      return ja ? "公式 商品ページ sku 購入" : '"product page" sku specs buy';
     case "home":
-      return ja
-        ? "公式 商品ページ サイズ 素材 購入"
-        : "official product page inurl:products dimensions buy";
+      return ja ? "公式 商品ページ 購入" : '"product page" dimensions buy';
     case "fitness":
-      return ja
-        ? "公式 商品ページ サイズ スペック 購入"
-        : "official product page inurl:product size specs buy";
+      return ja ? "公式 商品ページ 購入" : '"product page" specs buy';
     case "pet":
-      return ja
-        ? "公式 ペット用品 商品ページ 原材料 内容量 購入"
-        : "official pet product page inurl:product ingredients buy";
+      return ja ? "公式 ペット用品 商品ページ 購入" : '"product page" pet buy';
     case "wellness":
-      return ja
-        ? "公式 商品ページ 入浴 睡眠 ボディケア 成分 購入"
-        : "official product page inurl:product bath sleep body care ingredients buy";
+      return ja ? "公式 商品ページ 購入" : '"product page" buy';
     case "outdoor":
-      return ja
-        ? "公式 商品ページ キャンプ テント スペック 重量 購入"
-        : "official product page inurl:product tent pack specs weight buy";
+      return ja ? "公式 商品ページ スペック 購入" : '"product page" specs weight buy';
     case "kids":
-      return ja
-        ? "公式 ベビー キッズ 商品ページ サイズ 素材 購入"
-        : "official baby kids product page inurl:product size material buy";
+      return ja ? "公式 ベビー 商品ページ 購入" : '"product page" kids buy';
     case "stationery":
-      return ja
-        ? "公式 文房具 商品ページ ペン ノート 購入"
-        : "official stationery product page inurl:product pen notebook buy";
+      return ja ? "公式 文房具 商品ページ 購入" : '"product page" stationery buy';
     case "garden":
-      return ja
-        ? "公式 園芸 商品ページ 鉢 サイズ 購入"
-        : "official garden product page inurl:product planter size buy";
+      return ja ? "公式 園芸 商品ページ 購入" : '"product page" planter buy';
     case "craft":
-      return ja
-        ? "公式 手芸 工具 商品ページ 材料 購入"
-        : "official craft diy product page inurl:product tools materials buy";
+      return ja ? "公式 手芸 商品ページ 購入" : '"product page" tools buy';
     case "japan":
-      return ja
-        ? "公式 日本製 商品ページ 産地 容量 購入"
-        : "official made in Japan product page inurl:product buy";
+      return ja ? "公式 日本製 商品ページ 購入" : '"product page" japan buy';
     default:
-      return ja
-        ? "公式 商品ページ 価格 購入"
-        : "official product page price buy";
+      return ja ? "公式 商品ページ 購入" : '"product page" buy';
   }
 }
 
@@ -1000,6 +1023,9 @@ function productResultFromUrl(
   snippet = "",
 ): WorldSearchResult | null {
   if (isAssetOrNonProductUrl(url) || isStoreOrBrandHomepage(url)) {
+    return null;
+  }
+  if (isGarbageProductUrl(url)) {
     return null;
   }
   const domain = getDomain(url);
@@ -1169,6 +1195,12 @@ class CombinedWorldSearchProvider
       "query:",
       query.query,
     );
+    if (query.includeDomains?.length) {
+      console.log(
+        "includeDomains:",
+        query.includeDomains.join(", "),
+      );
+    }
 
     let beautyResults: WorldSearchResult[] =
       [];
@@ -1414,7 +1446,7 @@ export function selectProductHuntTerms(input: {
   const keywords = (input.discoveryKeywords ?? []).filter(isProductHuntTerm);
   return pickDistinctTerms(
     [...keywords, ...specificCategories, ...huntInterests, ...huntExpertise],
-    4,
+    2,
   );
 }
 

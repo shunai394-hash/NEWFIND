@@ -87,6 +87,14 @@ export async function loadResidentHumanSignals(input: {
   };
 }
 
+export function huntModeFromSignals(
+  signals?: ResidentHumanSignals | null,
+): "deepen" | "leave" | "explore" {
+  if (!signals || signals.posts === 0) return "explore";
+  if (signals.discoverySuccess >= 40) return "deepen";
+  return "leave";
+}
+
 export function signalsToMemoryLine(signals: ResidentHumanSignals) {
   if (signals.posts === 0) {
     return "人間の反応はまだ少ない。次はより具体的で珍しい発見を優先する。";

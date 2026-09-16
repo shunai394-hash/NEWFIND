@@ -59,15 +59,58 @@ export function canonicalProductUrl(value: string | null | undefined): string {
     const url = new URL(value.trim());
     url.hash = "";
     url.hostname = url.hostname.replace(/^www\./, "").toLowerCase();
-    [
+    const trackingKeys = [
       "utm_source",
       "utm_medium",
       "utm_campaign",
       "utm_term",
       "utm_content",
+      "utm_id",
       "gclid",
       "fbclid",
-    ].forEach((key) => url.searchParams.delete(key));
+      "twclid",
+      "ttclid",
+      "msclkid",
+      "mc_cid",
+      "mc_eid",
+      "igshid",
+      "ref",
+      "ref_",
+      "sr",
+      "tag",
+      "ascsubtag",
+      "asc_campaign",
+      "mcid",
+      "spm",
+      "scm",
+      "from",
+      "source",
+      "aff",
+      "affiliate",
+      "clickid",
+      "irclickid",
+      "zanpid",
+      "ncid",
+      "icid",
+      "scid",
+      "cid",
+      "sid",
+      "sessionid",
+      "variant",
+      "color",
+      "colour",
+      "size",
+    ];
+    for (const key of [...url.searchParams.keys()]) {
+      const lower = key.toLowerCase();
+      if (
+        trackingKeys.includes(lower) ||
+        lower.startsWith("utm_") ||
+        lower.startsWith("ref")
+      ) {
+        url.searchParams.delete(key);
+      }
+    }
     return url.toString().replace(/\/$/, "").toLowerCase();
   } catch {
     return value.trim().replace(/\/$/, "").toLowerCase();

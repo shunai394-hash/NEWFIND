@@ -5,11 +5,15 @@ const GENERIC_OPENINGS = [
   /^ちょっと気になる/,
   /^面白い商品です/,
   /^これ、好き[。.]?$/,
+  /^なんかいい感じ/,
+  /^手元で見たい/,
   /^found this today/i,
   /^caught my eye/i,
   /^check this out/i,
   /^i found this/i,
   /^this is interesting/i,
+  /^i want this in front of me/i,
+  /^this feels like the current turn/i,
 ];
 
 const GENERIC_PHRASES = [
@@ -17,10 +21,14 @@ const GENERIC_PHRASES = [
   "気になりました",
   "面白い商品です",
   "ちょっと気になる",
+  "なんかいい感じ",
+  "手元で見たい",
   "found this today",
   "caught my eye",
   "pretty cool product",
   "this looks interesting",
+  "i want this in front of me",
+  "feels like the current turn",
 ];
 
 const GENERIC_CTAS = [
@@ -29,7 +37,11 @@ const GENERIC_CTAS = [
   "link in bio",
   "tap the link",
   "今すぐチェック",
+  "shop now",
 ];
+
+const CONCRETE_SIGNAL =
+  /\d|mm\b|ml\b|\bg\b|oz\b|sku|usb|leather|cotton|wool|steel|ceramic|serum|note|cut|last|port|weight|size|nylon|canvas|silk|resin|firmware|impedance|成分|素材|容量|型番|靴底|ノズル|キャップ|縫い|底|革|紙|インク|香|酸|より|than|vs\b|比べ/i;
 
 export type CaptionQualityInput = {
   caption: string;
@@ -56,6 +68,12 @@ function normalize(value: string) {
 
 function openingOf(value: string) {
   return normalize(value).slice(0, 18);
+}
+
+export function captionHasConcreteObservation(caption: string) {
+  const trimmed = caption.trim();
+  if (!trimmed) return false;
+  return CONCRETE_SIGNAL.test(trimmed);
 }
 
 export function captionIsGeneric(caption: string) {
@@ -94,6 +112,9 @@ export function evaluateCaptionQuality(
   if (captionIsGeneric(caption)) {
     return { ok: false, needsRewrite: true, reason: "generic_caption" };
   }
+  if (!captionHasConcreteObservation(caption)) {
+    return { ok: false, needsRewrite: true, reason: "no_concrete_observation" };
+  }
   if (captionHasGenericCta(caption)) {
     return { ok: false, needsRewrite: true, reason: "generic_cta" };
   }
@@ -116,15 +137,15 @@ export function evaluateCaptionQuality(
 export function roleCaptionLens(role: string | null | undefined) {
   switch (role) {
     case "product_hunter":
-      return "Write the discovery story: what you searched, what was unusual, and why this object survived your filter. Never say you 'just found it'.";
+      return "Write the discovery story: what you searched, what was unusual, and why this object survived your filter. Name a material, spec, or construction detail. Never say you 'just found it'.";
     case "critic":
       return "Name a weakness, a questionable claim, or a comparison. Do not praise by default.";
     case "curator":
-      return "Say why it belongs in today's NEWFIND, not why it is generally nice.";
+      return "Say why it belongs in today's NEWFIND, not why it is generally nice. Name a concrete trait.";
     case "influencer":
-      return "Personal reaction and social context: who would notice it, where it would actually be worn or used.";
+      return "Personal reaction and social context: who would notice it, where it would actually be worn or used. Name a detail.";
     case "reviewer":
-      return "Evaluate: one strength, one limit, no invented hands-on test.";
+      return "Evaluate: one strength, one limit, no invented hands-on test. Name a spec or material.";
     case "media":
       return "News context and why the object matters now. Do not treat a headline as the product.";
     case "trend_hunter":

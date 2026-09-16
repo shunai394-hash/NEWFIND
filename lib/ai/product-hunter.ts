@@ -1,4 +1,5 @@
 import { isUsableProductImage } from "@/lib/discovery/media";
+import { canonicalProductUrl } from "@/lib/discovery/rules";
 import { generateAIText } from "./groq";
 import {
   extractProductFactsFromHtml,
@@ -20,6 +21,12 @@ import {
   type WorldSearchResult,
 } from "./world-search";
 import type { DiscoveryCategory, TrendTag } from "@/lib/discovery/types";
+import { getHunterStrategy, preferredSearchDomains } from "@/lib/ai/hunter-strategies";
+import {
+  isMarketplaceProductUrl,
+  resultFitsHunterSpecialty,
+  specialtyFitScore,
+} from "@/lib/ai/specialty-fit";
 
 export type ProductHunterInput = {
   residentId: string;
@@ -34,6 +41,7 @@ export type ProductHunterInput = {
   languages?: string[];
   culture?: string | null;
   huntingSpecialty?: string;
+  hunterUsername?: string;
   results: WorldSearchResult[];
 };
 
@@ -239,7 +247,7 @@ function isLikelyConcreteProduct(
   ].join(" ");
 
   const hasPurchaseSignal =
-    /add to cart|add to bag|buy now|shop now|price|sku|ingredients|volume|ml|oz|size|color|colour|驛｢・ｧ繝ｻ・ｫ驛｢譎｢・ｽ・ｼ驛｢譏ｴ繝ｻ鬮ｮ莨夲ｽｽ・ｼ髯ｷ闌ｨ・ｽ・･|髣憺屮・ｽ・｡髫ｴ・ｬ繝ｻ・ｼ|驛｢・ｧ繝ｻ・ｵ驛｢・ｧ繝ｻ・､驛｢・ｧ繝ｻ・ｺ|驛｢・ｧ繝ｻ・ｫ驛｢譎｢・ｽ・ｩ驛｢譎｢・ｽ・ｼ|髯懶｣ｰ郢晢ｽｻ陋ｻﾂ/u.test(
+    /add to cart|add to bag|buy now|shop now|price|sku|ingredients|volume|ml|oz|size|color|colour|カート|購入|価格|容量|成分/u.test(
       productEvidence,
     );
 
@@ -384,6 +392,7 @@ function buildHunterPrompt(
     input.huntingSpecialty
       ? `Hunting specialty: ${input.huntingSpecialty}`
       : "",
+    "Stay strictly in this specialty. Reject off-lane objects even if they have a clean product URL.",
     "",
     "WORLD NEWS IS A DISCOVERY SIGNAL ONLY.",
     "News may explain why a product is interesting, trending, culturally relevant, or newly noticed.",
@@ -433,10 +442,20 @@ export async function evaluateProductCandidates(
 ): Promise<ProductHunterCandidate[]> {
   const news = input.results.filter(isNewsSignal);
   const allProducts = input.results.filter(isProductSource);
-  const liveProducts = allProducts.filter(isLiveWorldProduct);
-  const catalogProducts = allProducts.filter(
-    (result) => result.origin === "catalog",
-  );
+  const strategy = getHunterStrategy(input.hunterUsername);
+  const inLane = (result: WorldSearchResult) =>
+    resultFitsHunterSpecialty({
+      title: result.title,
+      url: result.url,
+      snippet: result.snippet,
+      username: input.hunterUsername,
+      huntingSpecialty: input.huntingSpecialty,
+      strategy,
+    });
+  const liveProducts = allProducts.filter(isLiveWorldProduct).filter(inLane);
+  const catalogProducts = allProducts
+    .filter((result) => result.origin === "catalog")
+    .filter(inLane);
   const products = liveProducts.length > 0 ? liveProducts : catalogProducts;
 
   if (products.length === 0) {
@@ -733,6 +752,26 @@ export async function evaluateProductCandidates(
         continue;
       }
 
+      const fitScore = specialtyFitScore({
+        brand,
+        productName,
+        url: source.url,
+        description,
+        username: input.hunterUsername,
+        huntingSpecialty: input.huntingSpecialty,
+        strategy,
+      });
+      if (fitScore < 50) {
+        console.log(
+          "PRODUCT HUNTER: rejected off-specialty candidate:",
+          productName,
+          source.url,
+          fitScore,
+        );
+        continue;
+      }
+
+      const preferredDomains = preferredSearchDomains(strategy);
       const report = emptyDiscoveryReport({
         brand,
         productName,
@@ -748,22 +787,28 @@ export async function evaluateProductCandidates(
         sku,
         gtin,
         modelNumber,
-        canonicalUrl: source.url,
+        canonicalUrl: canonicalProductUrl(officialUrl || source.url),
         sourceUrls: [source.url, officialUrl].filter(Boolean) as string[],
         evidence,
         whyNow: attentionReason,
         whyThisResident: attentionReason,
         trendSignals: trendTags,
         noveltyScore: trendScore,
-        residentFitScore: Math.min(100, confidenceScore + 10),
+        residentFitScore: fitScore,
         humanInterestScore: Math.min(100, trendScore + (price != null ? 10 : 0)),
         duplicateRisk: 0,
         confidenceScore,
       });
-      report.evidenceScore = scoreDiscoveryEvidence(report);
+      report.evidenceScore = scoreDiscoveryEvidence(report, {
+        marketplace:
+          isMarketplaceProductUrl(source.url) && strategy?.brandSize === "indie",
+        preferredSource: preferredDomains.some((domain) =>
+          source.domain.includes(domain),
+        ),
+      });
       report.confidenceScore = Math.min(confidenceScore, report.evidenceScore + 20);
 
-      if (report.evidenceScore < 50) {
+      if (report.evidenceScore < 55) {
         console.log(
           "PRODUCT HUNTER: rejected low-evidence report:",
           productName,

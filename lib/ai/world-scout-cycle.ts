@@ -13,6 +13,7 @@ import { logAiActivity } from "@/lib/ai/control-tower/activity-log";
 import {
   beginAgentResearch,
   completeAgentResearch,
+  EMPTY_AGENT_MEMORY,
   recordCheckedSources,
   recordFinding,
   recordResidentHandoff,
@@ -20,6 +21,13 @@ import {
 import { planResearchQueries } from "@/lib/ai/agent-os/query";
 import { filterFreshSources } from "@/lib/ai/agent-os/freshness";
 import { isLowQualitySource, sourceQualityFromType } from "@/lib/ai/agent-os/quality";
+import {
+  classifySearchRoles,
+  createPipelineTrace,
+  funnelSummary,
+  markPipelineEvent,
+  recordDrop,
+} from "@/lib/ai/pipeline-trace";
 
 export type WorldScoutCycleResult = {
   persona: string;
@@ -32,6 +40,7 @@ export type WorldScoutCycleResult = {
   duplicateSourceCount: number;
   assigned: string[];
   noAction: boolean;
+  funnelSummary?: string;
 };
 
 function mergeResults(groups: WorldSearchResult[]) {
@@ -55,8 +64,9 @@ function verificationStatus(input: {
 export async function runWorldScoutCycle(
   persona: AiPersona,
   sharedWorldNews: WorldSearchResult[] = [],
-  options?: { runId?: string | null },
+  options?: { runId?: string | null; dryRun?: boolean },
 ): Promise<WorldScoutCycleResult> {
+  const dryRun = Boolean(options?.dryRun);
   const named = getWorldScoutByUsername(persona.username);
   const beat: ScoutBeat = named?.scoutBeat ?? {
     countryCode: (persona.country_code || "US").toUpperCase(),
@@ -65,9 +75,21 @@ export async function runWorldScoutCycle(
     beatKey: (persona.country_code || "US").toUpperCase(),
   };
 
-  const session = await beginAgentResearch(persona, options?.runId);
+  const session = dryRun
+    ? {
+        available: false,
+        agent: null,
+        mission: null,
+        runId: null,
+        memory: EMPTY_AGENT_MEMORY,
+      }
+    : await beginAgentResearch(persona, options?.runId);
+  const note = async (input: Parameters<typeof logAiActivity>[0]) => {
+    if (dryRun) return;
+    await logAiActivity(input);
+  };
   if (session.agent?.status === "paused") {
-    await logAiActivity({
+    await note({
       personaId: persona.id,
       actorName: persona.display_name || persona.persona_name,
       actorRole: "world_scout",
@@ -100,9 +122,13 @@ export async function runWorldScoutCycle(
       language: persona.languages?.[0] || "en",
       seed: `${persona.id}:${new Date().toISOString().slice(0, 13)}`,
       recentQueries: session.memory.recentQueries,
+      personaTerms: [
+        ...(persona.expertise ?? named?.expertise ?? []),
+        ...(persona.interests ?? named?.interests ?? []),
+      ],
     });
 
-    await logAiActivity({
+    await note({
       personaId: persona.id,
       actorName: persona.display_name || persona.persona_name,
       actorRole: "world_scout",
@@ -132,6 +158,7 @@ export async function runWorldScoutCycle(
         duplicateSourceCount: extras?.duplicateSourceCount ?? 0,
         assigned: extras?.assigned ?? [],
         noAction: extras?.noAction ?? true,
+        funnelSummary: extras?.funnelSummary,
       };
       await completeAgentResearch({
         session,
@@ -172,13 +199,14 @@ export async function runWorldScoutCycle(
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await logAiActivity({
+      await note({
         personaId: persona.id,
         actorName: persona.display_name || persona.persona_name,
         actorRole: "world_scout",
         action: "error",
-        detail: message,
+        detail: `SEARCH_FAILED ${message}`,
         relatedRunId: options?.runId ?? null,
+        metadata: { reason: "SEARCH_FAILED" },
       });
       return empty({}, message);
     }
@@ -188,6 +216,23 @@ export async function runWorldScoutCycle(
       merged,
       session.memory.recentSources,
     );
+    const roles = classifySearchRoles(merged);
+    const scoutTrace = createPipelineTrace({
+      actorName: persona.display_name || persona.persona_name,
+      actorRole: "world_scout",
+      personaId: persona.id,
+      runId: options?.runId ?? null,
+      query: planned.map((item) => item.query).join(" | "),
+    });
+    scoutTrace.funnel.searchResults = merged.length;
+    scoutTrace.funnel.productCandidates = roles.productCandidates;
+    scoutTrace.funnel.newsCandidates = roles.newsCandidates;
+    scoutTrace.funnel.generalCandidates = roles.generalCandidates;
+    scoutTrace.funnel.duplicates = skipped.filter(
+      (item) => item.freshness === "duplicate",
+    ).length;
+    markPipelineEvent(scoutTrace, "SEARCH_COMPLETED");
+    markPipelineEvent(scoutTrace, "CLASSIFICATION_COMPLETED");
     const news = [
       ...sharedWorldNews.filter(isNewsSignal),
       ...fresh.filter(isNewsSignal),
@@ -224,18 +269,23 @@ export async function runWorldScoutCycle(
     }
 
     if (products.length === 0) {
-      await logAiActivity({
+      recordDrop(scoutTrace, {
+        reason: merged.length === 0 ? "NO_SEARCH_RESULTS" : "NOT_PRODUCT",
+      });
+      await note({
         personaId: persona.id,
         actorName: persona.display_name || persona.persona_name,
         actorRole: "world_scout",
         action: "no_action",
-        detail: `search=${merged.length} fresh=${fresh.length} news=${news.length} no product sources`,
+        detail: funnelSummary(scoutTrace.funnel),
         relatedRunId: options?.runId ?? null,
+        metadata: { funnel: scoutTrace.funnel, events: scoutTrace.events },
       });
       return empty({
         searchCount: merged.length,
         duplicateSourceCount,
         rejectedCount,
+        funnelSummary: funnelSummary(scoutTrace.funnel),
       });
     }
 
@@ -254,9 +304,10 @@ export async function runWorldScoutCycle(
       huntingSpecialty: beat.genres.join(" / "),
       hunterUsername: persona.username ?? undefined,
       results: [...news.slice(0, 4), ...products],
+      trace: scoutTrace,
     });
 
-    await logAiActivity({
+    await note({
       personaId: persona.id,
       actorName: persona.display_name || persona.persona_name,
       actorRole: "world_scout",
@@ -296,7 +347,7 @@ export async function runWorldScoutCycle(
     for (const candidate of candidates.slice(0, 3)) {
       if (candidate.origin === "catalog") continue;
       const title = `${candidate.brand} ${candidate.productName}`.trim();
-      await logAiActivity({
+      await note({
         personaId: persona.id,
         actorName: persona.display_name || persona.persona_name,
         actorRole: "world_scout",
@@ -304,6 +355,12 @@ export async function runWorldScoutCycle(
         detail: title,
         relatedRunId: options?.runId ?? null,
       });
+
+      if (dryRun) {
+        savedCount += 1;
+        assigned.push("(dry-run)");
+        continue;
+      }
 
       const saved = await upsertScoutDiscovery({
         scoutId: persona.id,
@@ -369,14 +426,28 @@ export async function runWorldScoutCycle(
     }
 
     const noAction = savedCount === 0 && duplicateSourceCount === 0;
+    scoutTrace.funnel.saved = savedCount;
+    scoutTrace.funnel.aiSelected = candidates.length;
+    markPipelineEvent(scoutTrace, "SAVE_COMPLETED");
     if (noAction) {
-      await logAiActivity({
+      await note({
         personaId: persona.id,
         actorName: persona.display_name || persona.persona_name,
         actorRole: "world_scout",
         action: "no_action",
-        detail: "verified candidates produced no durable discovery",
+        detail: funnelSummary(scoutTrace.funnel),
         relatedRunId: options?.runId ?? null,
+        metadata: { funnel: scoutTrace.funnel, events: scoutTrace.events },
+      });
+    } else {
+      await note({
+        personaId: persona.id,
+        actorName: persona.display_name || persona.persona_name,
+        actorRole: "world_scout",
+        action: "candidate_found",
+        detail: funnelSummary(scoutTrace.funnel),
+        relatedRunId: options?.runId ?? null,
+        metadata: { funnel: scoutTrace.funnel, events: scoutTrace.events },
       });
     }
 
@@ -402,6 +473,7 @@ export async function runWorldScoutCycle(
       duplicateSourceCount,
       assigned,
       noAction,
+      funnelSummary: funnelSummary(scoutTrace.funnel),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -6,8 +6,13 @@
   link: string | null;
 };
 
-const GOOGLE_TRENDS_RSS_URL =
-  "https://trends.google.com/trending/rss?geo=JP";
+const RSS_CACHE = new Map<string, { at: number; items: GoogleTrend[] }>();
+const RSS_TTL_MS = 15 * 60 * 1000;
+
+function rssUrl(geo: string) {
+  const code = geo.trim().toUpperCase() || "JP";
+  return `https://trends.google.com/trending/rss?geo=${encodeURIComponent(code)}`;
+}
 
 function decodeXml(value: string): string {
   return value
@@ -38,9 +43,14 @@ function extractAllTags(xml: string, tag: string): string[] {
 
 export async function getGoogleTrends(
   limit = 30,
+  geo = "JP",
 ): Promise<GoogleTrend[]> {
+  const cached = RSS_CACHE.get(geo);
+  if (cached && Date.now() - cached.at < RSS_TTL_MS) {
+    return cached.items.slice(0, limit);
+  }
   try {
-    const response = await fetch(GOOGLE_TRENDS_RSS_URL, {
+    const response = await fetch(rssUrl(geo), {
       headers: {
         Accept: "application/rss+xml, application/xml, text/xml",
         "User-Agent": "NEWFIND/1.0",
@@ -58,7 +68,7 @@ export async function getGoogleTrends(
     const xml = await response.text();
     const items = extractItems(xml);
 
-    return items.slice(0, limit).map((item) => ({
+    const parsed = items.map((item) => ({
       title: extractTag(item, "title") ?? "",
       traffic:
         extractTag(item, "ht:approx_traffic") ??
@@ -67,8 +77,28 @@ export async function getGoogleTrends(
       relatedQueries: extractAllTags(item, "ht:news_item_title"),
       link: extractTag(item, "link"),
     }));
+    RSS_CACHE.set(geo, { at: Date.now(), items: parsed });
+    return parsed.slice(0, limit);
   } catch (error) {
     console.error("[Google Trends] RSS fetch failed:", error);
     return [];
   }
+}
+
+export async function getGoogleTrendsForWorld(
+  geos = ["JP", "US", "GB"],
+  perGeo = 8,
+): Promise<GoogleTrend[]> {
+  const groups = await Promise.all(
+    geos.map((geo) => getGoogleTrends(perGeo, geo)),
+  );
+  const unique = new Map<string, GoogleTrend>();
+  for (const group of groups) {
+    for (const item of group) {
+      const key = item.title.trim().toLowerCase();
+      if (!key || unique.has(key)) continue;
+      unique.set(key, item);
+    }
+  }
+  return [...unique.values()].slice(0, perGeo * geos.length);
 }

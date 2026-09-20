@@ -141,6 +141,34 @@ export async function executeAIAction(
     case "COMMENT": {
       const supabase = createAdminClient();
 
+      const { data: targetPost } = await supabase
+        .from("posts")
+        .select("author_id")
+        .eq("id", action.postId)
+        .maybeSingle();
+      if (targetPost?.author_id === userId) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "self comment blocked" },
+        };
+      }
+
+      const { data: existing } = await supabase
+        .from("comments")
+        .select("id")
+        .eq("post_id", action.postId)
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "already commented" },
+        };
+      }
+
       const { data: comment, error } = await supabase
         .from("comments")
         .insert({

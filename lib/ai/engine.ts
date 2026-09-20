@@ -1,10 +1,11 @@
 import { getActiveAiPersonas, type AiPersona } from "@/lib/ai-post-engine";
 import { getSharedWorldNews } from "@/lib/ai/gdelt";
-import { getGoogleTrends } from "@/lib/ai/google-trends";
+import { getGoogleTrendsForWorld } from "@/lib/ai/google-trends";
 import { ensureAiResidentPopulation } from "@/lib/ai/resident-factory";
 import { ensureFeaturedLivingResidents } from "@/lib/ai/ensure-featured-residents";
 import { featuredResidentsForScheduling } from "@/lib/ai/featured-living-residents";
 import { SPECIALIST_PRODUCT_HUNTERS } from "@/lib/ai/specialist-product-hunters";
+import { MARKETPLACE_RESIDENTS } from "@/lib/ai/marketplace-residents";
 import { runResidentLifeCycle } from "@/lib/ai/resident-life";
 import { logAiActivity } from "@/lib/ai/control-tower/activity-log";
 import {
@@ -83,6 +84,9 @@ function pickResidentsToAct(
   const specialistNames = new Set(
     SPECIALIST_PRODUCT_HUNTERS.map((resident) => resident.personaName),
   );
+  const marketplaceNames = new Set(
+    MARKETPLACE_RESIDENTS.map((resident) => resident.personaName),
+  );
   const featured = personas
     .filter((persona) => featuredNames.has(persona.persona_name))
     .sort((a, b) => dueStamp(a) - dueStamp(b));
@@ -92,16 +96,23 @@ function pickResidentsToAct(
   const specialists = personas
     .filter((persona) => specialistNames.has(persona.persona_name))
     .sort((a, b) => dueStamp(a) - dueStamp(b));
+  const marketplace = personas
+    .filter((persona) => marketplaceNames.has(persona.persona_name))
+    .sort((a, b) => dueStamp(a) - dueStamp(b));
   const rest = personas.filter(
     (persona) =>
       !featuredNames.has(persona.persona_name) &&
       !specialistNames.has(persona.persona_name) &&
+      !marketplaceNames.has(persona.persona_name) &&
       persona.resident_role !== "world_scout",
   );
 
   const picked = [...featured];
   if (scouts[0] && !picked.some((row) => row.id === scouts[0].id)) {
     picked.push(scouts[0]);
+  }
+  if (marketplace[0] && !picked.some((row) => row.id === marketplace[0].id)) {
+    picked.push(marketplace[0]);
   }
   const remaining = Math.max(0, limit - picked.length);
   const specialistSlots =
@@ -119,6 +130,11 @@ function summarizeResults(results: unknown[]) {
   let discoveries = 0;
   let errors = 0;
   let noAction = 0;
+  let searches = 0;
+  let newCandidates = 0;
+  const axes: string[] = [];
+  const cities: string[] = [];
+  const funnels: string[] = [];
   for (const item of results) {
     const result = item as {
       error?: string;
@@ -126,8 +142,15 @@ function summarizeResults(results: unknown[]) {
         work?: { posted?: boolean; type?: string };
         social?: { type?: string };
       };
-      productHunter?: { savedProductIds?: string[] } | null;
-      worldScout?: { savedCount?: number; noAction?: boolean } | null;
+      productHunter?: {
+        savedProductIds?: string[];
+        funnelSummary?: string;
+        searchPasses?: number;
+        newResultCount?: number;
+      } | null;
+      worldScout?: { savedCount?: number; noAction?: boolean; funnelSummary?: string } | null;
+      correspondent?: { searchPasses?: number; newResultCount?: number } | null;
+      exploration?: { axis?: string; city?: string; queries?: string[] } | null;
     };
     if (result.error) errors += 1;
     if (result.action?.work?.posted) posts += 1;
@@ -135,6 +158,20 @@ function summarizeResults(results: unknown[]) {
     if (social && social !== "IGNORE") reactions += 1;
     discoveries += result.productHunter?.savedProductIds?.length ?? 0;
     discoveries += result.worldScout?.savedCount ?? 0;
+    if (result.productHunter?.funnelSummary) {
+      funnels.push(result.productHunter.funnelSummary);
+    }
+    if (result.worldScout?.funnelSummary) {
+      funnels.push(result.worldScout.funnelSummary);
+    }
+    searches +=
+      (result.productHunter?.searchPasses ?? 0) +
+      (result.correspondent?.searchPasses ?? 0);
+    newCandidates +=
+      (result.productHunter?.newResultCount ?? 0) +
+      (result.correspondent?.newResultCount ?? 0);
+    if (result.exploration?.axis) axes.push(result.exploration.axis);
+    if (result.exploration?.city) cities.push(result.exploration.city);
     const workType = result.action?.work?.type;
     if (
       !result.error &&
@@ -149,7 +186,19 @@ function summarizeResults(results: unknown[]) {
       noAction += 1;
     }
   }
-  return { posts, reactions, discoveries, errors, noAction, acted: results.length };
+  return {
+    posts,
+    reactions,
+    discoveries,
+    errors,
+    noAction,
+    acted: results.length,
+    funnels: funnels.slice(0, 8),
+    searches,
+    newCandidates,
+    sourceDiversity: [...new Set(axes)].slice(0, 8),
+    regionDiversity: [...new Set(cities)].slice(0, 8),
+  };
 }
 
 export async function executeAiEngine(input: AiEngineRequest = {}) {
@@ -232,7 +281,7 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       worldNews = [];
     }
 
-    const googleTrends = await getGoogleTrends(10);
+    const googleTrends = await getGoogleTrendsForWorld(["JP", "US", "GB", "KR"], 6);
     const results = [];
 
     for (const persona of acting) {
@@ -281,7 +330,9 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       actorName: "SYSTEM",
       actorRole: "engine",
       action: "run_finished",
-      detail: `${runStatus} posts=${summary.posts} discoveries=${summary.discoveries} reactions=${summary.reactions}`,
+      detail: `${runStatus} posts=${summary.posts} discoveries=${summary.discoveries} reactions=${summary.reactions}${
+        summary.funnels[0] ? ` ${summary.funnels[0]}` : ""
+      }`,
       relatedRunId: lock.runId,
     });
 

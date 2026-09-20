@@ -7,6 +7,7 @@ import {
 import type { NextHuntHint } from "@/lib/ai/explore-next";
 import type { WorldSearchQuery } from "@/lib/ai/world-search";
 import { buildResidentSearchQuery } from "@/lib/ai/world-search";
+import type { ExplorationQuest } from "@/lib/ai/today-exploration";
 
 export type PrecisionHuntQuery = WorldSearchQuery & {
   label: "primary" | "source" | "explore";
@@ -76,15 +77,21 @@ export function buildPrecisionHuntQueries(input: {
   username?: string | null;
   nextHunt?: NextHuntHint | null;
   strategy?: HunterStrategy | null;
+  intentTerms?: string[];
+  exploration?: ExplorationQuest | null;
 }): PrecisionHuntQuery[] {
   const strategy =
     input.strategy ?? getHunterStrategy(input.username);
   const language = input.language;
   const ja = (language || "").toLowerCase().startsWith("ja");
   const focusTerms = (
-    input.nextHunt?.vocabulary?.length
-      ? input.nextHunt.vocabulary
-      : rotateVocabulary(strategy, `${input.username || input.residentName}:hunt`, 3)
+    input.exploration?.terms?.length
+      ? input.exploration.terms
+      : input.intentTerms?.length
+        ? input.intentTerms
+        : input.nextHunt?.vocabulary?.length
+          ? input.nextHunt.vocabulary
+          : rotateVocabulary(strategy, `${input.username || input.residentName}:hunt`, 3)
   ).slice(0, 3);
   const keywords = [
     ...focusTerms,
@@ -166,5 +173,40 @@ export function buildPrecisionHuntQueries(input: {
     label: "explore",
   };
 
+  const questQueries = (input.exploration?.queries ?? []).slice(0, 3).map((query, index) => {
+    const item: PrecisionHuntQuery = {
+      ...base,
+      query: compactQuery([
+        query,
+        pdpIntent(language),
+        input.exploration?.city,
+        JUNK_NEGATIVES,
+      ]),
+      includeDomains:
+        index === 0 && input.exploration?.includeDomains.length
+          ? input.exploration.includeDomains
+          : undefined,
+      excludeDomains: input.exploration?.excludeDomains,
+      label: index === 0 ? "primary" : "explore",
+    };
+    return item;
+  });
+
+  if (questQueries.length) {
+    return uniqueHuntQueries([...questQueries, source]).slice(0, 4);
+  }
+
   return [primary, source, explore];
+}
+
+function uniqueHuntQueries(queries: PrecisionHuntQuery[]) {
+  const seen = new Set<string>();
+  const out: PrecisionHuntQuery[] = [];
+  for (const item of queries) {
+    const key = item.query.toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
 }

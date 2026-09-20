@@ -44,6 +44,37 @@ import {
   shouldAttemptFallbackTweet,
   tweetCategory,
 } from "@/lib/posts/text-post";
+import {
+  applyExperience,
+  applyReflection,
+  buildSelfState,
+  experienceLine,
+  formIntent,
+  freezeCanonicalIdentity,
+  reflectWithoutLlm,
+  relateFromSocial,
+  type Experience,
+  type SelfState,
+} from "@/lib/ai/self-model";
+import { loadRecentExplorations, loadSelfSnapshot, persistSelfSnapshot } from "@/lib/ai/self-memory";
+import {
+  commentHasInformationValue,
+  isLowValueComment,
+  nextExplorationHint,
+  planTodayExploration,
+  serializeExploration,
+  subjectLooksRepeated,
+  type ExplorationQuest,
+} from "@/lib/ai/today-exploration";
+import {
+  loadPeerWorldSignals,
+  watchWorldForResident,
+  type CorrespondentWatchResult,
+} from "@/lib/ai/correspondent-watch";
+import {
+  correspondentIdentityFromLens,
+  correspondentIdentityStatement,
+} from "@/lib/ai/correspondent-identity";
 
 
 export type ResidentLifeCycleOptions = {
@@ -71,6 +102,7 @@ export type ResidentLifeCycleResult = {
     social: unknown;
   };
   productHunter: ResidentProductHunterResult | null;
+  correspondent?: CorrespondentWatchResult | null;
   worldScout?: import("@/lib/ai/world-scout-cycle").WorldScoutCycleResult | null;
   observation?: {
     sources: string[];
@@ -88,7 +120,18 @@ export type ResidentLifeCycleResult = {
     hunterOrigins?: string[];
     reason?: string;
   };
-  memoryCandidate?: string;
+    memoryCandidate?: string;
+  exploration?: ExplorationQuest | null;
+  mind?: {
+    intent: string;
+    focus: string;
+    why: string;
+    decision?: string;
+    outcome?: string;
+    reflection?: string;
+    nextIntent?: string;
+    confidence?: number;
+  };
   social: {
     persona: string;
     profileId: string;
@@ -124,6 +167,7 @@ type FeedCandidate = {
   comments: Array<{
     id: string;
     author: string;
+    authorId?: string;
     body: string;
     parentCommentId: string | null;
   }>;
@@ -308,6 +352,7 @@ function captionCopiesSubject(
 
 function isProductLikeSubject(subject: PostSubject | undefined): boolean {
   if (!subject) return false;
+  if (subject.kind === "world" || subject.kind === "news") return false;
   return (
     subject.kind === "hunter" ||
     subject.kind === "catalog" ||
@@ -451,8 +496,27 @@ function roleSocialMemory(
 }
 
 function personaVoiceBlock(persona: AiPersona, playbook: RolePlaybook): string {
+  const identity = correspondentIdentityFromLens({
+    username: persona.username,
+    name: persona.persona_name,
+    displayName: persona.display_name,
+    role: persona.resident_role,
+    expertise: persona.expertise,
+    interests: persona.interests,
+    preferredCategories: persona.preferred_categories,
+    huntingSpecialty: (persona.expertise ?? []).slice(0, 3).join(" / "),
+    countryCode: persona.country_code,
+    region: persona.region,
+    languages: persona.languages,
+    goals: persona.goals,
+  });
   return [
     `名前: ${persona.persona_name}`,
+    `特派員: ${identity.title} / ${identity.titleJa}`,
+    `担当: ${identity.flag} ${identity.city} / ${identity.territories.join(" / ")}`,
+    `専門: ${identity.specialties.join(" / ")}`,
+    `Mission: ${identity.mission}`,
+    `自己認識: ${correspondentIdentityStatement(identity)}`,
     `仕事: ${playbook.role} / ${playbook.label}`,
     `この住民の仕事: ${playbook.work}`,
     `目標: ${(persona.goals ?? []).join(", ") || "特になし"}`,
@@ -463,7 +527,7 @@ function personaVoiceBlock(persona: AiPersona, playbook: RolePlaybook): string {
     `コメントスタイル: ${persona.comment_style}`,
     `地域: ${persona.region || persona.country_code || "不明"}`,
     `言語: ${(persona.languages ?? []).join(", ") || "日本語"}`,
-    `専門: ${(persona.expertise ?? []).join(", ") || "特になし"}`,
+    `専門分野: ${(persona.expertise ?? []).join(", ") || "特になし"}`,
     `価値観: ${(persona.values ?? []).join(", ") || "特になし"}`,
     `文化: ${persona.culture || "特になし"}`,
     `前回の行動: ${persona.last_action || "なし"}`,
@@ -498,6 +562,7 @@ async function loadPostComments(postId: string) {
   return data.map((row) => ({
     id: row.id,
     author: names.get(row.user_id) || "resident",
+    authorId: String(row.user_id),
     body: String(row.body ?? "").trim(),
     parentCommentId: row.parent_comment_id ?? null,
   }));
@@ -582,10 +647,31 @@ async function persistPersonaState(
   persona: AiPersona,
   lastAction: string,
   lastThought: string,
-  extras?: { discoveryDelta?: number; interactionDelta?: number; humanLine?: string },
+  extras?: {
+    discoveryDelta?: number;
+    interactionDelta?: number;
+    humanLine?: string;
+    selfState?: SelfState | null;
+    experience?: Experience | null;
+    reflection?: string | null;
+    decision?: string | null;
+  },
 ) {
   const admin = createAdminClient();
+  const identity = correspondentIdentityFromLens({
+    username: persona.username,
+    name: persona.persona_name,
+    displayName: persona.display_name,
+    role: persona.resident_role,
+    expertise: persona.expertise,
+    interests: persona.interests,
+    countryCode: persona.country_code,
+    region: persona.region,
+    languages: persona.languages,
+    goals: persona.goals,
+  });
   const memoryBits = [
+    `${identity.title} · ${identity.flag} ${identity.city} · ${identity.primaryBeat}`,
     persona.memory_summary,
     extras?.humanLine,
     lastThought,
@@ -609,6 +695,24 @@ async function persistPersonaState(
         (persona.interaction_count ?? 0) + (extras?.interactionDelta ?? 0),
     })
     .eq("id", persona.id);
+
+  if (extras?.selfState) {
+    await persistSelfSnapshot({
+      personaId: persona.id,
+      state: extras.selfState,
+      experience: extras.experience,
+      reflection: extras.reflection,
+      decision: extras.decision,
+    });
+  }
+
+  await remember(
+    persona.id,
+    "identity",
+    "self",
+    persona.id,
+    correspondentIdentityStatement(identity),
+  );
 }
 
 async function gatherPostSubjects(
@@ -616,6 +720,7 @@ async function gatherPostSubjects(
   hunter: ResidentProductHunterResult | null,
   feed: FeedCandidate[],
   playbook: RolePlaybook,
+  correspondent?: CorrespondentWatchResult | null,
 ): Promise<PostSubject[]> {
   const subjects: PostSubject[] = [];
   let n = 1;
@@ -781,6 +886,22 @@ async function gatherPostSubjects(
     }
   }
 
+  if (allow.has("world") && correspondent) {
+    for (const dispatch of correspondent.accepted) {
+      if (dispatch.decision !== "POST") continue;
+      if (dispatch.infoKind === "PRODUCT") continue;
+      if (!isHttpUrl(dispatch.url)) continue;
+      subjects.push({
+        id: String(n++),
+        kind: "world",
+        label: `${dispatch.dispatchKind} ${dispatch.title}`.slice(0, 80),
+        category: dispatch.infoKind.toLowerCase(),
+        sourceUrl: dispatch.url,
+        sourceRef: dispatch.provenance,
+      });
+    }
+  }
+
   const unique: PostSubject[] = [];
   const seen = new Set<string>();
   for (const subject of subjects) {
@@ -791,6 +912,13 @@ async function gatherPostSubjects(
   }
 
   return unique.slice(0, 8);
+}
+
+function dropRepeatedSubjects(
+  subjects: PostSubject[],
+  avoidEntities: string[],
+) {
+  return subjects.filter((subject) => !subjectLooksRepeated(subject, avoidEntities));
 }
 
 async function loadFeedCandidates(
@@ -863,6 +991,7 @@ function fallbackSocialAction(
   candidates: FeedCandidate[],
   followingIds: Set<string>,
   playbook: RolePlaybook,
+  city = "",
 ): AIAction {
   if (candidates.length === 0) return { type: "IGNORE" };
 
@@ -889,8 +1018,8 @@ function fallbackSocialAction(
       type: "COMMENT",
       postId: target.id,
       text: ja
-        ? "流行りだけで見るのは少し早い。作りと値段が追いついているか見たい。"
-        : "The noise is ahead of the object. I'm not convinced yet.",
+        ? `${city || "現地"}で見ると、流行りだけで判断するのは早い。作りと値段はまだ見たい。`
+        : `From ${city || "here"}, the noise is ahead of the cut and price. Not convinced yet.`,
     };
   }
 
@@ -910,8 +1039,8 @@ function fallbackSocialAction(
       type: "COMMENT",
       postId: target.id,
       text: ja
-        ? "使う前から気になる点が一つある。実際の持ちを見てから判断したい。"
-        : "There's one thing I'd test before the praise.",
+        ? "使う前から素材と持ちが気になる。実際の耐久を見てから判断したい。"
+        : "I'd test the material and durability before the praise.",
     };
   }
 
@@ -922,16 +1051,16 @@ function fallbackSocialAction(
         postId: target.id,
         parentCommentId: reply.id,
         text: ja
-          ? "今まわりで見られている話として、これ気になる。"
-          : "This is the thing people are circling today.",
+          ? `${city || "現地"}では今この話が先に出ている。他地域と比べたい。`
+          : `In ${city || "this city"} this story is already circulating. How does it compare elsewhere?`,
       };
     }
     return {
       type: "COMMENT",
       postId: target.id,
       text: ja
-        ? "今の流れの中で、これが話題になってる。"
-        : "This is what's in the air right now.",
+        ? `${city || "現地"}の流れだと、これが先に話題になっている。`
+        : `In ${city || "this city"} this is already the story in the air.`,
     };
   }
 
@@ -945,8 +1074,8 @@ function fallbackSocialAction(
       postId: target.id,
       parentCommentId: reply.id,
       text: ja
-        ? "これ、気になる視点ですね。"
-        : "This is an interesting take.",
+        ? "その視点は現地と違う。発売地域はまだ限定的ではないか。"
+        : "That reading differs from the local one. Is availability still limited?",
     };
   }
 
@@ -1043,11 +1172,74 @@ export async function runResidentLifeCycle(
 ): Promise<ResidentLifeCycleResult> {
   const dryRun = Boolean(options?.dryRun);
   const playbook = getRolePlaybook(persona.resident_role);
+  const snapshot = await loadSelfSnapshot(persona.id);
+  const recentQuests = await loadRecentExplorations(persona.id).catch(() => []);
+  const peerSignals = await loadPeerWorldSignals(persona.id).catch(() => []);
+  const personaLens = {
+    id: persona.id,
+    name: persona.persona_name,
+    username: persona.username,
+    role: persona.resident_role,
+    personality: persona.personality,
+    values: persona.values,
+    interests: persona.interests,
+    expertise: persona.expertise,
+    goals: persona.goals,
+    activityLevel: persona.activity_level,
+    lastAction: persona.last_action,
+    huntingSpecialty: (persona.expertise ?? []).slice(0, 3).join(" / "),
+    countryCode: persona.country_code,
+    region: persona.region,
+    languages: persona.languages,
+  };
+  const baseState = buildSelfState(personaLens, snapshot.state);
+  const exploration = planTodayExploration({
+    persona: personaLens,
+    experiences: snapshot.experiences,
+    recentQuests,
+  });
+  const intent = formIntent({
+    persona: personaLens,
+    state: baseState,
+    experiences: snapshot.experiences,
+    recentQuests,
+    peerSignals: peerSignals.map((item) => ({
+      title: item.title,
+      beat: item.beat,
+      fromName: item.fromName,
+    })),
+  });
+  let selfState: SelfState = {
+    ...baseState,
+    currentIntent: intent,
+    currentFocus: intent.focus,
+  };
 
   if (playbook.role === "world_scout") {
     const scout = await runWorldScoutCycle(persona, worldNews, {
       runId: options?.runId,
+      dryRun,
     });
+    const scoutExperience: Experience = {
+      seen: scout.queries[0] || scout.beatKey,
+      judgment: scout.savedCount > 0 ? "SAVE" : "WAIT",
+      reason: scout.funnelSummary || `saved=${scout.savedCount}`,
+      outcome: scout.noAction ? "no durable candidate" : `saved ${scout.savedCount}`,
+      next: scout.noAction
+        ? "explore a neighboring beat"
+        : "avoid repeating handed-off products",
+      at: new Date().toISOString(),
+    };
+    const reflected = reflectWithoutLlm({
+      state: selfState,
+      experiences: [scoutExperience, ...snapshot.experiences],
+      lastDecision: selfState.lastDecision,
+      outcome: scoutExperience.outcome,
+    });
+    selfState = freezeCanonicalIdentity(
+      applyReflection(applyExperience(selfState, scoutExperience), reflected),
+      personaLens,
+    );
     if (!dryRun) {
       await persistPersonaState(
         persona,
@@ -1055,7 +1247,13 @@ export async function runResidentLifeCycle(
         scout.noAction
           ? `Scouted ${scout.beatKey} with no durable candidate`
           : `Scouted ${scout.beatKey}: saved ${scout.savedCount}, assigned ${scout.assigned.join(", ")}`,
-        { discoveryDelta: scout.savedCount },
+        {
+          discoveryDelta: scout.savedCount,
+          selfState,
+          experience: scoutExperience,
+          reflection: reflected.summary,
+          decision: scoutExperience.judgment,
+        },
       );
     }
     return {
@@ -1073,6 +1271,7 @@ export async function runResidentLifeCycle(
       },
       result: { work: scout, social: { skipped: true } },
       productHunter: null,
+      correspondent: null,
       worldScout: scout,
       observation: {
         sources: playbook.sources,
@@ -1082,7 +1281,7 @@ export async function runResidentLifeCycle(
         feedCount: 0,
         newsCount: worldNews.length,
         trendCount: 0,
-        reason: `${playbook.work} | beat=${scout.beatKey} saved=${scout.savedCount}`,
+        reason: `${playbook.work} | beat=${scout.beatKey} saved=${scout.savedCount} intent=${intent.stance}:${intent.focus}`,
       },
       social: {
         persona: persona.persona_name,
@@ -1092,26 +1291,69 @@ export async function runResidentLifeCycle(
         action: { type: "IGNORE" },
         result: { skipped: true },
       },
+      mind: {
+        intent: intent.stance,
+        focus: intent.focus,
+        why: intent.why,
+        decision: scout.savedCount > 0 ? "SAVE" : "WAIT",
+        outcome: scout.noAction ? "no durable candidate" : `saved ${scout.savedCount}`,
+        reflection: reflected.summary,
+        nextIntent: selfState.nextIntent?.focus || intent.focus,
+        confidence: selfState.confidence,
+      },
     };
   }
 
   const relationships = await loadRelationships(persona);
   const followingIds = new Set(relationships.following.map((row) => row.id));
+  for (const row of relationships.following) {
+    if (!selfState.relationships[row.id]) {
+      selfState.relationships[row.id] = "friend";
+    }
+  }
 
-  const candidates = await loadFeedCandidates(persona, followingIds, playbook);
+  const candidates = (await loadFeedCandidates(persona, followingIds, playbook)).filter(
+    (post) => !post.comments.some((comment) => comment.authorId === persona.profile_id),
+  );
 
   let hunter: ResidentProductHunterResult | null = null;
   if (playbook.role === "product_hunter") {
     try {
       hunter = await runResidentProductHunter(persona, worldNews, {
         dryRun,
+        intent,
+        selfState,
+        experiences: snapshot.experiences,
+        exploration,
       });
     } catch (error) {
       console.error("product hunter failed", persona.persona_name, error);
     }
   }
 
-  const subjects = await gatherPostSubjects(persona, hunter, candidates, playbook);
+  let correspondent: CorrespondentWatchResult | null = null;
+  try {
+    correspondent = await watchWorldForResident(persona, {
+        intent,
+        selfState,
+        experiences: snapshot.experiences,
+        worldNews,
+        googleTrends,
+        peerSignals,
+        hunterUrls: hunter?.candidates.map((item) => item.productUrl) ?? [],
+        dryRun,
+        runId: options?.runId,
+        exploration,
+      });
+    } catch (error) {
+      console.error("correspondent watch failed", persona.persona_name, error);
+    }
+
+  const rawSubjects = await gatherPostSubjects(persona, hunter, candidates, playbook, correspondent);
+  const subjects = dropRepeatedSubjects(rawSubjects, [
+    ...exploration.avoidEntities,
+    ...intent.avoid,
+  ]);
   const cadenceReady = shouldEncouragePost(persona);
   const humanSignals = await loadResidentHumanSignals({
     profileId: persona.profile_id,
@@ -1162,6 +1404,7 @@ export async function runResidentLifeCycle(
             subject.brand ? `ブランド: ${subject.brand}` : "",
             subject.productUrl ? `商品URL: ${subject.productUrl}` : "商品URL: なし",
             subject.sourceUrl ? `情報源: ${subject.sourceUrl}` : "",
+            subject.kind === "world" ? "種類: 世界情報（商品ページではない）" : "",
           ]
             .filter(Boolean)
             .join("\n"),
@@ -1189,6 +1432,37 @@ ${playbook.sources.includes("google_trends") ? `現在のGoogle Trends:\n${trend
 
 ${playbook.sources.includes("world_news") ? `世界ニュース（発見/トレンドの信号。商品そのものではない。URLを商品URLに使わない）:\n${newsLines}` : ""}
 
+今日の探索クエスト:
+軸: ${exploration.axis}
+地域: ${exploration.city} / ${exploration.region}
+beat: ${exploration.beat}
+目的: ${exploration.goal}
+理由: ${exploration.reason}
+クエリ: ${exploration.queries.join(" | ")}
+ソース種別: ${exploration.sources.join(", ")}
+
+今の意図: ${intent.stance} / ${intent.focus}
+なぜ: ${intent.why}
+避けたいもの: ${intent.avoid.slice(0, 5).join(", ") || "なし"}
+最近の経験:
+${snapshot.experiences.slice(0, 4).map(experienceLine).join("\n") || "まだ少ない"}
+担当世界: ${
+    correspondent
+      ? `${correspondent.identityTitle || correspondent.beat.primary} / ${correspondent.city || ""} / ${correspondent.beat.regions.join(", ")}`
+      : "未設定"
+  }
+他の住民から届いた信号: ${
+    peerSignals
+      .slice(0, 3)
+      .map((item) => `${item.fromName}: ${item.title}`)
+      .join(" / ") || "なし"
+  }
+${
+    correspondent
+      ? `今回の世界観察: scanned=${correspondent.scanned} accepted=${correspondent.accepted.length} dropped=${correspondent.dropped.length} query=${correspondent.query || "shared"}`
+      : ""
+  }
+
 ${
     hunter
       ? `今回の探索クエリ: ${hunter.searchQuery}\n今回見つけたWeb商品候補: ${hunter.candidates
@@ -1213,6 +1487,10 @@ ${playbook.workBias}
 - 存在しない商品・URL・画像を作ってはいけません。
 - catalog / discovery / feed の題材は「NEWFIND世界にある物」であり、「今Webで見つけた」とは書かない。
 - ニュース記事・検索結果・カテゴリページを商品として扱わない。
+- kind が world の題材は世界情報。商品URLにせず、情報源URLを本文か出典として残す。存在しないニュースは書かない。
+- 同じ世界情報を他の住民が既に扱っているなら、新しい視点か続報だけ書く。なければSKIP_POST。
+- 昨日と同じ商品・同じ記事を「また見つけた」と書かない。競合、別地域、続報だけが新しい理由になる。
+- 投稿するなら ${exploration.city} の ${playbook.role} として、他の住民と違う視点を出す。
 - 商品がない日は、人格に沿った短いつぶやきでもよい。その場合は subjectId を付けない。
 - つぶやきに架空の商品リンクを付けない。
 - 投稿文は ${persona.posting_style || "短く自然な一人称"} で。
@@ -1481,6 +1759,9 @@ ${candidateLines}
 - critic は値しないものに LIKE しなくてよい。IGNORE も自然。
 - 嫌がらせや人格攻撃は禁止。
 - 投稿本文をコピーしたコメントは禁止。見たものへの自分の反応だけ。
+- 「すごい」「面白い」「私も好き」だけのコメントは禁止。
+- COMMENTするなら新しい情報・別解釈・質問・比較・${exploration.city}の現地知識のどれかを入れる。
+- すでにコメントした投稿は選ばない。
 - IGNOREは候補が空のとき、または critic/curator が本当に何もしないとき。
 `;
 
@@ -1507,6 +1788,7 @@ ${candidateLines}
         candidates,
         followingIds,
         playbook,
+        exploration.city,
       );
     }
   }
@@ -1516,7 +1798,9 @@ ${candidateLines}
       : "";
   if (
     socialText &&
-    captionLooksCopied(socialText, feedCaptions) &&
+    (captionLooksCopied(socialText, feedCaptions) ||
+      isLowValueComment(socialText) ||
+      !commentHasInformationValue(socialText)) &&
     candidates.length > 0
   ) {
     socialAction = fallbackSocialAction(
@@ -1524,7 +1808,18 @@ ${candidateLines}
       candidates,
       followingIds,
       playbook,
+      exploration.city,
     );
+  }
+  const fallbackText =
+    socialAction.type === "COMMENT" || socialAction.type === "REPLY"
+      ? socialAction.text
+      : "";
+  if (
+    fallbackText &&
+    (isLowValueComment(fallbackText) || !commentHasInformationValue(fallbackText))
+  ) {
+    socialAction = { type: "IGNORE" };
   }
 
   const socialMemory = roleSocialMemory(playbook, socialAction);
@@ -1567,6 +1862,26 @@ ${candidateLines}
     );
   }
 
+  const socialTargetId =
+    "profileId" in socialAction
+      ? socialAction.profileId
+      : "postId" in socialAction
+        ? candidates.find((item) => item.id === socialAction.postId)?.authorId
+        : null;
+  if (socialTargetId) {
+    selfState = {
+      ...selfState,
+      relationships: {
+        ...selfState.relationships,
+        [socialTargetId]: relateFromSocial({
+          existing: selfState.relationships[socialTargetId],
+          action: socialAction.type,
+          sameInterest: followingIds.has(socialTargetId),
+        }),
+      },
+    };
+  }
+
   const lastAction = [
     hunter ? "HUNT" : null,
     `WORK:${workType}`,
@@ -1575,17 +1890,116 @@ ${candidateLines}
     .filter(Boolean)
     .join("+");
 
+  const top = hunter?.decisions?.[0];
+  const worldTop = correspondent?.accepted[0];
+  if (top) {
+    selfState = {
+      ...selfState,
+      lastDecision: {
+        decision: top.decision as Experience["judgment"],
+        reasonSummary: top.reason,
+        confidence: selfState.confidence,
+        evidenceIds: [],
+        alternativeCount: 4,
+        uncertainty: Math.max(10, 100 - selfState.confidence),
+        known: top.reason,
+        unknown: "",
+      },
+    };
+  }
+  const experience: Experience = {
+    seen:
+      worldTop?.title ||
+      top?.product ||
+      (workDecision.type === "POST" ? workDecision.caption.slice(0, 80) : workType),
+    judgment:
+      worldTop?.decision === "POST"
+        ? "POST"
+        : top?.decision === "DISCOVER" || top?.decision === "SAVE"
+        ? (top.decision as Experience["judgment"])
+        : workType === "POST"
+          ? "POST"
+          : socialAction.type === "IGNORE"
+            ? "WAIT"
+            : "OBSERVE",
+    reason:
+      worldTop?.reason ||
+      top?.reason ||
+      (workDecision.type === "SKIP_POST" ? workDecision.reason || "skipped" : lastAction),
+    outcome:
+      worldTop
+        ? `${worldTop.dispatchKind} ${worldTop.infoKind} score=${worldTop.scores.total}`
+        : hunter?.funnelSummary || (workType === "POST" ? "posted" : socialAction.type),
+    next: nextExplorationHint(exploration, {
+      newCount:
+        (hunter?.newResultCount ?? 0) +
+        (correspondent?.newResultCount ?? 0),
+      posted: workType === "POST",
+      brands: hunter?.candidates.map((item) => item.brand) ?? [],
+      sources: correspondent?.accepted.map((item) => item.domain) ?? [],
+    }),
+    entityKey: worldTop?.url || top?.product,
+    at: new Date().toISOString(),
+  };
+  const reflected = reflectWithoutLlm({
+    state: selfState,
+    experiences: [experience, ...snapshot.experiences],
+    lastDecision: selfState.lastDecision,
+    outcome: experience.outcome,
+  });
+  selfState = freezeCanonicalIdentity(
+    applyReflection(applyExperience(selfState, experience), reflected),
+    personaLens,
+  );
+
   if (!dryRun) {
+    await remember(
+      persona.id,
+      "observation",
+      "exploration",
+      exploration.axis,
+      serializeExploration(exploration),
+    );
+    await logAiActivity({
+      personaId: persona.id,
+      actorName: persona.display_name || persona.persona_name,
+      actorRole: playbook.role,
+      action: "search",
+      detail: `${exploration.axis} ${exploration.city}: ${exploration.queries[0] || exploration.goal}`,
+      relatedRunId: options?.runId ?? null,
+      metadata: {
+        exploration: true,
+        date: exploration.date,
+        axis: exploration.axis,
+        region: exploration.region,
+        city: exploration.city,
+        beat: exploration.beat,
+        goal: exploration.goal,
+        queries: exploration.queries,
+        sources: exploration.sources,
+        searchPasses:
+          (hunter?.searchPasses ?? 0) + (correspondent?.searchPasses ?? 0),
+        newCandidates:
+          (hunter?.newResultCount ?? 0) + (correspondent?.newResultCount ?? 0),
+        rejected: correspondent?.dropped.length ?? 0,
+        posted: workType === "POST",
+        commented: socialAction.type === "COMMENT" || socialAction.type === "REPLY",
+      },
+    });
     await persistPersonaState(
       persona,
       lastAction,
       workDecision.type === "POST"
         ? `Posted: ${workDecision.caption.slice(0, 120)}`
-        : `Social: ${socialAction.type}`,
+        : `Social: ${socialAction.type} | intent ${selfState.currentIntent.stance}:${selfState.currentFocus}`,
       {
         discoveryDelta: hunter?.savedProductIds.length ?? 0,
         interactionDelta: socialAction.type === "IGNORE" ? 0 : 1,
         humanLine,
+        selfState,
+        experience,
+        reflection: reflected.summary,
+        decision: experience.judgment,
       },
     );
   }
@@ -1612,10 +2026,11 @@ ${candidateLines}
       social: socialResult,
     },
     productHunter: hunter,
+    correspondent,
     worldScout: null,
     observation: {
       sources: playbook.sources,
-      query: hunter?.searchQuery ?? null,
+      query: correspondent?.query ?? hunter?.searchQuery ?? null,
       subjectKinds: subjects.map((subject) => subject.kind),
       followingCount: relationships.following.length,
       feedCount: candidates.length,
@@ -1648,9 +2063,26 @@ ${candidateLines}
           ? `work POST as ${playbook.role}`
           : `work SKIP (${workDecision.reason || "no post"})`,
         `social ${socialAction.type} (${playbook.preferredSocial.join("/")})`,
-      ].join(" | "),
+        `intent ${intent.stance}:${intent.focus} → ${selfState.currentIntent.stance}:${selfState.currentFocus}`,
+        correspondent
+          ? `world ${correspondent.beat.primary} scanned=${correspondent.scanned} accepted=${correspondent.accepted.length}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" | "),
     },
     memoryCandidate,
+    exploration,
+    mind: {
+      intent: intent.stance,
+      focus: intent.focus,
+      why: intent.why,
+      decision: experience.judgment,
+      outcome: experience.outcome,
+      reflection: reflected.summary,
+      nextIntent: selfState.currentIntent.focus,
+      confidence: selfState.confidence,
+    },
     social: {
       persona: persona.persona_name,
       profileId: persona.profile_id,

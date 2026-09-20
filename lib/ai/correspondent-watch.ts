@@ -1,4 +1,4 @@
-import type { AiPersona } from "@/lib/ai-post-engine";
+﻿import type { AiPersona } from "@/lib/ai-post-engine";
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 import { searchWorld, buildResidentSearchQuery } from "@/lib/ai/world-search";
 import type { GoogleTrend } from "@/lib/ai/google-trends";
@@ -98,7 +98,6 @@ function trendToWorldResult(trend: GoogleTrend): WorldSearchResult {
     publishedAt: trend.publishedAt,
     sourceRole: "news",
     origin: "web",
-    retrievedAt: new Date().toISOString(),
   };
 }
 
@@ -422,3 +421,4 @@ function canonicalizeSafe(url: string) {
 function compactHas(title: string, theme: string) {
   return title.toLowerCase().includes(theme.toLowerCase());
 }
+

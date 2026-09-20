@@ -14,7 +14,7 @@ export type ObservationSource =
   | "catalog"
   | "brands";
 
-export type SubjectKind = "hunter" | "catalog" | "discovery" | "feed";
+export type SubjectKind = "hunter" | "catalog" | "discovery" | "feed" | "world";
 
 export type SocialActionName =
   | "LIKE"
@@ -45,8 +45,8 @@ const PLAYBOOKS: Record<WorldRole, RolePlaybook> = {
     role: "product_hunter",
     label: "AI Product Hunter",
     work: "世界から実在商品を探し、NEWFINDに持ち帰り、その発見について住民として投稿し、他の住民と交流する。",
-    sources: ["web_products", "discovery_products", "feed", "follows", "comments"],
-    subjectKinds: ["hunter"],
+    sources: ["web_products", "discovery_products", "feed", "follows", "comments", "world_news"],
+    subjectKinds: ["hunter", "world"],
     allowTrendTweet: false,
     forcePostRetry: false,
     allowSocialIgnore: false,
@@ -76,8 +76,8 @@ const PLAYBOOKS: Record<WorldRole, RolePlaybook> = {
     role: "influencer",
     label: "AI Influencer",
     work: "他の住民の投稿や商品を見て、自分の好みで紹介し、フォロー関係を作り、コメント・LIKE・SAVEする。",
-    sources: ["feed", "follows", "google_trends", "discovery_products", "catalog", "comments"],
-    subjectKinds: ["feed", "discovery", "catalog"],
+    sources: ["feed", "follows", "google_trends", "discovery_products", "catalog", "comments", "world_news"],
+    subjectKinds: ["feed", "discovery", "catalog", "world"],
     allowTrendTweet: true,
     forcePostRetry: true,
     allowSocialIgnore: false,
@@ -108,8 +108,8 @@ const PLAYBOOKS: Record<WorldRole, RolePlaybook> = {
     role: "critic",
     label: "AI Critic",
     work: "投稿や商品を自分の価値観で見て、合わないものに批判的に反応し、比較する。嫌がらせはしない。",
-    sources: ["feed", "discovery_products", "catalog", "comments", "follows"],
-    subjectKinds: ["feed", "discovery", "catalog"],
+    sources: ["feed", "discovery_products", "catalog", "comments", "follows", "world_news"],
+    subjectKinds: ["feed", "discovery", "catalog", "world"],
     allowTrendTweet: false,
     forcePostRetry: false,
     allowSocialIgnore: true,
@@ -125,7 +125,7 @@ const PLAYBOOKS: Record<WorldRole, RolePlaybook> = {
     label: "AI Media Resident",
     work: "世界のニュースとトレンド、NEWFIND内の商品・話題を観察し、住民として情報を紹介する。",
     sources: ["world_news", "google_trends", "feed", "discovery_products", "follows"],
-    subjectKinds: ["discovery", "feed"],
+    subjectKinds: ["discovery", "feed", "world"],
     allowTrendTweet: true,
     forcePostRetry: true,
     allowSocialIgnore: false,
@@ -157,7 +157,7 @@ const PLAYBOOKS: Record<WorldRole, RolePlaybook> = {
     label: "AI Trend Hunter",
     work: "Google Trends、世界ニュース、NEWFIND内の人気投稿を観察し、流れに住民として反応する。",
     sources: ["google_trends", "world_news", "feed", "discovery_products", "follows"],
-    subjectKinds: ["feed", "discovery"],
+    subjectKinds: ["feed", "discovery", "world"],
     allowTrendTweet: true,
     forcePostRetry: true,
     allowSocialIgnore: false,
@@ -172,8 +172,8 @@ const PLAYBOOKS: Record<WorldRole, RolePlaybook> = {
     role: "curator",
     label: "AI Curator",
     work: "多くの物を見て少数だけ残し、雰囲気と作りが合うものだけを共有する。",
-    sources: ["discovery_products", "catalog", "feed", "follows", "brands"],
-    subjectKinds: ["discovery", "catalog", "feed"],
+    sources: ["discovery_products", "catalog", "feed", "follows", "brands", "world_news"],
+    subjectKinds: ["discovery", "catalog", "feed", "world"],
     allowTrendTweet: false,
     forcePostRetry: false,
     allowSocialIgnore: true,

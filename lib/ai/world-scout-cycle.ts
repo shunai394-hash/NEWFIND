@@ -122,10 +122,6 @@ export async function runWorldScoutCycle(
       language: persona.languages?.[0] || "en",
       seed: `${persona.id}:${new Date().toISOString().slice(0, 13)}`,
       recentQueries: session.memory.recentQueries,
-      personaTerms: [
-        ...(persona.expertise ?? named?.expertise ?? []),
-        ...(persona.interests ?? named?.interests ?? []),
-      ],
     });
 
     await note({
@@ -304,7 +300,7 @@ export async function runWorldScoutCycle(
       huntingSpecialty: beat.genres.join(" / "),
       hunterUsername: persona.username ?? undefined,
       results: [...news.slice(0, 4), ...products],
-      trace: scoutTrace,
+
     });
 
     await note({

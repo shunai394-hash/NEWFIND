@@ -1,9 +1,22 @@
-import { repairMojibake } from "./text-encoding";
+﻿import { repairMojibake } from "./text-encoding";
 import Groq from "groq-sdk";
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+let groqClient: Groq | null = null;
+
+function getGroqClient(): Groq {
+  if (groqClient) return groqClient;
+
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error(
+      "GROQ_API_KEY is missing. Configure GROQ_API_KEY before using AI generation.",
+    );
+  }
+
+  groqClient = new Groq({ apiKey });
+  return groqClient;
+}
 
 export type GenerateAITextOptions = {
   temperature?: number;
@@ -12,18 +25,22 @@ export type GenerateAITextOptions = {
 
 function groqStatus(error: unknown): number | null {
   if (!error || typeof error !== "object") return null;
+
   const record = error as {
     status?: unknown;
     statusCode?: unknown;
     error?: { status?: unknown };
   };
+
   const value = record.status ?? record.statusCode ?? record.error?.status;
+
   return typeof value === "number" ? value : null;
 }
 
 export function isRetryableAIError(error: unknown) {
   const status = groqStatus(error);
   const message = error instanceof Error ? error.message : String(error);
+
   return (
     status === 429 ||
     status === 503 ||
@@ -40,20 +57,28 @@ async function sleep(ms: number) {
 
 async function withGroqRetry<T>(fn: () => Promise<T>): Promise<T> {
   let lastError: unknown;
+
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
-      if (!isRetryableAIError(error) || attempt === 2) throw error;
+
+      if (!isRetryableAIError(error) || attempt === 2) {
+        throw error;
+      }
+
       const wait = 800 * 2 ** attempt;
+
       console.warn(
         `GROQ retry ${attempt + 1} after ${wait}ms`,
         error instanceof Error ? error.message : error,
       );
+
       await sleep(wait);
     }
   }
+
   throw lastError;
 }
 
@@ -63,7 +88,7 @@ export async function generateAIText(
 ): Promise<string> {
   try {
     const response = await withGroqRetry(() =>
-      groq.chat.completions.create({
+      getGroqClient().chat.completions.create({
         model: "openai/gpt-oss-20b",
         messages: [
           {
@@ -142,7 +167,7 @@ export async function generateAITextWithImages(
   }
 
   try {
-    const response = await groq.chat.completions.create({
+    const response = await getGroqClient().chat.completions.create({
       model: VISION_MODEL,
       messages: [
         {
@@ -158,7 +183,6 @@ export async function generateAITextWithImages(
     const choice = response.choices?.[0];
     const messageContent = choice?.message?.content;
 
-
     if (typeof messageContent !== "string" || !messageContent.trim()) {
       console.warn("GROQ VISION EMPTY RESPONSE, falling back to text.");
       return generateAIText(prompt);
@@ -170,4 +194,3 @@ export async function generateAITextWithImages(
     return generateAIText(prompt);
   }
 }
-

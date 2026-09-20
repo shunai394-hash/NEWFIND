@@ -51,9 +51,9 @@ export function itemToWorldResult(item: MarketplacePipelineItem): WorldSearchRes
     imageUrl: candidate.imageUrl,
     sourceRole: "product",
     origin: "web",
-    sourceReliability: "trusted_retailer",
-    retrievedAt: candidate.observedAt,
-    classificationReason: `marketplace:${candidate.marketplace}`,
+
+
+
   };
 }
 

@@ -112,7 +112,6 @@ function marketplaceHuntAsHunterResult(
         evidence: item.evaluation.factHypothesis.facts.map((fact) => fact.text),
         sourceUrls: [candidate.url],
         confidenceScore: item.evaluation.confidence,
-        decision: item.evaluation.decision,
       }),
     });
     if (postable && hunt.savedProductIds[discoveries.length]) {
@@ -288,7 +287,6 @@ export async function runResidentProductHunter(
     recentProductNames: recentNames,
     ignoredNames: recentUrls,
     worldHints: sharedWorldNews.slice(0, 3).map((item) => item.title),
-    intent: options?.intent,
   });
   const huntQueries = buildPrecisionHuntQueries({
     residentName: persona.persona_name,
@@ -497,7 +495,6 @@ export async function runResidentProductHunter(
     huntingSpecialty,
     hunterUsername: persona.username ?? undefined,
     results: searchResults,
-    trace,
   });
   const savedProductIds: string[] = [];
   const discoveries: ResidentProductHunterDiscovery[] = [];
@@ -558,7 +555,6 @@ export async function runResidentProductHunter(
         `[AI PRODUCT HUNTER] duplicate skipped: ${candidate.brand} / ${candidate.productName} -> ${match.match?.id ?? candidate.productUrl}`,
       );
       candidate.report.duplicateRisk = 95;
-      candidate.report.decision = "DUPLICATE";
       trace.funnel.duplicates += 1;
       recordDrop(trace, {
         url: candidate.productUrl,
@@ -616,7 +612,6 @@ export async function runResidentProductHunter(
       },
       experiences: options?.experiences,
     });
-    candidate.report.decision = mindDecision.decision;
     decisions.push({
       product: `${candidate.brand} ${candidate.productName}`,
       decision: mindDecision.decision,
@@ -697,3 +692,4 @@ export async function runResidentProductHunter(
     explorationAxis: options?.exploration?.axis,
   };
 }
+

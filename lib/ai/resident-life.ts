@@ -161,6 +161,8 @@ type PostSubject = {
   sourceRef?: string | null;
   discoveryProductId?: string | null;
   hunterIndex?: number;
+  /** World Scout → specialist handoff (listAssignedDiscoveries). */
+  assigned?: boolean;
 };
 
 type FeedCandidate = {
@@ -354,6 +356,68 @@ function captionCopiesSubject(
     ...extraSources,
   ].filter((item): item is string => Boolean(item));
   return captionLooksCopied(caption, sources);
+}
+
+function isAssignedDiscoverySubject(subject: PostSubject): boolean {
+  return (
+    subject.kind === "discovery" &&
+    Boolean(subject.discoveryProductId) &&
+    subject.assigned === true
+  );
+}
+
+function isPostableAssignedDiscovery(subject: PostSubject): boolean {
+  return (
+    isAssignedDiscoverySubject(subject) &&
+    isHttpUrl(subject.productUrl) &&
+    isUsableProductImage(subject.mediaUrl ?? null)
+  );
+}
+
+async function rewriteSubjectCaption(input: {
+  persona: AiPersona;
+  playbook: RolePlaybook;
+  subject: PostSubject;
+}): Promise<ResidentLifeDecision> {
+  const { persona, playbook, subject } = input;
+  const rewriteContext = `
+${personaVoiceBlock(persona, playbook)}
+
+この投稿文は題材の本文をコピーしているため使用できません。
+以下の商品について、自分自身の視点で短い投稿文を1つ書いてください。
+商品: ${subject.productName || subject.label}
+ブランド: ${subject.brand || "不明"}
+カテゴリ: ${subject.category || "other"}
+商品URL: ${subject.productUrl || "なし"}
+元の文章を言い換えるだけではなく、自分の視点を加えてください。
+商品名・ブランド・URLは捏造しないでください。
+
+ルール:
+- 必ず subjectId "${subject.id}" を使って POST してください。
+- captionは1〜3文。その住民がスマホで書く口調。
+- 題材の本文のコピー・ほぼ同じ言い換えは禁止。
+- 有効な投稿文が書けない場合のみ SKIP_POST。
+`;
+  try {
+    const decision = await decideResidentLifePost(rewriteContext);
+    if (decision.type !== "POST") {
+      return {
+        type: "SKIP_POST",
+        reason: decision.reason || "rewrite skipped",
+      };
+    }
+    const caption = decision.caption.trim();
+    if (!caption) {
+      return { type: "SKIP_POST", reason: "rewrite missing caption" };
+    }
+    if (captionCopiesSubject(caption, subject)) {
+      return { type: "SKIP_POST", reason: "rewrite still copies subject" };
+    }
+    return { type: "POST", caption, subjectId: subject.id };
+  } catch (error) {
+    console.error("subject caption rewrite failed", persona.persona_name, error);
+    return { type: "SKIP_POST", reason: "rewrite failed" };
+  }
 }
 
 function isProductLikeSubject(subject: PostSubject | undefined): boolean {
@@ -760,6 +824,7 @@ async function gatherPostSubjects(
           sourceUrl: String(product.official_url || product.product_url || ""),
           discoveryProductId: String(product.id),
           sourceRef: String(product.id),
+          assigned: true,
         });
       }
     } catch (error) {
@@ -1425,6 +1490,11 @@ export async function runResidentLifeCycle(
     ...exploration.avoidEntities,
     ...intent.avoid,
   ]);
+  const assignedDiscoverySubjects = subjects.filter(isAssignedDiscoverySubject);
+  const postableAssignedDiscoveries = assignedDiscoverySubjects.filter(
+    isPostableAssignedDiscovery,
+  );
+  const hasAssignedHandoff = postableAssignedDiscoveries.length > 0;
   const cadenceReady = shouldEncouragePost(persona);
   const humanSignals = await loadResidentHumanSignals({
     profileId: persona.profile_id,
@@ -1439,7 +1509,10 @@ export async function runResidentLifeCycle(
       seed: `${persona.id}:${new Date().toISOString().slice(0, 13)}:tweet`,
       hasProductSubject,
     });
-  const encouragePost = cadenceReady && (subjects.length > 0 || mayTweet);
+  // Assigned handoffs are real verified products from World Scout — do not
+  // drop them solely because the resident posted recently (cadence).
+  const encouragePost =
+    (cadenceReady && (subjects.length > 0 || mayTweet)) || hasAssignedHandoff;
 
   const newsLines =
     playbook.sources.includes("world_news") && worldNews.length
@@ -1465,12 +1538,38 @@ export async function runResidentLifeCycle(
         ? "現在取得できるGoogle Trendsはありません"
         : "この役割ではGoogle Trendsは主情報源ではない。";
 
+  const assignedHandoffBlock = hasAssignedHandoff
+    ? [
+        "World Scoutから今回正式に担当へ届いた商品があります。",
+        "これは優先して検討する題材です。",
+        "商品名、ブランド、商品URL、画像URLは題材データを使用してください。",
+        "架空の商品や架空URLを作らないでください。",
+        "",
+        postableAssignedDiscoveries
+          .map((subject) =>
+            [
+              `【担当handoff 題材 ${subject.id}】`,
+              `種類: discovery (assigned)`,
+              `名前: ${subject.label}`,
+              subject.brand ? `ブランド: ${subject.brand}` : "",
+              subject.productUrl ? `商品URL: ${subject.productUrl}` : "",
+              subject.mediaUrl ? `画像URL: ${subject.mediaUrl}` : "",
+              subject.category ? `カテゴリ: ${subject.category}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          )
+          .join("\n\n"),
+        "",
+      ].join("\n")
+    : "";
+
   const subjectLines = subjects.length
     ? subjects
         .map((subject) =>
           [
             `【題材 ${subject.id}】`,
-            `種類: ${subject.kind}`,
+            `種類: ${subject.kind}${subject.assigned ? " (World Scout handoff)" : ""}`,
             `名前: ${subject.label}`,
             subject.brand ? `ブランド: ${subject.brand}` : "",
             subject.productUrl ? `商品URL: ${subject.productUrl}` : "商品URL: なし",
@@ -1484,6 +1583,14 @@ export async function runResidentLifeCycle(
     : mayTweet
       ? "今使える実在の題材はありません。商品を作らず、日常の短いつぶやきならPOSTしてよい。毎回投稿する必要はない。"
       : "今使える実在の題材はありません。SKIP_POSTしてください。";
+
+  const cadenceGuidance = hasAssignedHandoff
+    ? "World Scoutから正式に担当へ届いた商品があります。最近投稿していても、その担当商品だけは優先して検討してください。通常のつぶやきや別題材は無理に出さなくてよい。"
+    : cadenceReady
+      ? mayTweet || subjects.length > 0
+        ? "今日は発信してもよい番です。商品投稿・つぶやき・SKIP_POSTのどれでも自然です。"
+        : "今日は交流が中心でもよい。無理に投稿しなくていい。"
+      : "最近投稿したばかりならSKIP_POSTしてください。";
 
   const workContext = `
 ${personaVoiceBlock(persona, playbook)}
@@ -1543,7 +1650,7 @@ ${
       : ""
   }
 
-今使える実在の題材:
+${assignedHandoffBlock}今使える実在の題材:
 ${subjectLines}
 
 この役割の仕事:
@@ -1566,7 +1673,12 @@ ${playbook.workBias}
 - つぶやきに架空の商品リンクを付けない。
 - 投稿文は ${persona.posting_style || "短く自然な一人称"} で。
 - 視点: ${roleCaptionLens(persona.resident_role)}
-- ${cadenceReady ? (mayTweet || subjects.length > 0 ? "今日は発信してもよい番です。商品投稿・つぶやき・SKIP_POSTのどれでも自然です。" : "今日は交流が中心でもよい。無理に投稿しなくていい。") : "最近投稿したばかりならSKIP_POSTしてください。"}
+- ${cadenceGuidance}
+- ${
+    hasAssignedHandoff
+      ? "assigned discoveryがある場合、まずその題材をPOST候補として検討してください。"
+      : "無理に毎回投稿しなくてよい。"
+  }
 - IGNOREという行動はありません。POSTかSKIP_POSTだけです。
 `;
 
@@ -1582,11 +1694,24 @@ ${playbook.workBias}
     const subjectId = workDecision.subjectId;
     if (subjectId) {
       const matched = resolvePostSubject(subjects, subjectId);
-      const subject = matched ?? (cadenceReady ? subjects[0] : undefined);
+      // Prefer assigned handoff only when the returned subjectId did not resolve.
+      // Do not silently swap a valid matched subject for a different product.
+      const subject =
+        matched ??
+        postableAssignedDiscoveries[0] ??
+        (cadenceReady ? subjects[0] : undefined);
       if (!subject) {
         workDecision = {
           type: "SKIP_POST",
           reason: "subject not in list",
+        };
+      } else if (
+        isAssignedDiscoverySubject(subject) &&
+        !isPostableAssignedDiscovery(subject)
+      ) {
+        workDecision = {
+          type: "SKIP_POST",
+          reason: "assigned discovery missing usable product image",
         };
       } else {
         const copied = captionCopiesSubject(
@@ -1595,17 +1720,30 @@ ${playbook.workBias}
           feedCaptions,
         );
         const needsRewrite = !matched || copied;
-        const rewritten = needsRewrite
-          ? fallbackLifePost(persona, [subject], true)
-          : null;
-        workDecision = {
-          type: "POST",
-          caption:
-            rewritten && rewritten.type === "POST"
-              ? rewritten.caption
-              : workDecision.caption,
-          subjectId: subject.id,
-        };
+        if (needsRewrite) {
+          const rewritten = await rewriteSubjectCaption({
+            persona,
+            playbook,
+            subject,
+          });
+          workDecision =
+            rewritten.type === "POST"
+              ? {
+                  type: "POST",
+                  caption: rewritten.caption,
+                  subjectId: subject.id,
+                }
+              : {
+                  type: "SKIP_POST",
+                  reason: rewritten.reason || "caption rewrite failed",
+                };
+        } else {
+          workDecision = {
+            type: "POST",
+            caption: workDecision.caption,
+            subjectId: subject.id,
+          };
+        }
       }
     } else if (!mayTweet || !cadenceReady) {
       workDecision = {
@@ -1615,37 +1753,126 @@ ${playbook.workBias}
     }
   }
 
+  // If cadence alone caused a soft skip but a verified handoff exists, retry once.
+  if (
+    workDecision.type === "SKIP_POST" &&
+    hasAssignedHandoff &&
+    !cadenceReady
+  ) {
+    const handoff = postableAssignedDiscoveries[0];
+    try {
+      const handoffRetry = await decideResidentLifePost(
+        workContext +
+          `\n\n追加: 通常の投稿間隔だけでは担当handoff商品を捨てないでください。題材ID ${handoff.id}（${handoff.label}）について、自分の視点でPOSTするか、本当に書けないときだけSKIP_POSTしてください。`,
+      );
+      if (handoffRetry.type === "POST") {
+        const matched =
+          (handoffRetry.subjectId
+            ? resolvePostSubject(subjects, handoffRetry.subjectId)
+            : undefined) ?? handoff;
+        const subject = isPostableAssignedDiscovery(matched)
+          ? matched
+          : handoff;
+        const copied = captionCopiesSubject(
+          handoffRetry.caption,
+          subject,
+          feedCaptions,
+        );
+        if (copied || !handoffRetry.subjectId) {
+          const rewritten = await rewriteSubjectCaption({
+            persona,
+            playbook,
+            subject,
+          });
+          workDecision =
+            rewritten.type === "POST"
+              ? {
+                  type: "POST",
+                  caption: rewritten.caption,
+                  subjectId: subject.id,
+                }
+              : {
+                  type: "SKIP_POST",
+                  reason: rewritten.reason || "handoff rewrite failed",
+                };
+        } else {
+          workDecision = {
+            type: "POST",
+            caption: handoffRetry.caption,
+            subjectId: subject.id,
+          };
+        }
+      }
+    } catch (error) {
+      console.error(
+        "assigned handoff post retry failed",
+        persona.persona_name,
+        error,
+      );
+    }
+  }
+
   if (
     workDecision.type === "SKIP_POST" &&
     playbook.forcePostRetry &&
-    cadenceReady &&
-    subjects.length > 0
+    (cadenceReady || hasAssignedHandoff) &&
+    (subjects.length > 0 || hasAssignedHandoff)
   ) {
     try {
       const retry = await decideResidentLifePost(
         workContext +
-          "\n\n追加: 今日は自分の役割として発信してよい番です。題材IDを1つ選び、自分の口調でPOSTしてください。catalogをWeb発見とは書かないでください。",
+          (hasAssignedHandoff
+            ? "\n\n追加: World Scoutからの担当商品を優先し、題材IDを1つ選び自分の口調でPOSTしてください。catalogをWeb発見とは書かないでください。"
+            : "\n\n追加: 今日は自分の役割として発信してよい番です。題材IDを1つ選び、自分の口調でPOSTしてください。catalogをWeb発見とは書かないでください。"),
       );
       if (retry.type === "POST") {
         if (retry.subjectId) {
+          const matched = resolvePostSubject(subjects, retry.subjectId);
           const subject =
-            resolvePostSubject(subjects, retry.subjectId) ?? subjects[0];
+            matched ??
+            postableAssignedDiscoveries[0] ??
+            subjects[0];
           if (subject) {
-            const rewritten = captionCopiesSubject(
-              retry.caption,
-              subject,
-              feedCaptions,
-            )
-              ? fallbackLifePost(persona, [subject], true)
-              : null;
-            workDecision = {
-              type: "POST",
-              caption:
-                rewritten && rewritten.type === "POST"
-                  ? rewritten.caption
-                  : retry.caption,
-              subjectId: subject.id,
-            };
+            if (
+              isAssignedDiscoverySubject(subject) &&
+              !isPostableAssignedDiscovery(subject)
+            ) {
+              workDecision = {
+                type: "SKIP_POST",
+                reason: "assigned discovery missing usable product image",
+              };
+            } else {
+              const copied = captionCopiesSubject(
+                retry.caption,
+                subject,
+                feedCaptions,
+              );
+              const needsRewrite = !matched || copied;
+              if (needsRewrite) {
+                const rewritten = await rewriteSubjectCaption({
+                  persona,
+                  playbook,
+                  subject,
+                });
+                workDecision =
+                  rewritten.type === "POST"
+                    ? {
+                        type: "POST",
+                        caption: rewritten.caption,
+                        subjectId: subject.id,
+                      }
+                    : {
+                        type: "SKIP_POST",
+                        reason: rewritten.reason || "caption rewrite failed",
+                      };
+              } else {
+                workDecision = {
+                  type: "POST",
+                  caption: retry.caption,
+                  subjectId: subject.id,
+                };
+              }
+            }
           }
         } else {
           workDecision = retry;
@@ -1673,19 +1900,30 @@ ${playbook.workBias}
     const subject = posted.subjectId
       ? subjects.find((item) => item.id === posted.subjectId)
       : undefined;
-    const polished = await polishCaption({
-      persona,
-      caption: posted.caption,
-      subject,
-      recentCaptions: feedCaptions,
-    });
-    if (!polished) {
+    if (
+      subject &&
+      isAssignedDiscoverySubject(subject) &&
+      !isPostableAssignedDiscovery(subject)
+    ) {
       workDecision = {
         type: "SKIP_POST",
-        reason: "caption failed uniqueness/quality",
+        reason: "assigned discovery missing usable product image",
       };
     } else {
-      workDecision = { ...posted, caption: polished };
+      const polished = await polishCaption({
+        persona,
+        caption: posted.caption,
+        subject,
+        recentCaptions: feedCaptions,
+      });
+      if (!polished) {
+        workDecision = {
+          type: "SKIP_POST",
+          reason: "caption failed uniqueness/quality",
+        };
+      } else {
+        workDecision = { ...posted, caption: polished };
+      }
     }
   }
 

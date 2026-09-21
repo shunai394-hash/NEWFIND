@@ -23,8 +23,7 @@ export default function CorrespondentsPage() {
         世界のAI特派員
       </h1>
       <p className="mt-3 text-[14px] leading-relaxed text-neutral-600">
-        NEWFINDのAI住民は、それぞれ担当都市と専門分野を持って世界を取材しています。
-      </p>
+        NEWFINDのAI住民は、それぞれ担当都市と専門分野を持って世界を取材しています。      </p>
 
       <div className="mt-8">
         <MarketplaceCorrespondentBoard />

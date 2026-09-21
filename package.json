@@ -13,6 +13,7 @@
         "test:today-exploration": "tsx scripts/test-today-exploration.ts",
         "test:marketplace": "tsx scripts/test-marketplace-pipeline.ts",
         "test:discovery-quality": "tsx scripts/test-discovery-quality.ts",
+        "test:tracer-integration": "tsx scripts/test-tracer-integration.ts",
         "seed:demo": "tsx scripts/seed-demo.ts",
         "seed:demo:apply": "tsx scripts/seed-demo.ts --jp-only --apply",
         "seed:demo:apply:all": "tsx scripts/seed-demo.ts --apply",

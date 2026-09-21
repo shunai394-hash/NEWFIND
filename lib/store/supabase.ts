@@ -1064,7 +1064,35 @@ export const supabaseStore: Store = {
 
   async toggleLike(postId, userId) {
     const liked = await toggleJoin("likes", postId, userId);
-    if (liked) void notifySocialEvent({ type: "like", postId });
+    if (liked) {
+      void notifySocialEvent({ type: "like", postId });
+      void (async () => {
+        try {
+          const supabase = createClient();
+          const { data } = await supabase
+            .from("posts")
+            .select("discovery_product_id")
+            .eq("id", postId)
+            .maybeSingle();
+          const productId = data?.discovery_product_id as string | null | undefined;
+          if (!productId) return;
+          const { emitUserEngagement } = await import("@/lib/integration/emit");
+          await emitUserEngagement({
+            eventType: "liked",
+            productId,
+            userId,
+            eventId: `nf:liked:${userId}:${productId}:${postId}`,
+            causationId: postId,
+            metadata: { post_id: postId },
+          });
+        } catch (err) {
+          console.warn(
+            "[integration] liked emit failed",
+            err instanceof Error ? err.message : err,
+          );
+        }
+      })();
+    }
     return liked;
   },
 
@@ -1073,7 +1101,36 @@ export const supabaseStore: Store = {
   },
 
   async toggleSave(postId, userId) {
-    return toggleJoin("saves", postId, userId);
+    const saved = await toggleJoin("saves", postId, userId);
+    if (saved) {
+      void (async () => {
+        try {
+          const supabase = createClient();
+          const { data } = await supabase
+            .from("posts")
+            .select("discovery_product_id")
+            .eq("id", postId)
+            .maybeSingle();
+          const productId = data?.discovery_product_id as string | null | undefined;
+          if (!productId) return;
+          const { emitUserEngagement } = await import("@/lib/integration/emit");
+          await emitUserEngagement({
+            eventType: "saved",
+            productId,
+            userId,
+            eventId: `nf:saved-post:${userId}:${productId}:${postId}`,
+            causationId: postId,
+            metadata: { post_id: postId, via: "post_save" },
+          });
+        } catch (err) {
+          console.warn(
+            "[integration] post-saved emit failed",
+            err instanceof Error ? err.message : err,
+          );
+        }
+      })();
+    }
+    return saved;
   },
 
   async sharePost(postId, userId) {

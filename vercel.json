@@ -3,6 +3,22 @@
     {
       "path": "/api/ai-act",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/ai-act",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/ai-act?mode=product_hunter",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/ai-act?mode=world_scout",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/integrations/outbox/drain",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

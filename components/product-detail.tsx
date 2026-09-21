@@ -3,6 +3,7 @@ import { ProductCard } from "@/components/product-card";
 import { ProductHeroImage } from "@/components/product-hero-image";
 import { ProductSaveButton } from "@/components/product-save-button";
 import { ProductShareButton } from "@/components/product-share-button";
+import { ProductViewTracker } from "@/components/product-view-tracker";
 import { evidenceGroupForSource, evidenceSources, whyIsThisHere } from "@/lib/discovery/evidence";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { productSignals } from "@/lib/discovery/product-signals";
@@ -14,13 +15,17 @@ import {
   TREND_TAG_LABELS,
 } from "@/lib/discovery/types";
 import type { DiscoveryOrigin, DiscoveryProduct } from "@/lib/discovery/types";
+import { MarketplaceProductDossier } from "@/components/marketplace-product-dossier";
+import type { MarketplaceDossier } from "@/lib/marketplace/store";
 
 export function ProductDetail({
   product,
   related,
+  marketplace,
 }: {
   product: DiscoveryProduct;
   related: DiscoveryProduct[];
+  marketplace?: MarketplaceDossier | null;
 }) {
   const imageOk = isUsableProductImage(product.productImageUrl);
   const shopUrl = discoveryShopUrl(product);
@@ -31,6 +36,7 @@ export function ProductDetail({
 
   return (
     <article className="bg-white">
+      <ProductViewTracker productId={product.id} />
       {imageOk && product.productImageUrl ? (
         <ProductHeroImage
           src={product.productImageUrl}
@@ -218,6 +224,8 @@ export function ProductDetail({
             ? ` · ${DISCOVERY_ORIGIN_LABELS[product.discoverySource as DiscoveryOrigin] ?? product.discoverySource}`
             : ""}
         </p>
+
+        {marketplace ? <MarketplaceProductDossier dossier={marketplace} /> : null}
       </div>
       {related.length > 0 ? (
         <section className="border-t border-neutral-200 pb-8">

@@ -87,5 +87,20 @@ export async function toggleProductSave(userId: string, productId: string): Prom
     throw new Error(error.message);
   }
   await enableSaveAlerts(userId, productId);
+  try {
+    const { emitUserEngagement } = await import("@/lib/integration/emit");
+    await emitUserEngagement({
+      eventType: "saved",
+      productId,
+      userId,
+      eventId: `nf:saved:${userId}:${productId}`,
+      causationId: productId,
+    });
+  } catch (err) {
+    console.warn(
+      "[integration] saved emit failed",
+      err instanceof Error ? err.message : err,
+    );
+  }
   return { saved: true, productId };
 }

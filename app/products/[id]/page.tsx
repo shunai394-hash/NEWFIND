@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/product-detail";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { getDiscoveryProduct, listDiscoveryProducts } from "@/lib/discovery/store";
+import { loadMarketplaceDossier } from "@/lib/marketplace/store";
 
 export const dynamic = "force-dynamic";
 
@@ -24,5 +25,6 @@ export default async function ProductPage({
         ),
     )
     .slice(0, 6);
-  return <ProductDetail product={product} related={related} />;
+  const marketplace = await loadMarketplaceDossier({ discoveryProductId: product.id });
+  return <ProductDetail product={product} related={related} marketplace={marketplace} />;
 }

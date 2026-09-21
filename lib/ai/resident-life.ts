@@ -35,6 +35,12 @@ import {
 } from "@/lib/ai/resident-product-hunter";
 import { runWorldScoutCycle } from "@/lib/ai/world-scout-cycle";
 import { listAssignedDiscoveries } from "@/lib/ai/discovery-handoff";
+import {
+  expireStaleInvestigations,
+  loadOpenInvestigations,
+  loadVerifiedUnposted,
+  markInvestigationPosted,
+} from "@/lib/ai/investigations";
 import { logAiActivity } from "@/lib/ai/control-tower/activity-log";
 import {
   getRolePlaybook,
@@ -721,6 +727,12 @@ async function gatherPostSubjects(
   feed: FeedCandidate[],
   playbook: RolePlaybook,
   correspondent?: CorrespondentWatchResult | null,
+  verifiedLeads?: Array<{
+    title: string;
+    sourceUrl: string | null;
+    sourceKind: string | null;
+    provenance?: string | null;
+  }>,
 ): Promise<PostSubject[]> {
   const subjects: PostSubject[] = [];
   let n = 1;
@@ -902,6 +914,18 @@ async function gatherPostSubjects(
     }
   }
 
+  for (const lead of verifiedLeads ?? []) {
+    if (!isHttpUrl(lead.sourceUrl)) continue;
+    subjects.push({
+      id: String(n++),
+      kind: "world",
+      label: `VERIFIED ${lead.title}`.slice(0, 80),
+      category: (lead.sourceKind || "news").toLowerCase(),
+      sourceUrl: lead.sourceUrl,
+      sourceRef: lead.provenance || lead.sourceUrl,
+    });
+  }
+
   const unique: PostSubject[] = [];
   const seen = new Set<string>();
   for (const subject of subjects) {
@@ -992,6 +1016,7 @@ function fallbackSocialAction(
   followingIds: Set<string>,
   playbook: RolePlaybook,
   city = "",
+  preferConversation = false,
 ): AIAction {
   if (candidates.length === 0) return { type: "IGNORE" };
 
@@ -1011,6 +1036,30 @@ function fallbackSocialAction(
   const reply = target.comments[0];
   const roll = hashSeed(`${persona.id}:${target.id}:${persona.last_action || ""}`) % 10;
   const ja = usesJapanese(persona);
+
+  // Living timeline: when the resident is investigating / following up / interacting,
+  // prefer meaningful COMMENT / REPLY over silent likes.
+  if (preferConversation || playbook.preferredSocial.includes("COMMENT")) {
+    if (reply && (preferConversation || roll < 4)) {
+      return {
+        type: "REPLY",
+        postId: target.id,
+        parentCommentId: reply.id,
+        text: ja
+          ? `${city || "現地"}では別の読み方もある。続報はまだ出ているか。`
+          : `From ${city || "here"} there's another reading. Any follow-up yet?`,
+      };
+    }
+    if (preferConversation || roll < 7) {
+      return {
+        type: "COMMENT",
+        postId: target.id,
+        text: ja
+          ? `${city || "現地"}で見ると、まだ公式確認前の話に聞こえる。価格と発売地域を知りたい。`
+          : `From ${city || "here"} this still sounds pre-confirmation. Price and launch region?`,
+      };
+    }
+  }
 
   if (playbook.role === "critic") {
     if (roll < 4) return { type: "IGNORE" };
@@ -1175,6 +1224,9 @@ export async function runResidentLifeCycle(
   const snapshot = await loadSelfSnapshot(persona.id);
   const recentQuests = await loadRecentExplorations(persona.id).catch(() => []);
   const peerSignals = await loadPeerWorldSignals(persona.id).catch(() => []);
+  const openInvestigations = await loadOpenInvestigations(persona.id).catch(() => []);
+  await expireStaleInvestigations(persona.id).catch(() => undefined);
+  const verifiedLeads = await loadVerifiedUnposted(persona.id).catch(() => []);
   const personaLens = {
     id: persona.id,
     name: persona.persona_name,
@@ -1207,6 +1259,10 @@ export async function runResidentLifeCycle(
       title: item.title,
       beat: item.beat,
       fromName: item.fromName,
+    })),
+    openInvestigations: openInvestigations.map((item) => ({
+      title: item.title,
+      status: item.status,
     })),
   });
   let selfState: SelfState = {
@@ -1312,9 +1368,7 @@ export async function runResidentLifeCycle(
     }
   }
 
-  const candidates = (await loadFeedCandidates(persona, followingIds, playbook)).filter(
-    (post) => !post.comments.some((comment) => comment.authorId === persona.profile_id),
-  );
+  const candidates = await loadFeedCandidates(persona, followingIds, playbook);
 
   let hunter: ResidentProductHunterResult | null = null;
   if (playbook.role === "product_hunter") {
@@ -1344,12 +1398,29 @@ export async function runResidentLifeCycle(
         dryRun,
         runId: options?.runId,
         exploration,
+        openInvestigations: openInvestigations.map((item) => ({
+          title: item.title,
+          sourceUrl: item.sourceUrl,
+          nextAction: item.nextAction,
+        })),
       });
     } catch (error) {
       console.error("correspondent watch failed", persona.persona_name, error);
     }
 
-  const rawSubjects = await gatherPostSubjects(persona, hunter, candidates, playbook, correspondent);
+  const rawSubjects = await gatherPostSubjects(
+    persona,
+    hunter,
+    candidates,
+    playbook,
+    correspondent,
+    verifiedLeads.map((item) => ({
+      title: item.title,
+      sourceUrl: item.sourceUrl,
+      sourceKind: item.sourceKind,
+      provenance: item.entityKey,
+    })),
+  );
   const subjects = dropRepeatedSubjects(rawSubjects, [
     ...exploration.avoidEntities,
     ...intent.avoid,
@@ -1665,7 +1736,38 @@ ${playbook.workBias}
             detail: posted.caption.slice(0, 180),
             relatedProductId: subject.discoveryProductId ?? null,
             relatedRunId: options?.runId ?? null,
+            metadata: {
+              world: subject.kind === "world",
+              title: subject.label,
+              url: subject.sourceUrl ?? subject.productUrl,
+              infoKind: subject.category,
+            },
           });
+          const postedId =
+            workResult &&
+            typeof workResult === "object" &&
+            "result" in workResult
+              ? String(
+                  (workResult as { result?: { id?: string; post?: { id?: string } } })
+                    .result?.id ||
+                    (workResult as { result?: { post?: { id?: string } } }).result
+                      ?.post?.id ||
+                    "",
+                ) || null
+              : null;
+          const lead =
+            verifiedLeads.find(
+              (item) => item.sourceUrl && item.sourceUrl === subject.sourceUrl,
+            ) ??
+            openInvestigations.find(
+              (item) => item.sourceUrl && item.sourceUrl === subject.sourceUrl,
+            );
+          if (lead) {
+            await markInvestigationPosted({
+              id: lead.id,
+              postId: postedId,
+            });
+          }
         }
       }
     } else if (!posted.subjectId) {
@@ -1761,7 +1863,10 @@ ${candidateLines}
 - 投稿本文をコピーしたコメントは禁止。見たものへの自分の反応だけ。
 - 「すごい」「面白い」「私も好き」だけのコメントは禁止。
 - COMMENTするなら新しい情報・別解釈・質問・比較・${exploration.city}の現地知識のどれかを入れる。
-- すでにコメントした投稿は選ばない。
+- 発見・調査・異議・続報・確認のいずれかとして反応する。馴れ合いだけのコメントは禁止。
+- 自分がまだコメントしていない投稿には COMMENT してよい。
+- すでに自分がコメントした投稿には COMMENT せず、必要なら REPLY する。
+- REPLYは実在するコメントIDだけ。投稿内容と関係ない返信は禁止。
 - IGNOREは候補が空のとき、または critic/curator が本当に何もしないとき。
 `;
 
@@ -1789,6 +1894,9 @@ ${candidateLines}
         followingIds,
         playbook,
         exploration.city,
+        intent.stance === "interact" ||
+          intent.stance === "follow_up" ||
+          intent.stance === "investigate",
       );
     }
   }
@@ -1809,6 +1917,7 @@ ${candidateLines}
       followingIds,
       playbook,
       exploration.city,
+      true,
     );
   }
   const fallbackText =
@@ -1819,7 +1928,23 @@ ${candidateLines}
     fallbackText &&
     (isLowValueComment(fallbackText) || !commentHasInformationValue(fallbackText))
   ) {
-    socialAction = { type: "IGNORE" };
+    // Keep a conversational fallback when possible instead of silencing the timeline
+    const recovered = fallbackSocialAction(
+      persona,
+      candidates,
+      followingIds,
+      playbook,
+      exploration.city,
+      true,
+    );
+    if (
+      (recovered.type === "COMMENT" || recovered.type === "REPLY") &&
+      commentHasInformationValue(recovered.text)
+    ) {
+      socialAction = recovered;
+    } else {
+      socialAction = { type: "IGNORE" };
+    }
   }
 
   const socialMemory = roleSocialMemory(playbook, socialAction);

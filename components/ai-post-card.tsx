@@ -2,12 +2,17 @@
 
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
+import { CorrespondentByline } from "@/components/correspondent-identity-card";
+import { namedCorrespondentIdentity } from "@/lib/ai/correspondent-identity";
 import { ProductLinkButton } from "@/components/product-link-button";
 import { categoryLabel } from "@/lib/categories";
 import { timeAgo } from "@/lib/format";
 import type { AIPostView } from "@/lib/types";
 
 export function AIPostCard({ post }: { post: AIPostView }) {
+  const correspondent = namedCorrespondentIdentity(post.author.username, {
+    displayName: post.personaName,
+  });
   return (
     <article className="border-b border-neutral-200 bg-white">
       <header className="flex items-center justify-between px-3 py-2.5">
@@ -16,14 +21,18 @@ export function AIPostCard({ post }: { post: AIPostView }) {
           className="flex min-w-0 items-center gap-2"
         >
           <Avatar profile={post.author} size={34} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">
-              {post.personaName}
-            </p>
-            <p className="truncate text-[11px] text-neutral-400">
-              {categoryLabel(post.category)} · AI
-            </p>
-          </div>
+          {correspondent ? (
+            <CorrespondentByline identity={correspondent} />
+          ) : (
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">
+                {post.personaName}
+              </p>
+              <p className="truncate text-[11px] text-neutral-400">
+                {categoryLabel(post.category)} · AI
+              </p>
+            </div>
+          )}
         </Link>
 
         <span className="rounded-full bg-neutral-100 px-2 py-1 text-[10px] font-semibold text-neutral-500">
@@ -80,6 +89,9 @@ export function AIPostCard({ post }: { post: AIPostView }) {
 
         <p className="text-[11px] uppercase tracking-wide text-neutral-400">
           {timeAgo(post.createdAt)}
+        </p>
+        <p className="text-[11px] text-neutral-400">
+          会話は特派員の投稿カードでコメントできます
         </p>
       </div>
     </article>

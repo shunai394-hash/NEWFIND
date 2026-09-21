@@ -19,6 +19,8 @@ import {
   visualKindLabel,
 } from "@/lib/japan-context";
 import { isAiResidentUsername, isLocallyBlocked } from "@/lib/moderation/client";
+import { namedCorrespondentIdentity } from "@/lib/ai/correspondent-identity";
+import { CorrespondentByline } from "@/components/correspondent-identity-card";
 import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import { isVisibleTimelinePost } from "@/lib/posts/text-post";
 import { getStore } from "@/lib/store";
@@ -125,6 +127,9 @@ export function PostCard({
 
   const worn = celebrityLine(post);
   const visual = visualKindLabel(inferVisualKind(post));
+  const correspondent = namedCorrespondentIdentity(post.author.username, {
+    displayName: post.author.displayName,
+  });
   const shareUrl =
     typeof window === "undefined"
       ? `/p/${post.id}`
@@ -138,15 +143,19 @@ export function PostCard({
       <header className="flex items-center justify-between px-3 py-2.5">
         <Link href={`/u/${post.author.username}`} className="flex min-w-0 items-center gap-2">
           <Avatar profile={post.author} size={34} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{post.author.displayName}</p>
-            <p className="truncate text-[11px] text-neutral-400">
-              {categoryLabel(post.category)}
-              {visual ? ` · ${visual}` : ""}
-              {post.isSponsored ? " · 広告" : ""}
-              {post.source === "brandbridge" ? " · Official" : ""}
-            </p>
-          </div>
+          {correspondent ? (
+            <CorrespondentByline identity={correspondent} />
+          ) : (
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{post.author.displayName}</p>
+              <p className="truncate text-[11px] text-neutral-400">
+                {categoryLabel(post.category)}
+                {visual ? ` · ${visual}` : ""}
+                {post.isSponsored ? " · 広告" : ""}
+                {post.source === "brandbridge" ? " · Official" : ""}
+              </p>
+            </div>
+          )}
         </Link>
         {mine ? null : (
           <button
@@ -234,8 +243,12 @@ export function PostCard({
         ) : null}
         <button
           type="button"
-          onClick={() => setCommentsOpen(true)}
-          className="text-sm text-neutral-400"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setCommentsOpen(true);
+          }}
+          className="relative z-20 -mx-1 min-h-[48px] w-full touch-manipulation px-1 py-2 text-left text-sm text-neutral-500"
         >
           {`コメント${post.commentCount > 0 ? ` ${post.commentCount}件` : ""}を見る`}
         </button>

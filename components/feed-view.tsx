@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SearchIcon } from "@/components/icons";
 import { AIPostCard } from "@/components/ai-post-card";
+import {
+  InvestigationEventCard,
+  type InvestigationFeedItem,
+} from "@/components/investigation-event-card";
 import { PostCard } from "@/components/post-card";
+import { WorldIntro } from "@/components/world-intro";
+import { WorldPulse } from "@/components/world-pulse";
 import { useApp } from "@/lib/app-context";
 import { FEED_CHANNELS, type FeedChannelId } from "@/lib/japan-context";
 import { isVisibleTimelinePost } from "@/lib/posts/text-post";
@@ -13,16 +19,20 @@ import { isLocallyBlocked } from "@/lib/moderation/client";
 import type { AIPostView, PostView } from "@/lib/types";
 
 const PAGE_SIZE = 24;
-const AI_MIX_RATIO = 0.25;
+const AI_MIX_RATIO = 0.15;
 
 type FeedItem =
   | { type: "human"; post: PostView }
-  | { type: "ai"; post: AIPostView };
+  | { type: "ai"; post: AIPostView }
+  | { type: "investigation"; item: InvestigationFeedItem };
 
 export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   const { session, blockedIds } = useApp();
   const [channel, setChannel] = useState<FeedChannelId>("today");
   const [posts, setPosts] = useState<FeedItem[]>([]);
+  const [investigations, setInvestigations] = useState<InvestigationFeedItem[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -33,6 +43,25 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   const aiOffsetRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const selected = FEED_CHANNELS.find((item) => item.id === channel) ?? FEED_CHANNELS[0]!;
+
+  useEffect(() => {
+    if (kind !== "foryou") {
+      setInvestigations([]);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/investigations?recent=1", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((body: { investigations?: InvestigationFeedItem[] }) => {
+        if (!cancelled) setInvestigations(body.investigations ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setInvestigations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [kind, channel]);
 
   useEffect(() => {
     postsRef.current = posts;
@@ -137,16 +166,35 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
         );
 
         const mixed: FeedItem[] = [];
-
         let aiIndex = 0;
+        let investigationIndex = 0;
+        const desk =
+          kind === "foryou" && replace
+            ? investigations.filter((item) =>
+                ["DISCOVERY", "INVESTIGATING", "VERIFIED"].includes(item.status),
+              )
+            : [];
 
         collectedHuman.forEach((human, index) => {
           mixed.push({ type: "human", post: human });
 
+          // Living-world desk events between posts (not AI-post-only timeline)
+          if (
+            desk.length > 0 &&
+            investigationIndex < desk.length &&
+            (index === 0 || (index + 1) % 3 === 0)
+          ) {
+            mixed.push({
+              type: "investigation",
+              item: desk[investigationIndex]!,
+            });
+            investigationIndex += 1;
+          }
+
           const shouldInsertAI =
             kind === "foryou" &&
             aiIndex < aiCount &&
-            (index + 1) % Math.max(1, Math.round(PAGE_SIZE / aiCount)) === 0;
+            (index + 1) % Math.max(1, Math.round(PAGE_SIZE / Math.max(aiCount, 1))) === 0;
 
           if (shouldInsertAI) {
             mixed.push({
@@ -156,6 +204,14 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
             aiIndex += 1;
           }
         });
+
+        while (investigationIndex < Math.min(desk.length, 4) && mixed.length < PAGE_SIZE + 4) {
+          mixed.push({
+            type: "investigation",
+            item: desk[investigationIndex]!,
+          });
+          investigationIndex += 1;
+        }
 
         while (aiIndex < aiCount) {
           mixed.push({
@@ -191,7 +247,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
         setLoadingMore(false);
       }
     },
-    [kind, session, selected.categories, blockedIds],
+    [kind, session, selected.categories, blockedIds, investigations],
   );
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -227,7 +283,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
       <div className="flex items-center justify-end border-b border-neutral-200 bg-white px-4 py-2">
         <Link
           href="/discover"
-          aria-label="隶諛・ｽｴ・｢"
+          aria-label="検索"
           className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-700 hover:bg-neutral-100"
         >
           <SearchIcon className="h-5 w-5" />
@@ -278,6 +334,13 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
       </div>
 
       {kind === "foryou" ? (
+        <>
+          <WorldIntro />
+          <WorldPulse />
+        </>
+      ) : null}
+
+      {kind === "foryou" ? (
         <p className="bg-white px-4 py-2 text-[11px] text-neutral-400">
           {selected.hint}
         </p>
@@ -292,13 +355,18 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
           {kind === "following"
             ? "フォロー中の投稿はまだありません。Discoverからアカウントを探してください。"
             : channel === "today"
-              ? "投稿はまだありません。"
+              ? "今日の発見はまだタイムラインにありません。特派員の取材を見るか、自分で発見を投稿してみてください。"
               : `${selected.hint}の投稿はまだありません。新しい投稿を見つけてみましょう。`}        </p>
       ) : (
         <>
 
           {posts.map((item) =>
-            item.type === "ai" ? (
+            item.type === "investigation" ? (
+              <InvestigationEventCard
+                key={`inv:${item.item.id}`}
+                item={item.item}
+              />
+            ) : item.type === "ai" ? (
               <AIPostCard
                 key={`ai:${item.post.id}`}
                 post={item.post}

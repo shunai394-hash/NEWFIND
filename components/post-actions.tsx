@@ -85,7 +85,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className={`flex items-center gap-1 text-xs ${active ? "text-neutral-900" : "text-neutral-800"}`}
+      className={`flex min-h-[44px] min-w-[44px] items-center gap-1 text-xs ${active ? "text-neutral-900" : "text-neutral-800"}`}
     >
       {children}
       {showLabel ? <span className="font-medium">{label}</span> : null}

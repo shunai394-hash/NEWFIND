@@ -488,7 +488,7 @@ export const localStore: Store = {
       };
       state.comments.push(comment);
       const author = state.profiles.find((p) => p.id === userId);
-      if (!author) throw new Error("繝励Ο繝輔ぅ繝ｼ繝ｫ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ");
+      if (!author) throw new Error("プロフィールが見つかりません");
       return { ...comment, author };
     });
   },

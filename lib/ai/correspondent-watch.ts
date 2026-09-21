@@ -27,6 +27,7 @@ import {
   correspondentViewpoint,
 } from "@/lib/ai/correspondent-identity";
 import type { ExplorationQuest } from "@/lib/ai/today-exploration";
+import { upsertInvestigation } from "@/lib/ai/investigations";
 
 export type CorrespondentWatchResult = {
   beat: CorrespondentBeat;
@@ -36,6 +37,7 @@ export type CorrespondentWatchResult = {
   scanned: number;
   classified: Partial<Record<InfoKind, number>>;
   accepted: WorldDispatch[];
+  investigating: WorldDispatch[];
   dropped: Array<{ title: string; url: string; reason: string }>;
   trends: Array<{ theme: string; count: number }>;
   searched: boolean;
@@ -114,6 +116,11 @@ export async function watchWorldForResident(
     dryRun?: boolean;
     runId?: string | null;
     exploration?: ExplorationQuest | null;
+    openInvestigations?: Array<{
+      title: string;
+      sourceUrl?: string | null;
+      nextAction?: string | null;
+    }>;
   },
 ): Promise<CorrespondentWatchResult> {
   const identity = correspondentIdentityFromLens({
@@ -152,6 +159,7 @@ export async function watchWorldForResident(
     scanned: 0,
     classified: {},
     accepted: [],
+    investigating: [],
     dropped: [],
     trends: [],
     searched: false,
@@ -206,7 +214,8 @@ export async function watchWorldForResident(
     const passQueries = uniqueStrings([
       query,
       ...(input.exploration?.queries ?? []),
-    ]).slice(0, 3);
+      ...(input.openInvestigations ?? []).map((item) => item.title),
+    ]).slice(0, 4);
     for (const passQuery of passQueries) {
       try {
         const more = await searchWorld({
@@ -252,6 +261,7 @@ export async function watchWorldForResident(
   const peerTitles = (input.peerSignals ?? []).map((item) => item.title);
   const classified: Partial<Record<InfoKind, number>> = {};
   const accepted: WorldDispatch[] = [];
+  const investigating: WorldDispatch[] = [];
   const dropped: Array<{ title: string; url: string; reason: string }> = [];
 
   for (const result of results.slice(0, 24)) {
@@ -305,8 +315,64 @@ export async function watchWorldForResident(
       provenance: `${result.sourceType}:${result.url}`,
       dropReason: decision.dropReason,
     };
-    if (decision.decision === "POST") accepted.push(dispatch);
-    else dropped.push({ title: result.title, url: result.url, reason: decision.dropReason || decision.reason });
+    const trackable =
+      decision.decision === "POST" ||
+      decision.decision === "INVESTIGATE_MORE" ||
+      decision.decision === "DISCOVER" ||
+      decision.decision === "SAVE" ||
+      (decision.decision === "WAIT" && quality.ok && scores.relevance >= 40);
+    if (!trackable) {
+      dropped.push({
+        title: result.title,
+        url: result.url,
+        reason: decision.dropReason || decision.reason,
+      });
+      continue;
+    }
+    const persisted = await upsertInvestigation({
+      personaId: persona.id,
+      profileId: persona.profile_id,
+      actorName: persona.display_name || persona.persona_name,
+      actorRole: persona.resident_role || "resident",
+      title: result.title,
+      summary: result.snippet,
+      beat: beat.primary,
+      city: identity.city,
+      correspondentTitle: identity.title,
+      sourceUrl: result.url,
+      sourceTitle: result.title,
+      sourceKind: infoKind,
+      evidenceCount: 1,
+      confidence: scores.total,
+      decision: decision.decision,
+      qualityOk: quality.ok,
+      qualityReason: quality.reason,
+      known,
+      runId: input.runId ?? null,
+      dryRun: input.dryRun,
+    });
+    if (persisted.shouldPost || persisted.status === "VERIFIED") {
+      // VERIFIED desk items become postable subjects this cycle
+      accepted.push({
+        ...dispatch,
+        decision: "POST",
+        dispatchKind:
+          persisted.status === "VERIFIED" && dispatch.dispatchKind === "DISCOVERY"
+            ? "FOLLOW_UP"
+            : dispatch.dispatchKind,
+      });
+    } else if (
+      persisted.status === "INVESTIGATING" ||
+      persisted.status === "DISCOVERY"
+    ) {
+      investigating.push(dispatch);
+    } else {
+      dropped.push({
+        title: result.title,
+        url: result.url,
+        reason: persisted.nextAction || decision.dropReason || decision.reason,
+      });
+    }
   }
 
   const trends = detectTrendClusters([...accepted, ...dropped].map((item) => ({
@@ -346,6 +412,7 @@ export async function watchWorldForResident(
         scanned: results.length,
         classified,
         accepted: top.length,
+        investigating: investigating.length,
         dropped: dropped.length,
         exploration: input.exploration
           ? {
@@ -375,6 +442,7 @@ export async function watchWorldForResident(
     scanned: results.length,
     classified,
     accepted: top,
+    investigating: investigating.slice(0, 6),
     dropped: dropped.slice(0, 20),
     trends,
     searched,

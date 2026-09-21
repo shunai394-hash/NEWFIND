@@ -13,12 +13,8 @@
       "schedule": "0 9 * * *"
     },
     {
-      "path": "/api/ai-act?mode=world_scout",
-      "schedule": "0 12 * * *"
-    },
-    {
       "path": "/api/integrations/outbox/drain",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }

@@ -7,11 +7,13 @@ import {
 } from "@/lib/ai/featured-living-residents";
 import { SPECIALIST_PRODUCT_HUNTERS } from "@/lib/ai/specialist-product-hunters";
 import { WORLD_SCOUTS } from "@/lib/ai/world-scouts";
+import { MARKETPLACE_RESIDENTS } from "@/lib/ai/marketplace-residents";
 
 const NAMED_RESIDENTS: FeaturedLivingResident[] = [
   ...FEATURED_LIVING_RESIDENTS,
   ...SPECIALIST_PRODUCT_HUNTERS,
   ...WORLD_SCOUTS,
+  ...MARKETPLACE_RESIDENTS,
 ];
 // FEATURED_INFLUENCER is not auto-created here. Use scripts/seed-named-influencer.ts.
 

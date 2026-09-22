@@ -9,6 +9,7 @@ import { evaluateProductCandidates } from "@/lib/ai/product-hunter";
 import { getWorldScoutByUsername, type ScoutBeat } from "@/lib/ai/world-scouts";
 import { upsertScoutDiscovery } from "@/lib/ai/discovery-upsert";
 import { assignDiscoveryToResident } from "@/lib/ai/discovery-handoff";
+import { upsertInvestigation } from "@/lib/ai/investigations";
 import { logAiActivity } from "@/lib/ai/control-tower/activity-log";
 import {
   beginAgentResearch,
@@ -374,6 +375,39 @@ export async function runWorldScoutCycle(
       });
       if (status === "verified") verifiedCount += 1;
       if (status === "duplicate") duplicateSourceCount += 1;
+
+      // Observational only: records a DISCOVERY/INVESTIGATING/VERIFIED event
+      // for the Feed (via /api/investigations + investigation-event-card).
+      // Does not gate discovery_products status, handoff, or posting — those
+      // keep using the existing single-pass confidence threshold above so
+      // this cannot regress the current handoff/posting pipeline. A second
+      // scout cycle that re-finds the same entity_key naturally advances
+      // this to VERIFIED/FOLLOW-UP through the shared nextInvestigationStatus
+      // logic already used by correspondent-watch.ts.
+      if (status === "verified" || status === "needs_review") {
+        await upsertInvestigation({
+          personaId: persona.id,
+          profileId: persona.profile_id,
+          actorName: persona.display_name || persona.persona_name,
+          actorRole: "world_scout",
+          title,
+          summary: candidate.description,
+          beat: candidate.category || beat.genres.join(" / "),
+          city: beat.region,
+          correspondentTitle: persona.display_name || persona.persona_name,
+          sourceUrl: candidate.productUrl,
+          sourceTitle: title,
+          sourceKind: "product",
+          evidenceCount: 1,
+          confidence: candidate.confidenceScore,
+          decision: status === "verified" ? "POST" : "INVESTIGATE_MORE",
+          qualityOk: status === "verified",
+          qualityReason: status === "verified" ? undefined : "LOW_EVIDENCE",
+          runId: options?.runId ?? null,
+        }).catch((error) => {
+          console.warn("world scout investigation upsert failed", error);
+        });
+      }
 
       const findingId = await recordFinding({
         session,

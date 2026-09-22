@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { executeAiEngine, type AiEngineMode } from "@/lib/ai/engine";
+import { isAuthorizedCronRequest } from "@/lib/auth/cron";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,10 +13,7 @@ function parseMode(request: Request): AiEngineMode {
 }
 
 async function runAIAct(request: Request) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authorization = request.headers.get("authorization");
-
-  if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json(
       { ok: false, error: "Unauthorized" },
       { status: 401 },

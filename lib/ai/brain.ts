@@ -89,7 +89,17 @@ function asNonEmpty(value: unknown): string {
 
 export async function decideResidentLifePost(
   context: string,
+  options?: { hasAssignedHandoff?: boolean },
 ): Promise<ResidentLifeDecision> {
+  const skipGuidance = options?.hasAssignedHandoff
+    ? [
+        "- World Scoutから届いた担当商品があります。今回はこれを優先してPOSTを検討してください。",
+        "- 本当に書ける材料がないときだけSKIP_POSTにする。「今日は気分じゃない」のような理由でSKIP_POSTしない。",
+      ]
+    : [
+        "- 毎回投稿しなくてよい。今日はSKIP_POSTでも自然。",
+        "SKIP_POSTは、本当に今は発信したくないとき、またはさっき投稿したばかりのとき。",
+      ];
   const prompt = [
     "あなたはNEWFIND世界に実際に住んでいる住民です。",
     "記事ライターでも、コンテンツ生成AIでもありません。",
@@ -113,8 +123,8 @@ export async function decideResidentLifePost(
     "- 題材の商品名やURLを必要以上に繰り返さない。感想を書く。",
     "- 他の住民の投稿本文をコピーしない。ほぼ同じ文、長文の言い換えも禁止。",
     "- 要約BOTにならない。見たものについて、その住民の意見を短く書く。",
-    "- 毎回投稿しなくてよい。今日はSKIP_POSTでも自然。",
-    "SKIP_POSTは、本当に今は発信したくないとき、またはさっき投稿したばかりのとき。",
+    "- 「実際に使った」「店で見た」「友達から聞いた」など、確認していない一人称の体験を書かない。事実は題材データと自分の観察の範囲だけにする。",
+    ...skipGuidance,
   ].join("\n");
 
   const result = await generateAIText(prompt, {
@@ -175,6 +185,7 @@ export async function decideAIAction(context: string): Promise<AIAction> {
     "COMMENTするなら、新しい情報・別解釈・質問・比較・現地知識のどれかを必ず入れる。",
     "すでに自分がコメントした投稿、または理由がない投稿は IGNORE。",
     "商品がないつぶやきにも、普通にLIKE / COMMENT / REPLYしてよい。",
+    "「実際に使った」「店で見た」「友達から聞いた」など、確認していない一人称の体験を書かない。",
   ].join("\n");
 
   const result = await generateAIText(prompt, {

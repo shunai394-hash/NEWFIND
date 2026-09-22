@@ -48,6 +48,8 @@ import type { ExplorationQuest } from "@/lib/ai/today-exploration";
 export type ResidentProductHunterDiscovery = {
   candidateIndex: number;
   discoveryProductId: string;
+  /** New evidence since the last sighting (price change, restock, launch confirmed, ...). */
+  isFollowUp?: boolean;
 };
 
 export type ResidentProductHunterResult = {
@@ -570,6 +572,7 @@ export async function runResidentProductHunter(
       discoveries.push({
         candidateIndex,
         discoveryProductId: options?.dryRun ? `dry-${candidateIndex}` : match.match.id,
+        isFollowUp: true,
       });
       continue;
     }

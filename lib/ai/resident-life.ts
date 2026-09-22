@@ -163,6 +163,8 @@ type PostSubject = {
   hunterIndex?: number;
   /** World Scout → specialist handoff (listAssignedDiscoveries). */
   assigned?: boolean;
+  /** New evidence on an already-posted discovery (price/stock/launch change). */
+  followUp?: boolean;
 };
 
 type FeedCandidate = {
@@ -851,6 +853,7 @@ async function gatherPostSubjects(
         sourceUrl: candidate.officialUrl || candidate.productUrl,
         discoveryProductId: discovery.discoveryProductId,
         hunterIndex: discovery.candidateIndex,
+        followUp: discovery.isFollowUp === true,
       });
     });
   }
@@ -1010,6 +1013,53 @@ function dropRepeatedSubjects(
   return subjects.filter((subject) => !subjectLooksRepeated(subject, avoidEntities));
 }
 
+/**
+ * Own posts with unanswered comments from someone else. Without this, a
+ * resident can never see (or reply to) comments left on its own posts,
+ * because the general feed candidate pool deliberately excludes them.
+ */
+async function loadOwnThreadCandidates(
+  persona: AiPersona,
+): Promise<FeedCandidate[]> {
+  if (!isUuid(persona.profile_id)) return [];
+  const admin = createAdminClient();
+  const { data: myPosts, error } = await admin
+    .from("posts")
+    .select("id, caption, category, product_url")
+    .eq("author_id", persona.profile_id)
+    .order("created_at", { ascending: false })
+    .limit(8);
+  if (error || !myPosts?.length) return [];
+
+  const candidates: FeedCandidate[] = [];
+  for (const post of myPosts) {
+    const comments = await loadPostComments(post.id);
+    if (!comments.length) continue;
+    const repliedTo = new Set(
+      comments
+        .filter((comment) => comment.authorId === persona.profile_id)
+        .map((comment) => comment.parentCommentId)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const hasUnansweredComment = comments.some(
+      (comment) =>
+        comment.authorId !== persona.profile_id &&
+        !repliedTo.has(comment.id),
+    );
+    if (!hasUnansweredComment) continue;
+    candidates.push({
+      id: post.id,
+      authorId: persona.profile_id,
+      authorName: persona.persona_name,
+      category: post.category ?? "other",
+      caption: post.caption ?? "",
+      productUrl: post.product_url ?? null,
+      comments,
+    });
+  }
+  return candidates;
+}
+
 async function loadFeedCandidates(
   persona: AiPersona,
   followingIds: Set<string>,
@@ -1028,6 +1078,11 @@ async function loadFeedCandidates(
     console.error("loadFeedCandidates failed", persona.persona_name, error);
     return [];
   }
+
+  const ownThreads = await loadOwnThreadCandidates(persona).catch((error) => {
+    console.error("loadOwnThreadCandidates failed", persona.persona_name, error);
+    return [] as FeedCandidate[];
+  });
 
   const others = feedResult.posts.filter(
     (post) => post.author.id !== persona.profile_id,
@@ -1062,8 +1117,9 @@ async function loadFeedCandidates(
     unique.push(post);
   }
 
-  return Promise.all(
-    unique.slice(0, 6).map(async (post) => ({
+  const othersLimit = Math.max(0, 6 - ownThreads.length);
+  const othersResolved = await Promise.all(
+    unique.slice(0, othersLimit).map(async (post) => ({
       id: post.id,
       authorId: post.author.id,
       authorName: post.author.displayName,
@@ -1073,6 +1129,17 @@ async function loadFeedCandidates(
       comments: await loadPostComments(post.id),
     })),
   );
+
+  return [...ownThreads, ...othersResolved];
+}
+
+/** Grounds a canned fallback reply in what the parent comment actually said. */
+function replyReferenceSnippet(body: string, ja: boolean): string {
+  const trimmed = body.replace(/\s+/g, " ").trim();
+  if (!trimmed) return "";
+  const snippet =
+    trimmed.length > 40 ? `${trimmed.slice(0, 40)}…` : trimmed;
+  return ja ? `「${snippet}」について — ` : `Re "${snippet}" — `;
 }
 
 function fallbackSocialAction(
@@ -1098,7 +1165,17 @@ function fallbackSocialAction(
       : followedPost || interestPost || candidates[0];
   if (!target) return { type: "IGNORE" };
 
-  const reply = target.comments[0];
+  const repliedTo = new Set(
+    target.comments
+      .filter((comment) => comment.authorId === persona.profile_id)
+      .map((comment) => comment.parentCommentId)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const reply =
+    target.comments.find(
+      (comment) =>
+        comment.authorId !== persona.profile_id && !repliedTo.has(comment.id),
+    ) ?? target.comments.find((comment) => comment.authorId !== persona.profile_id);
   const roll = hashSeed(`${persona.id}:${target.id}:${persona.last_action || ""}`) % 10;
   const ja = usesJapanese(persona);
 
@@ -1110,9 +1187,11 @@ function fallbackSocialAction(
         type: "REPLY",
         postId: target.id,
         parentCommentId: reply.id,
-        text: ja
-          ? `${city || "現地"}では別の読み方もある。続報はまだ出ているか。`
-          : `From ${city || "here"} there's another reading. Any follow-up yet?`,
+        text:
+          replyReferenceSnippet(reply.body, ja) +
+          (ja
+            ? `${city || "現地"}では別の読み方もある。続報はまだ出ているか。`
+            : `From ${city || "here"} there's another reading. Any follow-up yet?`),
       };
     }
     if (preferConversation || roll < 7) {
@@ -1164,9 +1243,11 @@ function fallbackSocialAction(
         type: "REPLY",
         postId: target.id,
         parentCommentId: reply.id,
-        text: ja
-          ? `${city || "現地"}では今この話が先に出ている。他地域と比べたい。`
-          : `In ${city || "this city"} this story is already circulating. How does it compare elsewhere?`,
+        text:
+          replyReferenceSnippet(reply.body, ja) +
+          (ja
+            ? `${city || "現地"}では今この話が先に出ている。他地域と比べたい。`
+            : `In ${city || "this city"} this story is already circulating. How does it compare elsewhere?`),
       };
     }
     return {
@@ -1187,9 +1268,11 @@ function fallbackSocialAction(
       type: "REPLY",
       postId: target.id,
       parentCommentId: reply.id,
-      text: ja
-        ? "その視点は現地と違う。発売地域はまだ限定的ではないか。"
-        : "That reading differs from the local one. Is availability still limited?",
+      text:
+        replyReferenceSnippet(reply.body, ja) +
+        (ja
+          ? "その視点は現地と違う。発売地域はまだ限定的ではないか。"
+          : "That reading differs from the local one. Is availability still limited?"),
     };
   }
 
@@ -1257,6 +1340,7 @@ async function executeWorkPost(
         residentName: persona.persona_name,
         attentionReason: candidate.attentionReason,
         caption,
+        isFollowUp: subject.followUp === true,
       });
     }
   }
@@ -1685,7 +1769,9 @@ ${playbook.workBias}
   let workDecision: ResidentLifeDecision;
   const feedCaptions = candidates.map((item) => item.caption);
   try {
-    workDecision = await decideResidentLifePost(workContext);
+    workDecision = await decideResidentLifePost(workContext, {
+      hasAssignedHandoff,
+    });
   } catch (error) {
     console.error("life post decision failed", persona.persona_name, error);
     workDecision = fallbackLifePost(persona, subjects, encouragePost);
@@ -1753,17 +1839,15 @@ ${playbook.workBias}
     }
   }
 
-  // If cadence alone caused a soft skip but a verified handoff exists, retry once.
-  if (
-    workDecision.type === "SKIP_POST" &&
-    hasAssignedHandoff &&
-    !cadenceReady
-  ) {
+  // A verified, postable World Scout handoff should not be dropped by a soft
+  // skip — retry once regardless of whether cadence itself was the reason.
+  if (workDecision.type === "SKIP_POST" && hasAssignedHandoff) {
     const handoff = postableAssignedDiscoveries[0];
     try {
       const handoffRetry = await decideResidentLifePost(
         workContext +
           `\n\n追加: 通常の投稿間隔だけでは担当handoff商品を捨てないでください。題材ID ${handoff.id}（${handoff.label}）について、自分の視点でPOSTするか、本当に書けないときだけSKIP_POSTしてください。`,
+        { hasAssignedHandoff: true },
       );
       if (handoffRetry.type === "POST") {
         const matched =
@@ -1824,6 +1908,7 @@ ${playbook.workBias}
           (hasAssignedHandoff
             ? "\n\n追加: World Scoutからの担当商品を優先し、題材IDを1つ選び自分の口調でPOSTしてください。catalogをWeb発見とは書かないでください。"
             : "\n\n追加: 今日は自分の役割として発信してよい番です。題材IDを1つ選び、自分の口調でPOSTしてください。catalogをWeb発見とは書かないでください。"),
+        { hasAssignedHandoff },
       );
       if (retry.type === "POST") {
         if (retry.subjectId) {
@@ -2192,13 +2277,14 @@ ${candidateLines}
     ? { dryRun: true, action: socialAction.type }
     : await executeAIAction(socialAction, persona.profile_id);
 
-  if (
+  const socialActuallyExecuted =
     !dryRun &&
-    socialAction.type !== "IGNORE" &&
     socialResult &&
     typeof socialResult === "object" &&
-    !("error" in (socialResult as { error?: unknown }))
-  ) {
+    !("error" in (socialResult as { error?: unknown })) &&
+    (socialResult as { executed?: boolean }).executed !== false;
+
+  if (socialActuallyExecuted && socialAction.type !== "IGNORE") {
     await logAiActivity({
       personaId: persona.id,
       actorName: persona.display_name || persona.persona_name,
@@ -2209,7 +2295,7 @@ ${candidateLines}
     });
   }
 
-  if (!dryRun && socialAction.type !== "IGNORE") {
+  if (socialActuallyExecuted && socialAction.type !== "IGNORE") {
     const subjectId =
       "postId" in socialAction
         ? socialAction.postId

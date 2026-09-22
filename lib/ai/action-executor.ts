@@ -1,6 +1,7 @@
 import type { AIAction } from "./brain";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listDiscoveryProductsFromDb, saveDiscoveryProductToDb } from "@/lib/discovery/db";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import { findDuplicate, prepareDiscoveryProduct, canonicalProductUrl } from "@/lib/discovery/rules";
 import { normalizePostMedia } from "@/lib/posts/text-post";
 import type {
@@ -537,7 +538,11 @@ export type AIProductPostInput = {
   residentName?: string | null;
   attentionReason?: string | null;
   caption?: string | null;
+  /** New evidence since the last post (price/stock/launch change) — see findExistingAiProductPost. */
+  isFollowUp?: boolean;
 };
+
+const FOLLOW_UP_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 async function findExistingAiProductPost(input: {
   discoveryProductId: string;
@@ -549,9 +554,10 @@ async function findExistingAiProductPost(input: {
 
   const { data: byDiscovery, error: lookupError } = await supabase
     .from("posts")
-    .select("id, author_id, product_url")
+    .select("id, author_id, product_url, created_at")
     .eq("source", "ai")
     .eq("discovery_product_id", input.discoveryProductId)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -559,9 +565,10 @@ async function findExistingAiProductPost(input: {
     if (/discovery_product_id|schema cache|42703/i.test(lookupError.message)) {
       const { data: legacyExisting, error: legacyLookupError } = await supabase
         .from("posts")
-        .select("id, author_id, product_url")
+        .select("id, author_id, product_url, created_at")
         .eq("source", "ai")
         .eq("source_ref", input.discoveryProductId)
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (legacyLookupError) throw new Error(legacyLookupError.message);
@@ -576,9 +583,10 @@ async function findExistingAiProductPost(input: {
   if (productUrl) {
     const { data: byUrl, error: urlError } = await supabase
       .from("posts")
-      .select("id, author_id, product_url")
+      .select("id, author_id, product_url, created_at")
       .eq("source", "ai")
       .eq("product_url", productUrl)
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (urlError) throw new Error(urlError.message);
@@ -588,7 +596,7 @@ async function findExistingAiProductPost(input: {
   if (canonical) {
     const { data: recent, error: recentError } = await supabase
       .from("posts")
-      .select("id, author_id, product_url")
+      .select("id, author_id, product_url, created_at")
       .eq("source", "ai")
       .not("product_url", "is", null)
       .order("created_at", { ascending: false })
@@ -609,9 +617,32 @@ export async function publishAIProductPost(
 ) {
   const supabase = createAdminClient();
 
+  // Defense in depth: the resident-life caller already checks these, but
+  // this function must not publish a broken/placeholder post if a future
+  // caller skips that upstream check.
+  if (!isValidHttpUrl(input.productUrl.trim())) {
+    return {
+      executed: false,
+      skipped: true,
+      reason: "INVALID_PRODUCT_URL",
+    };
+  }
+  if (!isUsableProductImage(input.productImageUrl ?? null)) {
+    return {
+      executed: false,
+      skipped: true,
+      reason: "PRODUCT_IMAGE_REQUIRED",
+    };
+  }
+
   /*
    * AI product posts are globally unique per discovery product AND
    * canonical product URL. Multiple hunters must not post the same item.
+   *
+   * A rediscovery with genuinely new evidence (price change, restock, launch
+   * confirmed) is allowed to publish a follow-up post for the same
+   * discovery product once the previous post has aged past a cooldown,
+   * instead of being blocked forever as "already published".
    */
   const existing = await findExistingAiProductPost({
     discoveryProductId: input.discoveryProductId,
@@ -619,11 +650,17 @@ export async function publishAIProductPost(
   });
 
   if (existing) {
-    return {
-      executed: true,
-      alreadyPublished: true,
-      postId: existing.id,
-    };
+    const ageMs = existing.created_at
+      ? Date.now() - new Date(existing.created_at).getTime()
+      : Number.POSITIVE_INFINITY;
+    const allowFollowUp = input.isFollowUp === true && ageMs > FOLLOW_UP_COOLDOWN_MS;
+    if (!allowFollowUp) {
+      return {
+        executed: true,
+        alreadyPublished: true,
+        postId: existing.id,
+      };
+    }
   }
 
   const description = input.description?.trim() || "";

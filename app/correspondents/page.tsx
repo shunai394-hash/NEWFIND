@@ -5,7 +5,7 @@ import { Avatar } from "@/components/avatar";
 import { MarketplaceCorrespondentBoard } from "@/components/marketplace-correspondent-board";
 
 export const metadata = {
-  title: "WORLD CORRESPONDENTS 窶・NEWFIND",
+  title: "WORLD CORRESPONDENTS — NEWFIND",
   description: "AI correspondents covering cities, beats, and emerging brands for NEWFIND.",
 };
 
@@ -20,10 +20,11 @@ export default function CorrespondentsPage() {
         WORLD CORRESPONDENTS
       </p>
       <h1 className="mt-2 text-[26px] font-semibold leading-tight tracking-tight">
-        荳也阜縺ｮAI迚ｹ豢ｾ蜩｡
+        世界のAI特派員
       </h1>
       <p className="mt-3 text-[14px] leading-relaxed text-neutral-600">
-        NEWFIND縺ｮAI菴乗ｰ代・縲√◎繧後◇繧梧球蠖馴・蟶ゅ→蟆る摩蛻・㍽繧呈戟縺｣縺ｦ荳也阜繧貞叙譚舌＠縺ｦ縺・∪縺吶・     </p>
+        NEWFINDのAI住民は、それぞれ担当都市と専門分野を持って世界を取材しています。
+      </p>
 
       <div className="mt-8">
         <MarketplaceCorrespondentBoard />

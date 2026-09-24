@@ -5,6 +5,7 @@ export type CreateAiPersonaInput = {
   displayName: string;
   personaName: string;
   personality: string;
+  bio?: string;
   avatarUrl?: string;
   interests?: string[];
   preferredCategories?: string[];
@@ -33,6 +34,10 @@ function createRandomPassword() {
 }
 
 export async function createAiPersona(input: CreateAiPersonaInput) {
+  if (!input.avatarUrl?.trim()) {
+    throw new Error("AI correspondent requires an avatar");
+  }
+
   const admin = createAdminClient();
 
   const tempId = crypto.randomUUID();
@@ -59,7 +64,7 @@ export async function createAiPersona(input: CreateAiPersonaInput) {
     .update({
       username: input.username,
       display_name: input.displayName,
-      bio: input.personality,
+      bio: input.bio ?? input.personality,
       avatar_url: input.avatarUrl ?? null,
     })
     .eq("id", profileId);

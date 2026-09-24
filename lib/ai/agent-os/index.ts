@@ -45,7 +45,7 @@ export { loadAgentOsTower } from "./snapshot";
 export { loadResearchCoverage } from "./coverage";
 export { planResearchQueries } from "./query";
 export { assessSourceFreshness, filterFreshSources } from "./freshness";
-export { sourceQualityFromType } from "./quality";
+export { sourceQualityFromType, sourceReliabilityLabel } from "./quality";
 export { REJECTION_REASONS } from "./rejection";
 export { RESEARCH_LAYER } from "./boundaries";
 export {

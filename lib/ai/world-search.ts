@@ -3,11 +3,13 @@ import {
   extractProductImageFromHtml,
   extractUrlsFromText,
   fetchPageHtml,
+  htmlIndicatesConcreteProduct,
   isAcceptableProductPageImage,
   isAssetOrNonProductUrl,
   isStoreOrBrandHomepage,
   titleFromProductUrl,
 } from "./product-page";
+import { sourceReliabilityLabel } from "./agent-os/quality";
 import {
   isBeautyWorldSearchQuery,
   OpenBeautyFactsWorldSearchProvider,
@@ -63,6 +65,9 @@ export type WorldSearchResult = {
   sourceRole?: WorldSearchSourceRole;
   origin?: WorldSearchOrigin;
   rawContent?: string | null;
+  classificationReason?: string;
+  sourceReliability?: string;
+  retrievedAt?: string;
 };
 
 export interface WorldSearchProvider {
@@ -109,7 +114,7 @@ function getPath(url: string): string {
 }
 
 const JUNK_PRODUCT_DOMAINS =
-  /(^|\.)(cna\.st|bit\.ly|t\.co|tinyurl\.com|aliexpress\.|alibaba\.|made-in-china|dhgate\.|temu\.|shein\.)$/i;
+  /(^|\.)(cna\.st|bit\.ly|t\.co|tinyurl\.com|aliexpress\.|alibaba\.|made-in-china|dhgate\.|temu\.|shein\.|pntrs\.com|pntra\.com|pjtra\.com|gopjn\.com|anrdoezrs\.net|doubleclick\.|ads\.linkedin\.com)$/i;
 
 function isGarbageProductUrl(url: string): boolean {
   try {
@@ -245,6 +250,8 @@ const NON_PRODUCT_PATH_PATTERNS = [
   /\/tag(?:\/|$)/i,
   /\/tags(?:\/|$)/i,
   /\/search(?:\/|$)/i,
+  /\/list(?:\/|$)/i,
+  /\/catalog(?:\/|$)/i,
   /\/archive(?:\/|$)/i,
   /\/archives(?:\/|$)/i,
   /\/author(?:\/|$)/i,
@@ -289,21 +296,48 @@ const NON_PRODUCT_TITLE_PATTERNS = [
 const PRODUCT_PATH_PATTERNS = [
   /\/products?\/[^/?#]+/i,
   /\/item\/[^/?#]+/i,
-  /\/items\/[^/?#]+/i,
+  /\/items\/(?:detail\/)?[^/?#]+/i,
   /\/shop\/[^/?#]+/i,
   /\/store\/[^/?#]+/i,
   /\/p\/[^/?#]+/i,
   /\/dp\/[a-z0-9]+/i,
   /\/gp\/product\/[a-z0-9]+/i,
   /\/sku\/[^/?#]+/i,
-  /\/goods\/[^/?#]+/i,
+  /\/goods\/(?:detail\/)?[^/?#]+/i,
   /\/pd\/[^/?#]+/i,
   /\/detail\/[^/?#]+/i,
   /\/product-detail\/[^/?#]+/i,
   /\/prod\/[^/?#]+/i,
   /\/commodity\/[^/?#]+/i,
-  /\/t\/[^/?#]+/i,
+  /\/itm\/[^/?#]+/i,
+  /\/listing\/[^/?#]+/i,
+  /\/collections\/[^/?#]+\/products\/[^/?#]+/i,
+  /\/t\/(?=.*[a-z])(?!terms(?:-of-service)?|privacy|policy|help|about|cart|login|search)[^/?#]+/i,
 ];
+
+const LISTING_SLUG_RE =
+  /^(about-us|contact-us|shop-all|new-arrivals?|best-sellers?|lookbook|size-guide|shipping|privacy-policy|terms(?:-of-service)?|our-story|press-kit|all-products?)$/i;
+
+function hasStrongProductPath(path: string, url = ""): boolean {
+  if (PRODUCT_PATH_PATTERNS.some((pattern) => pattern.test(path))) return true;
+  try {
+    const parsed = new URL(url || `https://example.test${path}`);
+    return ["product_id", "pid", "item_id", "itemid", "goods_id"].some((key) =>
+      parsed.searchParams.has(key),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function looksLikePdpSlug(path: string): boolean {
+  const parts = path.replace(/\/+$/, "").split("/").filter(Boolean);
+  if (parts.length < 1 || parts.length > 5) return false;
+  const last = (parts[parts.length - 1] || "").replace(/\.(html?)$/i, "");
+  if (last.length < 6 || LISTING_SLUG_RE.test(last)) return false;
+  if (NON_PRODUCT_PATH_PATTERNS.some((pattern) => pattern.test(path))) return false;
+  return /[a-z]{3,}-[a-z0-9]{2,}/i.test(last) || /\d{4,}/.test(last);
+}
 
 const PRODUCT_TEXT_PATTERNS = [
   /\bbuy\b/i,
@@ -320,6 +354,12 @@ const PRODUCT_TEXT_PATTERNS = [
   /\bvolume\b/i,
   /\bml\b/i,
   /\boz\b/i,
+  /カート/,
+  /購入/,
+  /価格/,
+  /税込/,
+  /容量/,
+  /成分/,
 ];
 
 export function classifyTavilyResult(
@@ -348,7 +388,7 @@ export function classifyTavilyResult(
       return "general";
     }
 
-    if (["q", "query", "search", "k"].some((key) => searchParams.has(key))) {
+    if (["q", "query", "search", "k", "s", "keyword", "keywords"].some((key) => searchParams.has(key))) {
       return "general";
     }
 
@@ -418,15 +458,15 @@ export function classifyTavilyResult(
     return "general";
   }
 
+  const productSignals = PRODUCT_TEXT_PATTERNS.filter((pattern) =>
+    pattern.test(text),
+  ).length;
+
   /*
    * A strong product URL is enough to classify the result
    * as a product candidate.
    */
-  if (
-    PRODUCT_PATH_PATTERNS.some((pattern) =>
-      pattern.test(path),
-    )
-  ) {
+  if (hasStrongProductPath(path, url)) {
     return "product";
   }
 
@@ -436,13 +476,20 @@ export function classifyTavilyResult(
    * when the result contains multiple product-specific signals.
    */
   if (sourceType === "retailer") {
-    const productSignals = PRODUCT_TEXT_PATTERNS.filter(
-      (pattern) => pattern.test(text),
-    ).length;
+    return productSignals >= 2 ? "product" : "general";
+  }
 
-    return productSignals >= 2
-      ? "product"
-      : "general";
+  /*
+   * Official / unknown brand PDPs often omit /products/.
+   * Require a PDP-like slug plus multiple commerce signals.
+   * Title/snippet words alone are not enough.
+   */
+  if (
+    (sourceType === "other" || sourceType === "brand_official") &&
+    looksLikePdpSlug(path) &&
+    productSignals >= 2
+  ) {
+    return "product";
   }
 
   /*
@@ -762,6 +809,11 @@ class TavilyWorldSearchProvider
             : null,
         sourceRole,
         origin: "web",
+        retrievedAt: new Date().toISOString(),
+        sourceReliability: sourceReliabilityLabel({
+          sourceType,
+          sourceRole,
+        }),
         rawContent:
           typeof result.raw_content === "string"
             ? result.raw_content
@@ -785,6 +837,7 @@ class TavilyWorldSearchProvider
 const MAX_EXTRACT_SOURCE_PAGES = 8;
 const MAX_EXTRACTED_PRODUCT_URLS = 8;
 const MAX_IMAGE_FETCHES = 5;
+const MAX_PAGE_PROMOTIONS = 3;
 const MIN_EXTRACT_HTML_BYTES = 8000;
 
 const LIFESTYLE_SEARCH_NOISE = new Set([
@@ -1033,9 +1086,7 @@ function productResultFromUrl(
   const sourceType = sourceTypeFromDomain(domain);
   if (sourceType === "sns" || sourceType === "news") return null;
   const path = getPath(url);
-  const hasProductPath = PRODUCT_PATH_PATTERNS.some((pattern) =>
-    pattern.test(path),
-  );
+  const hasProductPath = hasStrongProductPath(path, url);
   if (!hasProductPath) return null;
   const sourceRole = classifyTavilyResult(
     title || titleFromProductUrl(url),
@@ -1106,6 +1157,28 @@ async function extractProductResultsFromPages(
     const html = await fetchPageHtml(page.url);
     if (!html || html.length < MIN_EXTRACT_HTML_BYTES) continue;
     fetchedPages += 1;
+    if (
+      page.sourceRole === "general" &&
+      htmlIndicatesConcreteProduct(html) &&
+      extracted.length < remaining
+    ) {
+      const selfKey = resultKey(page.url);
+      if (selfKey && !seen.has(selfKey)) {
+        seen.add(selfKey);
+        extracted.push({
+          ...page,
+          sourceRole: "product",
+          origin: "extracted",
+          classificationReason: "page_schema_or_og_product",
+          snippet: page.snippet || "Product page confirmed from structured data.",
+          sourceReliability: sourceReliabilityLabel({
+            sourceType: page.sourceType,
+            sourceRole: "product",
+            hasPageEvidence: true,
+          }),
+        });
+      }
+    }
     for (const url of extractUrlsFromText(html, page.url)) {
       if (extracted.length >= remaining) break;
       const key = resultKey(url);
@@ -1117,6 +1190,60 @@ async function extractProductResultsFromPages(
   }
 
   return extracted;
+}
+
+async function promoteGeneralPagesToProducts(
+  results: WorldSearchResult[],
+): Promise<WorldSearchResult[]> {
+  const candidates = results.filter((result) => {
+    if (result.sourceRole !== "general") return false;
+    if (result.sourceType === "sns" || result.sourceType === "news") return false;
+    if (isAssetOrNonProductUrl(result.url) || isStoreOrBrandHomepage(result.url)) {
+      return false;
+    }
+    const path = getPath(result.url);
+    const text = `${result.title}\n${result.snippet}`;
+    const signals = PRODUCT_TEXT_PATTERNS.filter((pattern) =>
+      pattern.test(text),
+    ).length;
+    return looksLikePdpSlug(path) || signals >= 2;
+  });
+
+  if (candidates.length === 0) return results;
+
+  const promotedKeys = new Set<string>();
+  let fetched = 0;
+  for (const candidate of candidates) {
+    if (fetched >= MAX_PAGE_PROMOTIONS) break;
+    const html = await fetchPageHtml(candidate.url);
+    fetched += 1;
+    if (!html || html.length < 800) continue;
+    if (!htmlIndicatesConcreteProduct(html)) continue;
+    const key = resultKey(candidate.url);
+    if (key) promotedKeys.add(key);
+  }
+
+  if (promotedKeys.size === 0) return results;
+
+  console.log(
+    "WORLD SEARCH: promoted general pages with product evidence:",
+    promotedKeys.size,
+  );
+
+  return results.map((result) => {
+    const key = resultKey(result.url);
+    if (!key || !promotedKeys.has(key)) return result;
+    return {
+      ...result,
+      sourceRole: "product" as const,
+      classificationReason: "page_schema_or_og_product",
+      sourceReliability: sourceReliabilityLabel({
+        sourceType: result.sourceType,
+        sourceRole: "product",
+        hasPageEvidence: true,
+      }),
+    };
+  });
 }
 
 function imageFetchPriority(result: WorldSearchResult): number {
@@ -1265,6 +1392,10 @@ class CombinedWorldSearchProvider
         "WORLD SEARCH: web search failed:",
         error,
       );
+    }
+
+    if (webResults.filter(isProductSource).length >= 2) {
+      webResults = await promoteGeneralPagesToProducts(webResults);
     }
 
     const extracted: WorldSearchResult[] = [];

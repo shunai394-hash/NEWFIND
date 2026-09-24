@@ -1,0 +1,28 @@
+﻿{
+  "id": "dpl_Gui4rsfkXgxHxdJ84dxLBcNHDJY2",
+  "name": "newfind",
+  "url": "newfind-20rdhjkn9-shunai394-9704s-projects.vercel.app",
+  "target": "production",
+  "readyState": "ERROR",
+  "createdAt": 1789938237101,
+  "aliases": [
+    "newfind-shunai394-9704s-projects.vercel.app",
+    "newfind-git-main-shunai394-9704s-projects.vercel.app"
+  ],
+  "builds": [
+    {
+      "id": "bld_g2ivvg6o7",
+      "deploymentId": "dpl_Gui4rsfkXgxHxdJ84dxLBcNHDJY2",
+      "entrypoint": ".",
+      "readyState": "READY",
+      "readyStateAt": 1789938236972,
+      "createdAt": 1789938236972,
+      "createdIn": "sfo1",
+      "use": "@vercel/vc-build",
+      "config": {},
+      "output": [],
+      "fingerprint": null
+    }
+  ],
+  "contextName": "shunai394-9704s-projects"
+}

@@ -1,4 +1,4 @@
-﻿import type { AccountType, CategoryId, Comment, Post, Profile } from "@/lib/types";
+import type { AccountType, CategoryId, Comment, Post, Profile } from "@/lib/types";
 import {
   assertJpImageUniqueness,
   JP_IMAGES_BY_CATEGORY,
@@ -1519,6 +1519,3 @@ export function jpQualityReport() {
     },
   };
 }
-
-
-

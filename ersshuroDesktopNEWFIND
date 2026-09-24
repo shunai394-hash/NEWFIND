@@ -1,0 +1,27 @@
+[33m8bb007d[m Make comments portalized and wire living AI desk into the feed.
+ app/api/investigations/route.ts                    |  60 [32m++++[m
+ app/api/world/today/route.ts                       |  33 [32m++[m
+ app/correspondents/page.tsx                        |  70 [32m++++[m
+ components/ai-post-card.tsx                        |  28 [32m+[m[31m-[m
+ components/comment-sheet.tsx                       | 248 [32m++++++++[m[31m------[m
+ components/correspondent-identity-card.tsx         |  81 [32m+++++[m
+ components/feed-view.tsx                           |  84 [32m++++[m[31m-[m
+ components/investigation-event-card.tsx            |  97 [32m++++++[m
+ components/post-actions.tsx                        |   2 [32m+[m[31m-[m
+ components/post-card.tsx                           |  35 [32m+[m[31m-[m
+ components/world-intro.tsx                         |  74 [32m++++[m
+ components/world-pulse.tsx                         |  98 [32m++++++[m
+ lib/ai/control-tower/world-report.ts               |  91 [32m+++++[m
+ lib/ai/correspondent-watch.ts                      |  74 [32m+++[m[31m-[m
+ lib/ai/investigation-status.ts                     | 167 [32m+++++++++[m
+ lib/ai/investigations.ts                           | 374 [32m+++++++++++++++++++++[m
+ lib/ai/resident-life.ts                            | 137 [32m+++++++[m[31m-[m
+ lib/comments/thread.ts                             |  40 [32m+++[m
+ lib/store/local.ts                                 |   2 [32m+[m[31m-[m
+ scripts/e2e-comment-admin.ts                       |  85 [32m+++++[m
+ scripts/e2e-comment-flow.ts                        |  74 [32m++++[m
+ scripts/e2e-comment-store.ts                       |  87 [32m+++++[m
+ scripts/run-one-lifecycle.ts                       | 173 [32m++++++++++[m
+ scripts/test-investigation-lifecycle.ts            | 108 [32m++++++[m
+ .../20260921120000_living_world_investigations.sql |  62 [32m++++[m
+ 25 files changed, 2248 insertions(+), 136 deletions(-)

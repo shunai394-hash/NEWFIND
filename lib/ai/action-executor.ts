@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { listDiscoveryProductsFromDb, saveDiscoveryProductToDb } from "@/lib/discovery/db";
 import { findDuplicate, prepareDiscoveryProduct, canonicalProductUrl } from "@/lib/discovery/rules";
 import { normalizePostMedia } from "@/lib/posts/text-post";
+import { enqueueExternalPost } from "@/lib/integration/external-post-outbox";
 import type {
   DiscoveryCategory,
   DiscoveryProductInput,
@@ -677,6 +678,37 @@ export async function publishAIProductPost(
 
   if (error || !post) {
     throw new Error(error?.message || "AI product post insert failed");
+  }
+
+  /*
+   * The NEWFIND post is already successful at this point.
+   * External publishing is asynchronous, so an outbox failure
+   * must never make the internal AI post fail.
+   */
+  try {
+    await enqueueExternalPost({
+      postId: post.id,
+      authorId: userId,
+      caption: residentCaption || captionParts.join("\n\n"),
+      mediaUrl: input.productImageUrl?.trim() || null,
+      thumbnailUrl: input.productImageUrl?.trim() || null,
+      category: safeCategory(input.category),
+      productUrl: input.productUrl.trim(),
+      productLabel: input.productName.trim(),
+      source: "ai",
+      sourceRef: input.discoveryProductId,
+      sourceUrl: input.productUrl.trim(),
+      residentName: input.residentName || null,
+      contentType: "product_discovery",
+    });
+  } catch (externalPostError) {
+    console.error("[external-post] enqueue failed", {
+      postId: post.id,
+      error:
+        externalPostError instanceof Error
+          ? externalPostError.message
+          : externalPostError,
+    });
   }
 
   return {

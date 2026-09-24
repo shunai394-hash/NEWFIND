@@ -12,6 +12,7 @@ export type ResearchMissionContext = {
   language?: string | null;
   seed: string;
   recentQueries?: string[];
+  personaTerms?: string[];
   maxQueries?: number;
 };
 
@@ -80,12 +81,19 @@ export function planResearchQueries(
   const region = regionToken(context);
   const language = (context.language || "en").slice(0, 2);
   const recent = context.recentQueries ?? [];
+  const personaTerms = (context.personaTerms ?? [])
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 3)
+    .slice(0, 3);
 
   return beats.map((beat, index) => {
     const phrase = pickPhrase(beat, context.seed, recent);
+    const persona = personaTerms[index] || personaTerms[0] || "";
     return {
       beat,
-      query: `${phrase} ${region} ${JUNK_NEGATIVES}`.replace(/\s+/g, " ").trim(),
+      query: `${phrase} ${persona} ${region} ${JUNK_NEGATIVES}`
+        .replace(/\s+/g, " ")
+        .trim(),
       language,
       label: index === 0 ? "primary" : "explore",
     };

@@ -520,6 +520,22 @@ function main() {
   );
   assert(hashUrl === "general", "opaque CDN hash URLs must not be products");
 
+  const brandPdp = classifyTavilyResult(
+    "Gypsy Water Eau de Parfum",
+    "https://www.byredo.com/en-us/gypsy-water",
+    "Eau de parfum. Buy now. 50ml. Price 180.",
+    "other",
+  );
+  assert(brandPdp === "product", "official PDP without /products/ must still be a candidate");
+
+  const categoryPage = classifyTavilyResult(
+    "Skincare",
+    "https://www.examplebrand.com/category/skincare",
+    "Shop all serums. Price from 20.",
+    "retailer",
+  );
+  assert(categoryPage === "general", "category pages must not be products");
+
   const IN_LANE: Record<string, { title: string; url: string; snippet: string }> = {
     beauty: {
       title: "Niacinamide serum",

@@ -4,6 +4,8 @@ import { healthFromFreshness } from "./health";
 import { errorKindLabel } from "./errors";
 import { latestCronRuns, readEngineControl } from "./runs";
 import { loadAgentOsTower } from "@/lib/ai/agent-os/snapshot";
+import { loadWorldDiscoveryReport } from "./world-report";
+import { loadRecentInvestigations } from "@/lib/ai/investigations";
 import type {
   ActivityLogRow,
   ControlTowerAlert,
@@ -102,11 +104,13 @@ export async function loadControlTowerSnapshot(): Promise<ControlTowerSnapshot> 
   const [
     lastDiscovery,
     lastPost,
+    lastAiTimelinePost,
     lastReactionLog,
     lastScoutLog,
     todayCandidates,
     todayVerified,
     todayPosts,
+    todayTimelinePosts,
     todayLogs,
   ] = await Promise.all([
     admin
@@ -120,6 +124,13 @@ export async function loadControlTowerSnapshot(): Promise<ControlTowerSnapshot> 
       .select("published_at, created_at")
       .eq("status", "published")
       .order("published_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from("posts")
+      .select("created_at")
+      .eq("source", "ai")
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
     admin
@@ -151,6 +162,11 @@ export async function loadControlTowerSnapshot(): Promise<ControlTowerSnapshot> 
       .eq("status", "published")
       .gte("published_at", todayStart),
     admin
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("source", "ai")
+      .gte("created_at", todayStart),
+    admin
       .from("ai_activity_logs")
       .select("action, occurred_at")
       .gte("occurred_at", todayStart)
@@ -162,6 +178,7 @@ export async function loadControlTowerSnapshot(): Promise<ControlTowerSnapshot> 
     (lastDiscovery.data?.created_at as string | null) ||
     null;
   const lastPostAt =
+    (lastAiTimelinePost.data?.created_at as string | null) ||
     (lastPost.data?.published_at as string | null) ||
     (lastPost.data?.created_at as string | null) ||
     null;
@@ -182,7 +199,9 @@ export async function loadControlTowerSnapshot(): Promise<ControlTowerSnapshot> 
   const engineLastAt = (engineRun?.started_at as string | null) ?? null;
   const hunterLastAt =
     (hunterRun?.started_at as string | null) || lastDiscoveryAt;
-  const postsToday = typeof todayPosts.count === "number" ? todayPosts.count : 0;
+  const postsToday =
+    (typeof todayTimelinePosts.count === "number" ? todayTimelinePosts.count : 0) ||
+    (typeof todayPosts.count === "number" ? todayPosts.count : 0);
 
   const engineLevel = healthFromFreshness({
     lastAt: engineLastAt,
@@ -458,6 +477,19 @@ export async function loadControlTowerSnapshot(): Promise<ControlTowerSnapshot> 
     paused: Boolean(control?.paused),
     now,
   });
+  const worldReport = await loadWorldDiscoveryReport();
+  const recentInvestigations = await loadRecentInvestigations(12);
+  const worldToday = {
+    ...worldReport,
+    investigations: recentInvestigations.map((item) => ({
+      actor: item.correspondentTitle || "resident",
+      status: item.status,
+      beat: item.beat || "",
+      city: item.city || "",
+      title: item.title,
+      nextAction: item.nextAction || "",
+    })),
+  };
 
   return {
     generatedAt: new Date(now).toISOString(),
@@ -505,5 +537,6 @@ export async function loadControlTowerSnapshot(): Promise<ControlTowerSnapshot> 
       lastFailedAt: (lastCronFail?.started_at as string | null) ?? null,
       consecutiveFailures: cronConsecutiveFails,
     },
+    worldToday,
   };
 }

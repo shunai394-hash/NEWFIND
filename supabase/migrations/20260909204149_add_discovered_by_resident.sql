@@ -1,4 +1,4 @@
-﻿-- NEWFIND: preserve which AI resident discovered a Discovery product.
+-- NEWFIND: preserve which AI resident discovered a Discovery product.
 -- Existing products remain valid with NULL.
 
 alter table public.discovery_products

@@ -206,6 +206,7 @@ export function formIntent(input: {
   experiences: Experience[];
   peerSignals?: Array<{ title: string; beat?: string; fromName?: string }>;
   recentQuests?: import("@/lib/ai/today-exploration").ExplorationQuest[];
+  openInvestigations?: Array<{ title: string; status?: string }>;
 }): Intent {
   const recent = input.experiences.slice(0, 6);
   const last = recent[0];
@@ -234,6 +235,30 @@ export function formIntent(input: {
       .map((item) => item.entityKey || item.seen)
       .filter(Boolean),
   ].slice(0, 10);
+
+  const openLead = input.openInvestigations?.[0];
+  if (openLead) {
+    return {
+      stance: "investigate",
+      focus: openLead.title.slice(0, 80),
+      why: `continue ${openLead.status || "investigation"} as ${identity.title} in ${identity.city}`,
+      terms: uniqueStrings(
+        [openLead.title, identity.city, identity.primaryBeat, specialty],
+        5,
+      ),
+      avoid,
+    };
+  }
+
+  if (last?.judgment === "INVESTIGATE_MORE") {
+    return {
+      stance: "investigate",
+      focus: (last.seen || input.state.currentFocus).slice(0, 80),
+      why: last.next || `keep investigating as ${identity.title}`,
+      terms: uniqueStrings([last.seen, identity.city, identity.primaryBeat], 5),
+      avoid,
+    };
+  }
 
   const peer = (input.peerSignals ?? []).find((item) => {
     const lens = `${specialty} ${(input.persona.expertise ?? []).join(" ")} ${(input.persona.interests ?? []).join(" ")}`.toLowerCase();

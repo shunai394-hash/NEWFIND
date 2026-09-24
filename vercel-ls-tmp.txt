@@ -1,0 +1,61 @@
+﻿node.exe : npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help
+ npmrc` for supported config options.
+発生場所 行:1 文字:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn Unknow...config options.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Vercel CLI 58.0.0 (Node.js 24.18.0)
+Retrieving project窶ｦ
+Fetching deployments in shunai394-9704s-projects
+> Deployments for shunai394-9704s-projects/newfind [351ms]
+
+  Age     Project                              Deployment                                                        Status
+      Environment     Duration     Username           
+  4h      shunai394-9704s-projects/newfind     https://newfind-l0obbybl3-shunai394-9704s-projects.vercel.app     笳・Erro
+r     Production      24s          shunai394-9704     
+  4h      shunai394-9704s-projects/newfind     https://newfind-g4xb5bpqq-shunai394-9704s-projects.vercel.app     笳・Erro
+r     Production      26s          shunai394-9704     
+  4h      shunai394-9704s-projects/newfind     https://newfind-2cecdndat-shunai394-9704s-projects.vercel.app     笳・Read
+y     Production      1m           shunai394-9704     
+  4h      shunai394-9704s-projects/newfind     https://newfind-btskcydi3-shunai394-9704s-projects.vercel.app     笳・Erro
+r     Production      26s          shunai394-9704     
+  4h      shunai394-9704s-projects/newfind     https://newfind-o8x57lvjn-shunai394-9704s-projects.vercel.app     笳・Erro
+r     Production      25s          shunai394-9704     
+  4h      shunai394-9704s-projects/newfind     https://newfind-oespbpxq6-shunai394-9704s-projects.vercel.app     笳・Erro
+r     Production      29s          shunai394-9704     
+  4h      shunai394-9704s-projects/newfind     https://newfind-dr0ht3w02-shunai394-9704s-projects.vercel.app     笳・Erro
+r     Production      28s          shunai394-9704     
+  6h      shunai394-9704s-projects/newfind     https://newfind-39frue7ry-shunai394-9704s-projects.vercel.app     笳・Read
+y     Production      52s          shunai394-9704     
+  20h     shunai394-9704s-projects/newfind     https://newfind-l6ghw8uhs-shunai394-9704s-projects.vercel.app     笳・Read
+y     Production      55s          shunai394-9704     
+  20h     shunai394-9704s-projects/newfind     https://newfind-d0xln26fc-shunai394-9704s-projects.vercel.app     笳・Erro
+r     Production      29s          shunai394-9704     
+  20h     shunai394-9704s-projects/newfind     https://newfind-45mmnftqf-shunai394-9704s-projects.vercel.app     笳・Erro
+r     Production      29s          shunai394-9704     
+  4d      shunai394-9704s-projects/newfind     https://newfind-p82yd7nc5-shunai394-9704s-projects.vercel.app     笳・Read
+y     Production      1m           shunai394-9704     
+  5d      shunai394-9704s-projects/newfind     https://newfind-kiqcvfied-shunai394-9704s-projects.vercel.app     笳・Read
+y     Production      1m           shunai394-9704     
+  5d      shunai394-9704s-projects/newfind     https://newfind-48cymkgj1-shunai394-9704s-projects.vercel.app     笳・Erro
+r     Production      43s          shunai394-9704     
+  7d      shunai394-9704s-projects/newfind     https://newfind-c2qx4wfpw-shunai394-9704s-projects.vercel.app     笳・Read
+y     Production      45s          shunai394-9704     
+
+https://newfind-l0obbybl3-shunai394-9704s-projects.vercel.app
+https://newfind-g4xb5bpqq-shunai394-9704s-projects.vercel.app
+https://newfind-2cecdndat-shunai394-9704s-projects.vercel.app
+https://newfind-btskcydi3-shunai394-9704s-projects.vercel.app
+https://newfind-o8x57lvjn-shunai394-9704s-projects.vercel.app
+https://newfind-oespbpxq6-shunai394-9704s-projects.vercel.app
+https://newfind-dr0ht3w02-shunai394-9704s-projects.vercel.app
+https://newfind-39frue7ry-shunai394-9704s-projects.vercel.app
+https://newfind-l6ghw8uhs-shunai394-9704s-projects.vercel.app
+https://newfind-d0xln26fc-shunai394-9704s-projects.vercel.app
+https://newfind-45mmnftqf-shunai394-9704s-projects.vercel.app
+https://newfind-p82yd7nc5-shunai394-9704s-projects.vercel.app
+https://newfind-kiqcvfied-shunai394-9704s-projects.vercel.app
+https://newfind-48cymkgj1-shunai394-9704s-projects.vercel.app
+https://newfind-c2qx4wfpw-shunai394-9704s-projects.vercel.app

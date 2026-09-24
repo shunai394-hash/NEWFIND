@@ -45,7 +45,7 @@ export function extractUrlIdentity(url: string | null | undefined): {
     const path = parsed.pathname.replace(/\/$/, "").toLowerCase();
     const asinMatch = path.match(/\/(?:dp|gp\/product)\/([a-z0-9]{8,})/i);
     const handleMatch = path.match(
-      /\/(?:products?|goods|items?|sku|pd|detail|prod)\/([^/?#]+)/i,
+      /\/(?:products?|goods|items?|sku|pd|detail|prod|itm|p)\/([^/?#]+)/i,
     );
     return {
       asin: asinMatch?.[1]?.toUpperCase() ?? null,
@@ -77,7 +77,7 @@ export function productIdentityKey(input: ProductIdentityInput) {
 }
 
 const REDISCOVERY_HINT =
-  /new colour|new color|new model|new drop|restock|reissue|re-release|re release|新色|新作|再販|復刻|値下げ|price cut|launch/i;
+  /new colour|new color|new model|new drop|restock|reissue|re-release|re release|隴・ｽｰ豼ｶ・ｲ|隴・ｽｰ闖ｴ蠢ｿ陷蟠趣ｽｲ・ｩ|陟包ｽｩ陋ｻ・ｻ|陋滂ｽ､闕ｳ荵晢ｿ｡|price cut|launch/i;
 
 export function isRediscoveryCandidate(input: {
   productName: string;
@@ -103,12 +103,6 @@ export function isRediscoveryCandidate(input: {
     Math.abs(input.price - input.previousPrice) / input.previousPrice >= 0.2
   ) {
     return true;
-  }
-  if (input.previousDiscoveredAt) {
-    const then = Date.parse(input.previousDiscoveredAt);
-    if (Number.isFinite(then) && Date.now() - then > 1000 * 60 * 60 * 24 * 21) {
-      return true;
-    }
   }
   return false;
 }

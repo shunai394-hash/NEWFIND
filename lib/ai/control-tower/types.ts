@@ -48,7 +48,13 @@ export type ActivityAction =
   | "resumed"
   | "run_started"
   | "run_finished"
-  | "handoff";
+  | "handoff"
+  | "classification"
+  | "quality_check"
+  | "ai_decision"
+  | "investigation"
+  | "verified"
+  | "follow_up";
 
 export type ControlTowerAlert = {
   level: "red" | "yellow";
@@ -137,5 +143,33 @@ export type ControlTowerSnapshot = {
     lastSuccessAt: string | null;
     lastFailedAt: string | null;
     consecutiveFailures: number;
+  };
+  worldToday: {
+    residents: number;
+    searches: number;
+    scanned: number;
+    accepted: number;
+    dropped: number;
+    posts: number;
+    products: number;
+    news: number;
+    trends: number;
+    duplicates: number;
+    qualityNg: number;
+    headlines: Array<{
+      actor: string;
+      beat: string;
+      kind: string;
+      dispatch: string;
+      title: string;
+    }>;
+    investigations: Array<{
+      actor: string;
+      status: string;
+      beat: string;
+      city: string;
+      title: string;
+      nextAction: string;
+    }>;
   };
 };

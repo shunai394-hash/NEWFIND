@@ -25,6 +25,9 @@ export type DiscoveryReport = {
   humanInterestScore: number;
   duplicateRisk: number;
   confidenceScore: number;
+  sourceReliability?: string;
+  evidenceSummary?: string;
+  decision?: string;
 };
 
 export function clampScore(value: number) {
@@ -60,6 +63,9 @@ export function emptyDiscoveryReport(
     humanInterestScore: 0,
     duplicateRisk: 0,
     confidenceScore: 0,
+    sourceReliability: "",
+    evidenceSummary: "",
+    decision: "",
     ...partial,
   };
 }

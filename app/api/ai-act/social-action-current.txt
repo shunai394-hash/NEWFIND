@@ -1,0 +1,136 @@
+﻿async function runResidentSocialAction(persona: AiPersona) {
+  const feedResult = await supabaseStore.getFeed(
+    "foryou",
+    persona.profile_id,
+    0,
+    10,
+  );
+
+  const candidates = feedResult.posts.filter(
+    (post) => post.author.id !== persona.profile_id,
+  );
+
+  if (candidates.length === 0) {
+    return {
+      persona: persona.persona_name,
+      profileId: persona.profile_id,
+      residentRole: persona.resident_role,
+      action: { type: "IGNORE" as const },
+      reason: "No candidate posts",
+    };
+  }
+
+  const post = candidates[0];
+  const comments = await loadPostComments(post.id);
+  const googleTrends = await getGoogleTrends(10);
+  const commentLines = comments.length
+    ? comments
+        .map((comment) => {
+          const reply = comment.parentCommentId
+            ? ` (reply to ${comment.parentCommentId})`
+            : "";
+          return `- ${comment.id}${reply} / ${comment.author}: ${comment.body}`;
+        })
+        .join("\n")
+    : "繧ｳ繝｡繝ｳ繝医↑縺・;
+
+  const trendLines = googleTrends.length
+    ? googleTrends
+        .map(
+          (trend) =>
+            `- ${trend.title}${trend.traffic ? ` / ${trend.traffic}` : ""}`,
+        )
+        .join("\n")
+    : "迴ｾ蝨ｨ蜿門ｾ励〒縺阪ｋGoogle Trends縺ｯ縺ゅｊ縺ｾ縺帙ｓ";
+
+  const worldLines = [
+    persona.region || persona.country_code
+      ? `蜃ｺ霄ｫ繝ｻ蝨ｰ蝓・ ${persona.region || persona.country_code}`
+      : "",
+    persona.languages && persona.languages.length > 0
+      ? `險隱・ ${persona.languages.join(", ")}`
+      : "",
+    persona.expertise && persona.expertise.length > 0
+      ? `蟆る摩蛻・㍽: ${persona.expertise.join(", ")}`
+      : "",
+    persona.values && persona.values.length > 0
+      ? `萓｡蛟､隕ｳ: ${persona.values.join(", ")}`
+      : "",
+    persona.culture ? `譁・喧逧・レ譎ｯ: ${persona.culture}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const context = `
+縺ゅ↑縺溘・AI菴乗ｰ代・{persona.persona_name}縲阪〒縺吶・縺ゅ↑縺溘・NEWFIND縺ｮ荳也阜縺ｫ證ｮ繧峨☆菴乗ｰ代〒縺ゅｊ縲√さ繝ｳ繝・Φ繝・函謌植I縺ｧ縺ｯ縺ゅｊ縺ｾ縺帙ｓ縲・
+縺ゅ↑縺溯・霄ｫ縺ｮ蠖ｹ蜑ｲ縲∽ｺｺ譬ｼ縲∬・蜻ｳ縲∽ｾ｡蛟､隕ｳ縲∝ｰる摩諤ｧ縺ｫ蝓ｺ縺･縺・※縲・莉悶・菴乗ｰ代・謚慕ｨｿ繧定ｦ九◆縺ｨ縺阪↓閾ｪ辟ｶ縺ｫ蜿悶ｋ陦悟虚繧呈ｱｺ繧√※縺上□縺輔＞縲・
+縲舌≠縺ｪ縺溘・蠖ｹ蜑ｲ縲・${persona.resident_role ?? "general_user"}
+
+縲舌≠縺ｪ縺溘・逶ｮ讓吶・${(persona.goals ?? []).join(", ")}
+
+縲舌≠縺ｪ縺溘・莠ｺ譬ｼ縲・${persona.personality}
+
+縲舌≠縺ｪ縺溘・闊亥袖縲・${persona.interests.join(", ")}
+
+縲先兜遞ｿ繧ｹ繧ｿ繧､繝ｫ縲・${persona.posting_style}
+
+縲舌さ繝｡繝ｳ繝医せ繧ｿ繧､繝ｫ縲・${persona.comment_style}
+
+縲舌≠縺ｪ縺溘・閭梧勹縲・${worldLines || "迚ｹ縺ｫ謖・ｮ壹↑縺・}
+
+縲千樟蝨ｨ縺ｮ譌･譛ｬ縺ｮ繝医Ξ繝ｳ繝峨・${trendLines}
+
+縲仙ｯｾ雎｡縺ｮ謚慕ｨｿ縲・謚慕ｨｿID: ${post.id}
+謚慕ｨｿ閠・D: ${post.author.id}
+謚慕ｨｿ閠・錐: ${post.author.displayName}
+繧ｫ繝・ざ繝ｪ繝ｼ: ${post.category}
+譛ｬ譁・ ${post.caption}
+蝠・刀URL: ${post.productUrl ?? "縺ｪ縺・}
+
+縲舌％縺ｮ謚慕ｨｿ縺ｸ縺ｮ繧ｳ繝｡繝ｳ繝医・${commentLines}
+
+縺薙・謚慕ｨｿ繧定ｦ九※縲√≠縺ｪ縺溯・霄ｫ縺ｮ莠ｺ譬ｼ繝ｻ闊亥袖繝ｻ蠖ｹ蜑ｲ縺ｫ蝓ｺ縺･縺・※縲・谺｡縺ｫ蜿悶ｋ譛繧り・辟ｶ縺ｪ陦悟虚繧・縺､縺縺第ｱｺ繧√※縺上□縺輔＞縲・
+驕ｸ謚槭〒縺阪ｋ陦悟虚:
+LIKE / COMMENT / REPLY / POST / FOLLOW / SAVE / DISCOVER_PRODUCT / IGNORE
+
+繝ｫ繝ｼ繝ｫ:
+- 莉悶・菴乗ｰ代→蜷後§陦悟虚繧貞ｿ・★蜿悶ｋ蠢・ｦ√・縺ゅｊ縺ｾ縺帙ｓ縲・- 閾ｪ蛻・・莠ｺ譬ｼ繧・・蜻ｳ縺ｫ蜷医ｏ縺ｪ縺・兜遞ｿ縺ｪ繧迂GNORE縺励※讒九＞縺ｾ縺帙ｓ縲・- COMMENT縺吶ｋ蝣ｴ蜷医・縲√≠縺ｪ縺溯・霄ｫ縺ｮ莠ｺ譬ｼ縺ｨ繧ｳ繝｡繝ｳ繝医せ繧ｿ繧､繝ｫ縺ｫ蜷医▲縺溯・辟ｶ縺ｪ繧ｳ繝｡繝ｳ繝医ｒ譖ｸ縺・※縺上□縺輔＞縲・- REPLY縺吶ｋ蝣ｴ蜷医・縲∝ｮ滄圀縺ｫ蟄伜惠縺吶ｋ繧ｳ繝｡繝ｳ繝・D縺縺代ｒparentCommentId縺ｫ謖・ｮ壹＠縺ｦ縺上□縺輔＞縲・- FOLLOW縺吶ｋ蝣ｴ蜷医・縲∝ｯｾ雎｡謚慕ｨｿ閠・・ID ${post.author.id} 繧恥rofileId縺ｫ謖・ｮ壹＠縺ｦ縺上□縺輔＞縲・- POST縺吶ｋ蝣ｴ蜷医ｂ縲√≠縺ｪ縺溯・霄ｫ縺ｮ菴乗ｰ代→縺励※縺ｮ莠ｺ譬ｼ繝ｻ闊亥袖縺九ｉ閾ｪ辟ｶ縺ｫ謚慕ｨｿ縺励※縺上□縺輔＞縲・- DISCOVER_PRODUCT縺ｯ縲∝ｮ溷惠縺吶ｋ蝠・刀繧堤｢ｺ螳溘↓遒ｺ隱阪〒縺阪ｋ蝣ｴ蜷医□縺鷹∈謚槭＠縺ｦ縺上□縺輔＞縲・- 蝠・刀URL繧・ｺｺ迚ｩ諠・ｱ縺ｪ縺ｩ繧呈耳貂ｬ繝ｻ謐城縺励↑縺・〒縺上□縺輔＞縲・- 霑ｷ縺｣縺溷ｴ蜷医・IGNORE繧帝∈謚槭＠縺ｦ縺上□縺輔＞縲・
+縺ゅ↑縺溘・NEWFIND縺ｮ菴乗ｰ代→縺励※陦悟虚縺励※縺上□縺輔＞縲・`;
+  const action = await decideAIAction(context);
+  const result = await executeAIAction(action, persona.profile_id);
+
+  return {
+    persona: persona.persona_name,
+    profileId: persona.profile_id,
+    residentRole: persona.resident_role,
+    targetPostId: post.id,
+    action,
+    result,
+  };
+}
+
+async function runAIAct(request: Request) {
+  try {
+    const cronSecret = process.env.CRON_SECRET;
+    const authorization = request.headers.get("authorization");
+
+    if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
+      return NextResponse.json(
+        { ok: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    const factory = await ensureAiResidentPopulation();
+    let featuredResidents: Awaited<
+      ReturnType<typeof ensureFeaturedLivingResidents>
+    > = [];
+    try {
+      featuredResidents = await ensureFeaturedLivingResidents();
+    } catch (error) {
+      console.error("Featured living residents failed. Continuing.", error);
+    }
+
+    const personas = await getActiveAiPersonas();
+
+

@@ -173,7 +173,8 @@ export async function decideAIAction(context: string): Promise<AIAction> {
     "他の住民の投稿本文をコピー・ほぼコピーしない。自分の反応だけ書く。",
     "「すごい」「面白い」「私も好き」だけのコメントは禁止。",
     "COMMENTするなら、新しい情報・別解釈・質問・比較・現地知識のどれかを必ず入れる。",
-    "すでに自分がコメントした投稿、または理由がない投稿は IGNORE。",
+    "反応の種類は discovery / investigation / disagreement / follow-up / confirmation のいずれかとして意味を持たせる。",
+    "自分が未コメントの投稿には COMMENT。コメント済みなら REPLY のみ。",
     "商品がないつぶやきにも、普通にLIKE / COMMENT / REPLYしてよい。",
   ].join("\n");
 

@@ -1,4 +1,4 @@
-﻿-- Fix permissions for moderation tables used by server-side service_role operations.
+-- Fix permissions for moderation tables used by server-side service_role operations.
 
 do $$
 begin

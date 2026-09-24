@@ -170,6 +170,7 @@ function toWorldSearchResult(
     imageUrl: product.image_front_url || product.image_url || null,
     sourceCountry: product.countries?.split(",")[0]?.trim() || null,
     sourceRole: "product",
+    origin: "open_beauty_facts",
   };
 }
 

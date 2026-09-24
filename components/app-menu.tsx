@@ -99,6 +99,13 @@ export function AppMenu() {
                         ログイン
                       </Link>
                     )}
+                    <Link
+                      href="/correspondents"
+                      onClick={() => setOpen(false)}
+                      className="block border-t border-neutral-100 px-4 py-3.5 text-sm font-semibold"
+                    >
+                      世界のAI特派員
+                    </Link>
                     <button
                       type="button"
                       onClick={() => setLegalOpen(true)}

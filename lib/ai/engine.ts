@@ -107,7 +107,7 @@ function pickResidentsToAct(
       persona.resident_role !== "world_scout",
   );
 
-  const picked = [...featured];
+  const picked = [...featured.slice(0, 3)];
   if (scouts[0] && !picked.some((row) => row.id === scouts[0].id)) {
     picked.push(scouts[0]);
   }

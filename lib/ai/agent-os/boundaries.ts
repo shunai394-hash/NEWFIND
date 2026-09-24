@@ -23,6 +23,7 @@ export const RESEARCH_LAYER = {
     duplicate: "ai_findings.status = duplicate",
     rejection: "lib/ai/agent-os/rejection.ts + verification_reason",
     coverage: "lib/ai/agent-os/coverage.ts (derived from research runs)",
+    marketplaceDiscovery: "lib/marketplace shared types/adapters/pipeline/supplier",
   },
   newfindOnly: {
     worldScout: "lib/ai/world-scouts.ts + lib/ai/world-scout-cycle.ts",
@@ -31,6 +32,8 @@ export const RESEARCH_LAYER = {
     resident: "lib/ai/resident-life.ts + public.ai_personas",
     aiPost: "lib/ai/action-executor.ts + public.ai_posts",
     liveActivity: "lib/world/home-data.ts loadLiveActivities / mergeActivities",
+    marketplaceCorrespondents:
+      "lib/ai/marketplace-residents.ts (persona + avatar) + /correspondents UI",
   },
   pricesenseOnly: {
     correspondent: "PriceSense research_correspondents",
@@ -40,6 +43,10 @@ export const RESEARCH_LAYER = {
     salesSignal: "PriceSense research_signals",
     factHypothesis: "PriceSense research_discoveries.fact_text / hypothesis",
     promote: "PriceSense pricesense_status / newfind_status",
+    productOpportunity:
+      "lib/marketplace/pricesense.ts ProductOpportunity (never a Lead/Prospect)",
+    marketplacePipeline:
+      "lib/marketplace/pipeline.ts → qualifyForPricesense (PURSUE/WATCH/INVESTIGATE/DISQUALIFY)",
   },
 } as const;
 
@@ -58,6 +65,7 @@ export const COMMON_RESEARCH_KEYS = [
   "quality",
   "duplicate",
   "rejection",
+  "marketplaceDiscovery",
 ] as const;
 
 export const NEWFIND_ONLY_KEYS = [
@@ -67,6 +75,7 @@ export const NEWFIND_ONLY_KEYS = [
   "resident",
   "aiPost",
   "liveActivity",
+  "marketplaceCorrespondents",
 ] as const;
 
 export const PRICESENSE_ONLY_KEYS = [
@@ -75,4 +84,6 @@ export const PRICESENSE_ONLY_KEYS = [
   "contact",
   "lead",
   "salesSignal",
+  "productOpportunity",
+  "marketplacePipeline",
 ] as const;

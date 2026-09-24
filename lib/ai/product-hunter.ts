@@ -27,6 +27,16 @@ import {
   resultFitsHunterSpecialty,
   specialtyFitScore,
 } from "@/lib/ai/specialty-fit";
+import {
+  createPipelineTrace,
+  markPipelineEvent,
+  recordDrop,
+  type PipelineTrace,
+} from "@/lib/ai/pipeline-trace";
+import {
+  sourceReliabilityLabel,
+  isWeakReliability,
+} from "@/lib/ai/agent-os/quality";
 
 export type ProductHunterInput = {
   residentId: string;
@@ -43,6 +53,7 @@ export type ProductHunterInput = {
   huntingSpecialty?: string;
   hunterUsername?: string;
   results: WorldSearchResult[];
+  trace?: PipelineTrace;
 };
 
 export type ProductHunterCandidate = {
@@ -211,22 +222,19 @@ function isLikelyConcreteProduct(
   }
 
   const nonTargetContentPatterns = [
-    "hardcover book",
-    "paperback book",
-    "ebook",
-    "kindle",
-    "magazine issue",
-    "book",
-    "novel",
-    "comic",
-    "electronic book",
+    /hardcover book/i,
+    /paperback book/i,
+    /\be-?books?\b/i,
+    /\bkindle\b/i,
+    /magazine issue/i,
+    /\bbooks?\b/i,
+    /\bnovels?\b/i,
+    /\bcomics?\b/i,
+    /electronic book/i,
   ];
   if (
-    nonTargetContentPatterns.some(
-      (pattern) =>
-        description.includes(pattern) ||
-        title.includes(pattern) ||
-        snippet.includes(pattern),
+    nonTargetContentPatterns.some((pattern) =>
+      pattern.test(`${description} ${title} ${snippet} ${productName}`),
     )
   ) {
     console.log(
@@ -442,6 +450,12 @@ export async function evaluateProductCandidates(
 ): Promise<ProductHunterCandidate[]> {
   const news = input.results.filter(isNewsSignal);
   const allProducts = input.results.filter(isProductSource);
+  const trace =
+    input.trace ??
+    createPipelineTrace({
+      actorName: input.residentName,
+      actorRole: "product_hunter",
+    });
   const strategy = getHunterStrategy(input.hunterUsername);
   const inLane = (result: WorldSearchResult) =>
     resultFitsHunterSpecialty({
@@ -457,11 +471,24 @@ export async function evaluateProductCandidates(
     .filter((result) => result.origin === "catalog")
     .filter(inLane);
   const products = liveProducts.length > 0 ? liveProducts : catalogProducts;
+  trace.funnel.productCandidates = allProducts.length;
+  trace.funnel.newsCandidates = news.length;
+  trace.funnel.liveProducts = liveProducts.length;
+  trace.funnel.specialtyPass = products.length;
+  markPipelineEvent(trace, "CLASSIFICATION_COMPLETED");
 
   if (products.length === 0) {
     console.log(
       "PRODUCT HUNTER: no product sources. News-only results cannot become products.",
     );
+    if (allProducts.length === 0) {
+      recordDrop(trace, { reason: "NOT_PRODUCT", detail: "no product-classified sources" });
+    } else {
+      recordDrop(trace, {
+        reason: "SPECIALTY_MISMATCH",
+        detail: "product sources existed but none matched specialty",
+      });
+    }
     return [];
   }
 
@@ -500,6 +527,7 @@ export async function evaluateProductCandidates(
     raw = await generateAIText(prompt);
   } catch (error) {
     console.error("PRODUCT HUNTER AI ERROR:", error);
+    recordDrop(trace, { reason: "AI_REJECTED", detail: "hunter model error" });
     return [];
   }
 
@@ -516,6 +544,7 @@ export async function evaluateProductCandidates(
 
     if (!Array.isArray(parsed.products)) {
       console.log("PRODUCT HUNTER: products is not an array");
+      recordDrop(trace, { reason: "AI_REJECTED", detail: "products is not an array" });
       return [];
     }
 
@@ -523,6 +552,8 @@ export async function evaluateProductCandidates(
       "PRODUCT HUNTER: AI returned products:",
       parsed.products.length,
     );
+    trace.funnel.aiSelected = parsed.products.length;
+    markPipelineEvent(trace, "AI_DECISION_COMPLETED");
 
     const newsUrlSet = new Set<string>();
 
@@ -542,6 +573,7 @@ export async function evaluateProductCandidates(
 
       if (!productUrl || !isValidHttpUrl(productUrl)) {
         console.log("PRODUCT HUNTER: invalid or missing product URL");
+        recordDrop(trace, { reason: "AI_REJECTED", detail: "invalid product URL" });
         continue;
       }
 
@@ -556,6 +588,7 @@ export async function evaluateProductCandidates(
           "PRODUCT HUNTER: rejected news URL:",
           productUrl,
         );
+        recordDrop(trace, { url: productUrl, reason: "NOT_PRODUCT", detail: "news URL" });
         continue;
       }
 
@@ -566,6 +599,11 @@ export async function evaluateProductCandidates(
           "PRODUCT HUNTER: rejected URL not present in PRODUCT SOURCES:",
           productUrl,
         );
+        recordDrop(trace, {
+          url: productUrl,
+          reason: "AI_REJECTED",
+          detail: "URL not in product sources",
+        });
         continue;
       }
 
@@ -578,6 +616,11 @@ export async function evaluateProductCandidates(
           "PRODUCT HUNTER: rejected non-concrete product:",
           productUrl,
         );
+        recordDrop(trace, {
+          url: productUrl,
+          reason: "NOT_PRODUCT",
+          detail: "not a concrete product page",
+        });
         continue;
       }
 
@@ -662,6 +705,11 @@ export async function evaluateProductCandidates(
             "PRODUCT HUNTER: catalog fallback without usable image skipped:",
             source.url,
           );
+          recordDrop(trace, {
+            url: source.url,
+            reason: "NO_PRODUCT_IMAGE",
+            detail: "catalog",
+          });
           continue;
         }
       } else if (source.sourceRole !== "news") {
@@ -693,6 +741,11 @@ export async function evaluateProductCandidates(
                 "PRODUCT HUNTER: rejected product with thin page evidence:",
                 source.url,
               );
+              recordDrop(trace, {
+                url: source.url,
+                reason: "LOW_EVIDENCE",
+                detail: "thin page evidence",
+              });
               continue;
             }
             if (facts.sku || facts.gtin || facts.modelNumber) {
@@ -715,6 +768,10 @@ export async function evaluateProductCandidates(
             "PRODUCT HUNTER: rejected product without canonical product image:",
             productUrl,
           );
+          recordDrop(trace, {
+            url: productUrl,
+            reason: "NO_PRODUCT_IMAGE",
+          });
           continue;
         }
       }
@@ -729,6 +786,10 @@ export async function evaluateProductCandidates(
           "PRODUCT HUNTER: rejected snippet-only description:",
           productUrl,
         );
+        recordDrop(trace, {
+          url: productUrl,
+          reason: "NO_PRODUCT_DESCRIPTION",
+        });
         continue;
       }
 
@@ -749,6 +810,12 @@ export async function evaluateProductCandidates(
           productName,
           confidenceScore,
         );
+        recordDrop(trace, {
+          url: source.url,
+          title: productName,
+          reason: "LOW_CONFIDENCE",
+          detail: String(confidenceScore),
+        });
         continue;
       }
 
@@ -768,10 +835,32 @@ export async function evaluateProductCandidates(
           source.url,
           fitScore,
         );
+        recordDrop(trace, {
+          url: source.url,
+          title: productName,
+          reason: "SPECIALTY_MISMATCH",
+          detail: String(fitScore),
+        });
         continue;
       }
 
       const preferredDomains = preferredSearchDomains(strategy);
+      const reliability = sourceReliabilityLabel({
+        sourceType: source.sourceType,
+        sourceRole: source.sourceRole,
+        hasOfficialUrl: Boolean(officialUrl),
+        hasPageEvidence: evidence.includes("product-page"),
+        hasPressPath: /\/press/i.test(source.url),
+      });
+      if (isWeakReliability(reliability) && !evidence.includes("product-page")) {
+        recordDrop(trace, {
+          url: source.url,
+          title: productName,
+          reason: "LOW_EVIDENCE",
+          detail: reliability,
+        });
+        continue;
+      }
       const report = emptyDiscoveryReport({
         brand,
         productName,
@@ -798,6 +887,9 @@ export async function evaluateProductCandidates(
         humanInterestScore: Math.min(100, trendScore + (price != null ? 10 : 0)),
         duplicateRisk: 0,
         confidenceScore,
+        sourceReliability: reliability,
+        evidenceSummary: evidence.join(", "),
+        decision: "SAVE",
       });
       report.evidenceScore = scoreDiscoveryEvidence(report, {
         marketplace:
@@ -814,8 +906,16 @@ export async function evaluateProductCandidates(
           productName,
           report.evidenceScore,
         );
+        recordDrop(trace, {
+          url: source.url,
+          title: productName,
+          reason: "LOW_EVIDENCE",
+          detail: String(report.evidenceScore),
+        });
         continue;
       }
+
+      trace.funnel.qualityPass += 1;
 
       candidates.push({
         brand,
@@ -856,6 +956,8 @@ export async function evaluateProductCandidates(
     }
 
     const finalCandidates = [...unique.values()].slice(0, 3);
+    trace.funnel.aiSelected = finalCandidates.length;
+    markPipelineEvent(trace, "QUALITY_CHECK_COMPLETED");
 
     console.log(
       "PRODUCT HUNTER: final candidates:",
@@ -885,6 +987,7 @@ export async function evaluateProductCandidates(
   } catch (error) {
     console.error("PRODUCT HUNTER JSON PARSE ERROR:", error);
     console.error("RAW RESPONSE:", raw);
+    recordDrop(trace, { reason: "AI_REJECTED", detail: "json parse error" });
     return [];
   }
 }

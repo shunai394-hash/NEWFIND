@@ -1,4 +1,4 @@
-﻿-- AI/admin server-side operations use the Supabase service_role client.
+-- AI/admin server-side operations use the Supabase service_role client.
 -- service_role is already a privileged server-side role; grant it full
 -- DML access to application tables so local and hosted environments behave
 -- consistently for admin-side AI operations.

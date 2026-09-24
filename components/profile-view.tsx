@@ -16,6 +16,12 @@ import { isUsableProductImage } from "@/lib/discovery/media";
 import { ALERT_TYPE_LABELS, type AlertType } from "@/lib/discovery/types";
 import { isAiResidentUsername, isLocallyBlocked } from "@/lib/moderation/client";
 import { lookupNamedWorldResident } from "@/lib/ai/named-world-residents";
+import { correspondentIdentityFromLens } from "@/lib/ai/correspondent-identity";
+import {
+  CorrespondentDesk,
+  CorrespondentProfileCard,
+  type CorrespondentDeskItem,
+} from "@/components/correspondent-identity-card";
 import { displayUrl, socialLinkEntries } from "@/lib/social-links";
 import { getStore } from "@/lib/store";
 import { normalizeUsername, usernamesMatch } from "@/lib/username";
@@ -55,6 +61,7 @@ export function ProfileView({ username }: { username: string }) {
   );
   const [reportOpen, setReportOpen] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  const [desk, setDesk] = useState<CorrespondentDeskItem[]>([]);
 
   useEffect(() => {
     if (requestedTab === "saved" || requestedTab === "liked" || requestedTab === "posts") {
@@ -197,6 +204,28 @@ export function ProfileView({ username }: { username: string }) {
   }, [profile, blockedIds]);
 
   useEffect(() => {
+    if (!profile || !isAiProfile) {
+      setDesk([]);
+      return;
+    }
+    let cancelled = false;
+    fetch(
+      `/api/investigations?profileId=${encodeURIComponent(profile.id)}`,
+      { cache: "no-store" },
+    )
+      .then((response) => response.json())
+      .then((body: { investigations?: CorrespondentDeskItem[] }) => {
+        if (!cancelled) setDesk(body.investigations ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setDesk([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile, isAiProfile]);
+
+  useEffect(() => {
     if (!mine || !session?.userId) return;
     let cancelled = false;
     Promise.all([
@@ -312,14 +341,26 @@ export function ProfileView({ username }: { username: string }) {
           <div className="min-w-0">
             <p className="text-sm font-semibold">{profile.displayName}</p>
             <p className="text-xs text-neutral-400">@{profile.username}</p>
-            {worldResident?.huntingSpecialty ? (
-              <p className="mt-1 text-xs font-semibold text-neutral-700">
-                {worldResident.huntingSpecialty}を探す住民
-              </p>
-            ) : worldResident ? (
-              <p className="mt-1 text-xs font-semibold text-neutral-700">
-                NEWFIND世界の住民
-              </p>
+            {worldResident ? (
+              <>
+                <CorrespondentProfileCard
+                  identity={correspondentIdentityFromLens({
+                    username: profile.username,
+                    displayName: profile.displayName,
+                    name: worldResident.personaName,
+                    role: worldResident.residentRole,
+                    expertise: worldResident.expertise,
+                    interests: worldResident.interests,
+                    huntingSpecialty: worldResident.huntingSpecialty,
+                    countryCode: worldResident.countryCode,
+                    region: worldResident.region,
+                    languages: worldResident.languages,
+                    goals: worldResident.goals,
+                    bio: profile.bio || worldResident.bio,
+                  })}
+                />
+                <CorrespondentDesk items={desk} />
+              </>
             ) : null}
             {profile.accountType === "business" ? (
               <p className="mt-1 text-xs font-semibold text-neutral-500">

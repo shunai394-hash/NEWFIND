@@ -394,12 +394,15 @@ function editorialActivities(
 
 function mergeActivities(
   live: WorldActivity[],
-  _residents: WorldResident[],
-  _product: WorldProductChip | null,
+  residents: WorldResident[],
+  product: WorldProductChip | null,
 ) {
-  return live
-    .filter((activity) => activity.live)
-    .slice(0, 4);
+  const current = live.filter((activity) => activity.live).slice(0, 4);
+  if (current.length >= 4) return current;
+  const fallback = editorialActivities(residents, product).filter(
+    (activity) => !current.some((item) => item.id === activity.id),
+  );
+  return [...current, ...fallback].slice(0, 4);
 }
 
 export async function loadWorldHomeData(): Promise<WorldHomeData> {

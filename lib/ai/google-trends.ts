@@ -1,4 +1,5 @@
 ﻿export type GoogleTrend = {
+  geo: string;
   title: string;
   traffic: string | null;
   publishedAt: string | null;
@@ -45,12 +46,15 @@ export async function getGoogleTrends(
   limit = 30,
   geo = "JP",
 ): Promise<GoogleTrend[]> {
-  const cached = RSS_CACHE.get(geo);
+  const code = geo.trim().toUpperCase() || "JP";
+
+  const cached = RSS_CACHE.get(code);
   if (cached && Date.now() - cached.at < RSS_TTL_MS) {
     return cached.items.slice(0, limit);
   }
+
   try {
-    const response = await fetch(rssUrl(geo), {
+    const response = await fetch(rssUrl(code), {
       headers: {
         Accept: "application/rss+xml, application/xml, text/xml",
         "User-Agent": "NEWFIND/1.0",
@@ -69,6 +73,7 @@ export async function getGoogleTrends(
     const items = extractItems(xml);
 
     const parsed = items.map((item) => ({
+      geo: code,
       title: extractTag(item, "title") ?? "",
       traffic:
         extractTag(item, "ht:approx_traffic") ??
@@ -77,7 +82,9 @@ export async function getGoogleTrends(
       relatedQueries: extractAllTags(item, "ht:news_item_title"),
       link: extractTag(item, "link"),
     }));
-    RSS_CACHE.set(geo, { at: Date.now(), items: parsed });
+
+    RSS_CACHE.set(code, { at: Date.now(), items: parsed });
+
     return parsed.slice(0, limit);
   } catch (error) {
     console.error("[Google Trends] RSS fetch failed:", error);
@@ -92,13 +99,20 @@ export async function getGoogleTrendsForWorld(
   const groups = await Promise.all(
     geos.map((geo) => getGoogleTrends(perGeo, geo)),
   );
+
   const unique = new Map<string, GoogleTrend>();
+
   for (const group of groups) {
     for (const item of group) {
-      const key = item.title.trim().toLowerCase();
-      if (!key || unique.has(key)) continue;
+      const key = `${item.geo}:${item.title.trim().toLowerCase()}`;
+
+      if (!item.title.trim() || unique.has(key)) {
+        continue;
+      }
+
       unique.set(key, item);
     }
   }
+
   return [...unique.values()].slice(0, perGeo * geos.length);
 }

@@ -196,6 +196,74 @@ export function AiControlTower() {
           </section>
 
           <section className="rounded-2xl border border-gray-200 bg-white px-4 py-4">
+            <h2 className="text-sm font-semibold">TODAY FROM THE WORLD</h2>
+            <p className="mt-1 text-xs text-neutral-500">
+              AI住民が世界から何を拾い、何を棄て、何を持ち帰ったか。
+            </p>
+            <div className="mt-3 grid gap-4 sm:grid-cols-3">
+              <ul className="space-y-1 text-sm">
+                <li>Residents active: {snapshot.worldToday.residents}</li>
+                <li>World scans: {snapshot.worldToday.scanned}</li>
+                <li>Accepted: {snapshot.worldToday.accepted}</li>
+                <li>Dropped: {snapshot.worldToday.dropped}</li>
+              </ul>
+              <ul className="space-y-1 text-sm">
+                <li>News: {snapshot.worldToday.news}</li>
+                <li>Trends: {snapshot.worldToday.trends}</li>
+                <li>Products: {snapshot.worldToday.products}</li>
+                <li>Posts: {snapshot.worldToday.posts}</li>
+              </ul>
+              <ul className="space-y-1 text-sm">
+                <li>Duplicates: {snapshot.worldToday.duplicates}</li>
+                <li>Quality NG: {snapshot.worldToday.qualityNg}</li>
+                <li>Searches: {snapshot.worldToday.searches}</li>
+              </ul>
+            </div>
+            {snapshot.worldToday.headlines.length ? (
+              <ul className="mt-3 space-y-1 text-sm text-neutral-700">
+                {snapshot.worldToday.headlines.map((item, index) => (
+                  <li key={`${item.actor}-${index}`}>
+                    <span className="font-medium">{item.actor}</span>
+                    {item.beat ? ` · ${item.beat}` : ""}
+                    {item.dispatch ? ` · ${item.dispatch}` : ""}
+                    {item.kind ? ` · ${item.kind}` : ""}
+                    {": "}
+                    {item.title || "(no title)"}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm text-neutral-400">
+                まだ今日の世界発見ログはありません。
+              </p>
+            )}
+            {(snapshot.worldToday.investigations ?? []).length ? (
+              <div className="mt-4">
+                <p className="text-xs font-semibold tracking-wide text-neutral-500">
+                  INVESTIGATIONS
+                </p>
+                <ul className="mt-2 space-y-1 text-sm text-neutral-700">
+                  {snapshot.worldToday.investigations.map((item, index) => (
+                    <li key={`${item.actor}-${item.title}-${index}`}>
+                      <span className="font-medium">{item.actor}</span>
+                      {` · ${item.status}`}
+                      {item.city ? ` · ${item.city}` : ""}
+                      {item.beat ? ` · ${item.beat}` : ""}
+                      {": "}
+                      {item.title}
+                      {item.nextAction ? (
+                        <span className="block text-xs text-neutral-500">
+                          next: {item.nextAction}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </section>
+
+          <section className="rounded-2xl border border-gray-200 bg-white px-4 py-4">
             <h2 className="text-sm font-semibold">AGENTS</h2>
             {agentOs.agents.length === 0 ? (
               <p className="mt-2 text-sm text-neutral-500">

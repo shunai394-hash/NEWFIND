@@ -32,7 +32,7 @@ export function isAssetOrNonProductUrl(url: string): boolean {
     const haystack = `${host}${path}`;
 
     if (
-      /\.(jpg|jpeg|png|webp|gif|svg|css|js|mjs|woff2?|ttf|ico|mp4|webm)(\?|$)/i.test(
+      /\.(jpg|jpeg|png|webp|gif|svg|css|js|mjs|woff2?|ttf|ico|mp4|webm|pdf)(\?|$)/i.test(
         path,
       )
     ) {
@@ -71,6 +71,7 @@ export function isAssetOrNonProductUrl(url: string): boolean {
     if (/\/store\/apps\//i.test(path)) return true;
     if (haystack.includes("/cdn/shop/")) return true;
     if (path.includes("products-in-image")) return true;
+    if (/\/collect\/?$/i.test(path)) return true;
 
     if (/\/p\/[^/?#]*(terms|privacy|policy|cookie|legal)/i.test(path)) {
       return true;
@@ -713,4 +714,58 @@ export function productFactsAreSufficient(facts: ProductPageFacts) {
   const named = Boolean(facts.productName && facts.brand);
   const imaged = Boolean(facts.imageUrl);
   return imaged && named && (identity || priced || Boolean(facts.description));
+}
+
+function jsonLdTypeValues(type: unknown): string[] {
+  if (typeof type === "string") return [type];
+  if (Array.isArray(type)) {
+    return type.filter((item): item is string => typeof item === "string");
+  }
+  return [];
+}
+
+function htmlHasJsonLdType(html: string, pattern: RegExp): boolean {
+  for (const script of html.matchAll(
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  )) {
+    const raw = script[1]?.trim();
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      const graph =
+        parsed &&
+        typeof parsed === "object" &&
+        Array.isArray((parsed as { "@graph"?: unknown })["@graph"])
+          ? ((parsed as { "@graph": unknown[] })["@graph"] ?? [])
+          : null;
+      const list = Array.isArray(parsed) ? parsed : graph ? graph : [parsed];
+      for (const node of list) {
+        if (!node || typeof node !== "object") continue;
+        const types = jsonLdTypeValues((node as { "@type"?: unknown })["@type"]);
+        if (types.some((item) => pattern.test(item))) return true;
+      }
+    } catch {
+      // Ignore broken JSON-LD.
+    }
+  }
+  return false;
+}
+
+export function htmlIndicatesListingPage(html: string): boolean {
+  const hasProduct = htmlHasJsonLdType(html, /(^|\/)product$/i);
+  if (hasProduct) return false;
+  return htmlHasJsonLdType(
+    html,
+    /(collectionpage|itemlist|searchresultspage|newsarticle|blogposting)$/i,
+  );
+}
+
+export function htmlIndicatesConcreteProduct(html: string): boolean {
+  if (!html || htmlIndicatesListingPage(html)) return false;
+  if (htmlHasJsonLdType(html, /(^|\/)product$/i)) return true;
+  const ogType = metaContent(html, ["og:type"])?.toLowerCase() ?? "";
+  if (ogType === "product" || ogType === "og:product") return true;
+  const priced = Boolean(metaContent(html, ["product:price:amount", "og:price:amount"]));
+  const sku = Boolean(metaContent(html, ["product:retailer_item_id", "sku", "product:sku"]));
+  return priced && sku;
 }

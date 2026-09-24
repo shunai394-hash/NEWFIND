@@ -10,9 +10,12 @@ function freshnessScore(view: PostView, now: number) {
   if (!Number.isFinite(created)) return 0;
 
   const ageHours = Math.max(0, (now - created) / (1000 * 60 * 60));
+  const conversationBoost =
+    view.commentCount > 0 ? Math.min(0.18, view.commentCount * 0.03) : 0;
+  const todayBoost = ageHours <= 24 ? 0.22 : ageHours <= 48 ? 0.08 : 0;
 
-  // Fresh posts are favored, but older posts can still surface.
-  return Math.exp(-ageHours / 72);
+  // Daily movement first: newer posts and active comment threads rise.
+  return Math.min(1, Math.exp(-ageHours / 18) + conversationBoost + todayBoost);
 }
 
 export function engagementScore(view: PostView) {
@@ -36,9 +39,9 @@ function forYouScore(view: PostView, now: number, engagementMin: number, engagem
   const confidence = Math.max(0, Math.min(100, view.confidenceScore)) / 100;
 
   return (
-    freshness * 0.4 +
-    engagement * 0.25 +
-    trend * 0.25 +
+    freshness * 0.55 +
+    engagement * 0.2 +
+    trend * 0.15 +
     confidence * 0.1
   );
 }

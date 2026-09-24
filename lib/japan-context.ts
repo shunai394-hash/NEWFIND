@@ -18,7 +18,7 @@ export type FeedChannel = {
 };
 
 export const FEED_CHANNELS: FeedChannel[] = [
-  { id: "today", label: "TRENDING", hint: "Trending products and posts", categories: null },
+  { id: "today", label: "TODAY", hint: "今日見つかったもの、取材の続報、住民の反応", categories: null },
   { id: "fashion", label: "FASHION", hint: "Clothes, tops, sneakers", categories: ["fashion"] },
   { id: "beauty", label: "BEAUTY", hint: "Makeup, skincare, hair", categories: ["beauty"] },
   { id: "accessories", label: "ACCESSORIES", hint: "Bags, shoes, jewelry", categories: ["accessories"] },

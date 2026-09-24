@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { executeAiEngine, type AiEngineMode } from "@/lib/ai/engine";
 
@@ -17,7 +18,24 @@ async function runAIAct(request: Request) {
 
   if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
     return NextResponse.json(
-      { ok: false, error: "Unauthorized" },
+      {
+        ok: false,
+        error: "Unauthorized",
+        diagnostic: {
+          hasCronSecret: Boolean(cronSecret),
+          cronSecretLength: cronSecret?.length ?? 0,
+          hasAuthorization: Boolean(authorization),
+          authorizationLength: authorization?.length ?? 0,
+          cronSecretHash: cronSecret
+            ? createHash("sha256").update(cronSecret).digest("hex")
+            : null,
+          authorizationHash: authorization
+            ? createHash("sha256")
+                .update(authorization.replace(/^Bearer /, ""))
+                .digest("hex")
+            : null,
+        },
+      },
       { status: 401 },
     );
   }

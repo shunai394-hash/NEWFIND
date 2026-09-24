@@ -102,7 +102,7 @@ const ACCEPT: Record<SpecialtyLane, RegExp> = {
   beauty_tools: /beauty device|hair dryer|facial|led mask|straightener|skin tool|haircare/,
   fashion: /jacket|leather|atelier|silhouette|apparel|fashion|ss2[0-9]|loafer|strap|earring|belt|服|カット/,
   sneakers: /sneaker|colorway|trainer|kicks|air max|collab pair|靴/,
-  tech: /gadget|electronic|audio|headphone|keyboard|charger|firmware|usb|dac|battery|device|power.?bank|mouse/,
+  tech: /gadget|electronic|audio|headphone|keyboard|charger|firmware|usb|dac|battery|device|power.?bank|mouse|ssd|dock|hub|storage/,
   gaming: /controller|handheld|gaming mouse|capture card|firmware|xbox|playstation|steam deck|dualsense/,
   food: /snack|soda|flavor|soy|miso|knife|pan|seasoning|食品|調味料|菓子/,
   home: /lamp|table|ceramic|organizer|shelf|tray|furniture|storage|lamp|インテリア|収納/,

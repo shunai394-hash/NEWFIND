@@ -1,17 +1,17 @@
 /**
  * Activity windows derived from current schedules in vercel.json.
- * Cron currently runs /api/ai-act once daily at 06:00 UTC.
+ * Cron currently runs /api/ai-act twice daily at 06:00 and 18:00 UTC.
  * Tighten these values if cron frequency increases; do not scatter magic numbers.
  */
 export const CONTROL_TOWER_THRESHOLDS = {
-  cronExpectedMs: 24 * 60 * 60 * 1000,
-  cronStaleMs: 30 * 60 * 60 * 1000,
-  engineActiveMs: 26 * 60 * 60 * 1000,
-  scoutActiveMs: 26 * 60 * 60 * 1000,
-  hunterActiveMs: 26 * 60 * 60 * 1000,
-  postsActiveMs: 26 * 60 * 60 * 1000,
-  reactionActiveMs: 26 * 60 * 60 * 1000,
-  lowActivityNoDiscoveryMs: 48 * 60 * 60 * 1000,
+  cronExpectedMs: 12 * 60 * 60 * 1000,
+  cronStaleMs: 16 * 60 * 60 * 1000,
+  engineActiveMs: 14 * 60 * 60 * 1000,
+  scoutActiveMs: 14 * 60 * 60 * 1000,
+  hunterActiveMs: 14 * 60 * 60 * 1000,
+  postsActiveMs: 14 * 60 * 60 * 1000,
+  reactionActiveMs: 14 * 60 * 60 * 1000,
+  lowActivityNoDiscoveryMs: 30 * 60 * 60 * 1000,
   residentActiveMs: {
     high: 36 * 60 * 60 * 1000,
     medium: 48 * 60 * 60 * 1000,

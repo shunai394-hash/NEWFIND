@@ -49,7 +49,7 @@ export function SignupConsentForm() {
         );
       }
       await refresh();
-      router.replace(next);
+      router.replace(next === "/" ? "/feed?joined=1" : next.includes("/feed") ? "/feed?joined=1" : next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "同意の保存に失敗しました。");
     } finally {

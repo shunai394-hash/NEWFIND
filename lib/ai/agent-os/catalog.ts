@@ -1,4 +1,5 @@
 import { WORLD_SCOUTS, type WorldScoutSpec } from "@/lib/ai/world-scouts";
+import { MARKETPLACE_CORRESPONDENTS } from "@/lib/marketplace/correspondents";
 import type { AgentType, HomeApp, MissionFrequency } from "./types";
 
 export const COUNTRY_LABEL: Record<string, string> = {
@@ -80,8 +81,40 @@ export const GROWTH_AGENT_CATALOG: AgentCatalogEntry = {
   },
 };
 
+const MARKETPLACE_CAPABILITIES = [
+  "official_api",
+  "product_evaluation",
+  "supplier_research",
+  "fact_hypothesis",
+  "human_review",
+];
+
+function marketplaceCatalogEntry(
+  spec: (typeof MARKETPLACE_CORRESPONDENTS)[number],
+): AgentCatalogEntry {
+  return {
+    agentKey: spec.agentKey,
+    name: spec.name,
+    type: "product_scout",
+    role: "marketplace_correspondent",
+    region: spec.region,
+    countryCode: spec.countryCode,
+    beats: spec.beats,
+    capabilities: MARKETPLACE_CAPABILITIES,
+    homeApp: "newfind",
+    status: "active",
+    username: spec.username,
+    personaName: spec.name,
+    mission: {
+      objective: spec.mission,
+      frequency: "daily",
+    },
+  };
+}
+
 export const AGENT_CATALOG: AgentCatalogEntry[] = [
   ...WORLD_SCOUTS.map(scoutCatalogEntry),
+  ...MARKETPLACE_CORRESPONDENTS.map(marketplaceCatalogEntry),
   GROWTH_AGENT_CATALOG,
 ];
 

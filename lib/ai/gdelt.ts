@@ -270,7 +270,7 @@ export async function fetchGdeltArticles(
     try {
       response = await fetch(url, {
         cache: "no-store",
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(8_000),
         headers: {
           Accept: "application/json",
           "User-Agent": "NEWFIND/1.0 (world discovery resident)",
@@ -329,7 +329,7 @@ export async function fetchGdeltArticles(
   return [...unique.values()];
 }
 
-async function loadSharedWorldNews(): Promise<WorldSearchResult[]> {
+async function loadSharedWorldNews(persist: boolean): Promise<WorldSearchResult[]> {
   const memoryFresh = readMemory(false);
   if (memoryFresh) {
     logWorldNews(memoryFresh.articles, "fresh");
@@ -347,8 +347,10 @@ async function loadSharedWorldNews(): Promise<WorldSearchResult[]> {
     const articles = await fetchGdeltArticles();
     if (articles.length > 0) {
       writeMemory(articles);
-      await writeCache(articles);
-      logWorldNews(articles, "write");
+      if (persist) {
+        await writeCache(articles);
+      }
+      logWorldNews(articles, persist ? "write" : "fresh");
       return articles.map(gdeltArticleToWorldResult);
     }
 
@@ -385,9 +387,15 @@ async function loadSharedWorldNews(): Promise<WorldSearchResult[]> {
   }
 }
 
-export async function getSharedWorldNews(): Promise<WorldSearchResult[]> {
+export async function getSharedWorldNews(
+  options?: { persist?: boolean },
+): Promise<WorldSearchResult[]> {
+  const persist = options?.persist !== false;
+  if (!persist) {
+    return loadSharedWorldNews(false);
+  }
   if (inflight) return inflight;
-  inflight = loadSharedWorldNews().finally(() => {
+  inflight = loadSharedWorldNews(true).finally(() => {
     inflight = null;
   });
   return inflight;

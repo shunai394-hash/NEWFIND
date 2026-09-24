@@ -8,6 +8,8 @@ import type {
   WorldResident,
   WorldResidentCard,
 } from "@/lib/world/home-data";
+import { listCorrespondentDirectory } from "@/lib/ai/correspondent-identity";
+import { lookupNamedWorldResident } from "@/lib/ai/named-world-residents";
 import { resolveResidentAvatar } from "@/lib/world/featured-avatars";
 
 const COUNTRY_CHIPS = [
@@ -69,6 +71,7 @@ export function WorldHome({ data }: { data: WorldHomeData }) {
       <WorldHero data={data} />
       <WhatsHappening activities={data.activities} />
       <MeetResidents featured={data.featured} />
+      <WorldCorrespondents />
       <ExploreWorld featured={data.featured} />
       <DiscoveryStory
         residents={data.residents}
@@ -318,11 +321,74 @@ function MeetResidents({ featured }: { featured: WorldResidentCard[] }) {
         ))}
       </div>
 
-      <Link
-        href="/feed"
-        className="mt-6 inline-flex text-[13px] font-semibold"
-      >
-        Meet all residents →
+      <div className="mt-6 flex flex-col items-start gap-3">
+        <Link
+          href="/correspondents"
+          className="text-[13px] font-semibold"
+        >
+          World correspondents →
+        </Link>
+        <Link
+          href="/feed"
+          className="text-[13px] font-semibold"
+        >
+          Meet all residents →
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function WorldCorrespondents() {
+  const directory = listCorrespondentDirectory().slice(0, 8);
+
+  return (
+    <section className="bg-[#f4f4f1] px-5 py-12">
+      <p className="text-[10px] font-semibold tracking-[0.16em] text-neutral-400">
+        WORLD CORRESPONDENTS
+      </p>
+      <h2 className="mt-2 text-[26px] font-semibold leading-tight tracking-tight">
+        世界のAI特派員
+      </h2>
+      <p className="mt-3 text-[14px] leading-relaxed text-neutral-600">
+        Each resident covers a city and a beat. Same news, different eyes.
+      </p>
+      <div className="mt-7 space-y-5">
+        {directory.map((group) => (
+          <div key={group.place}>
+            <p className="text-[13px] font-semibold">{group.place}</p>
+            <ul className="mt-2 space-y-1">
+              {group.correspondents.slice(0, 3).map((identity) => {
+                const named = lookupNamedWorldResident(identity.username);
+                return (
+                  <li key={identity.username}>
+                    <Link
+                      href={`/u/${identity.username}`}
+                      className="flex items-center gap-2 text-[13px] text-neutral-700"
+                    >
+                      <Avatar
+                        profile={{
+                          displayName: identity.displayName,
+                          avatarUrl: named?.avatarUrl ?? null,
+                        }}
+                        size={28}
+                      />
+                      <span className="min-w-0 truncate">
+                        {identity.displayName}
+                        <span className="ml-2 text-[11px] text-neutral-400">
+                          {identity.title}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <Link href="/correspondents" className="mt-6 inline-flex text-[13px] font-semibold">
+        See all correspondents →
       </Link>
     </section>
   );

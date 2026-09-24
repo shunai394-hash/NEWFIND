@@ -1,0 +1,210 @@
+import { isSupabaseConfigured } from "@/lib/config";
+import { isUsableProductImage } from "@/lib/discovery/media";
+import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
+import { catalogProductToDiscovery } from "@/lib/discovery/from-catalog";
+import { WORLD_SEED_PRODUCTS } from "@/lib/discovery/world-seed";
+import { JAPAN_SEED_PRODUCTS } from "@/lib/discovery/japan-seed";
+import {
+  canApprove,
+  emptyDiscoveryProduct,
+  findDuplicate,
+  newDiscoveryId,
+  prepareDiscoveryProduct,
+} from "@/lib/discovery/rules";
+import type {
+  DiscoveryProduct,
+  DiscoveryProductInput,
+  DiscoveryStatus,
+} from "@/lib/discovery/types";
+
+export { canApprove, emptyDiscoveryProduct, findDuplicate, newDiscoveryId };
+
+const STORAGE_KEY = "nf_discovery_products_v1";
+
+function seedProducts(): DiscoveryProduct[] {
+  const fromCatalog = CATALOG_PRODUCTS.map(catalogProductToDiscovery).filter(
+    (item): item is DiscoveryProduct => Boolean(item),
+  );
+  const byId = new Map<string, DiscoveryProduct>();
+  for (const item of [...fromCatalog, ...WORLD_SEED_PRODUCTS, ...JAPAN_SEED_PRODUCTS]) {
+    const image = isUsableProductImage(item.productImageUrl) ? item.productImageUrl : null;
+    byId.set(item.id, {
+      ...item,
+      productImageUrl: image,
+      status: item.status === "approved" && !image ? "pending" : item.status,
+    });
+  }
+  return [...byId.values()];
+}
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+let memory = seedProducts();
+
+function readLocalOverlay(): DiscoveryProduct[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as DiscoveryProduct[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalOverlay(products: DiscoveryProduct[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+}
+
+function mergeById(base: DiscoveryProduct[], overlay: DiscoveryProduct[]) {
+  const map = new Map(base.map((item) => [item.id, item]));
+  for (const item of overlay) map.set(item.id, item);
+  return [...map.values()].sort((a, b) => b.trendScore - a.trendScore);
+}
+
+function withDiscoveryFields(product: DiscoveryProduct): DiscoveryProduct {
+  return {
+    ...product,
+    discoveredAt: product.discoveredAt ?? null,
+    attentionReason: product.attentionReason ?? "",
+  };
+}
+
+export function listSeedDiscoveryProducts() {
+  return clone(seedProducts()).map(withDiscoveryFields);
+}
+
+function currentDiscoveryCatalog() {
+  return mergeById(memory, readLocalOverlay()).map(withDiscoveryFields);
+}
+
+function filterCatalog(
+  catalog: DiscoveryProduct[],
+  options?: { status?: DiscoveryStatus | "all"; admin?: boolean },
+) {
+  const admin = Boolean(options?.admin);
+  const status = options?.status ?? (admin ? "all" : "approved");
+  return catalog.filter((item) => {
+    if (!admin && item.status !== "approved") return false;
+    if (!admin && !isUsableProductImage(item.productImageUrl)) return false;
+    if (status !== "all" && item.status !== status) return false;
+    return true;
+  });
+}
+
+export function listDiscoveryProductsLocal(options?: {
+  status?: DiscoveryStatus | "all";
+  admin?: boolean;
+}) {
+  return filterCatalog(currentDiscoveryCatalog(), options);
+}
+
+export function getDiscoveryProductLocal(id: string, admin = false) {
+  const product = currentDiscoveryCatalog().find((item) => item.id === id) ?? null;
+  if (!product) return null;
+  if (!admin && product.status !== "approved") return null;
+  if (!admin && !isUsableProductImage(product.productImageUrl)) return null;
+  return clone(product);
+}
+
+export function saveDiscoveryProductLocal(input: DiscoveryProductInput) {
+  const next = prepareDiscoveryProduct(input);
+  if (next.status === "approved" && !canApprove(next)) {
+    throw new Error("Approved products need an image, a source, and a live sales page.");
+  }
+  const existing = currentDiscoveryCatalog();
+  const duplicate = findDuplicate(next, existing);
+  if (duplicate) {
+    throw new Error(`Duplicate of ${duplicate.brand} ${duplicate.productName}`);
+  }
+  const overlay = readLocalOverlay().filter((item) => item.id !== next.id);
+  overlay.push(next);
+  writeLocalOverlay(overlay);
+  memory = mergeById(seedProducts(), overlay);
+  return clone(next);
+}
+
+function isMissingDiscoveryTable(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /discovery_products|schema cache|42P01/i.test(message);
+}
+
+function withJapanCatalog(products: DiscoveryProduct[], options?: { status?: DiscoveryStatus | "all"; admin?: boolean }) {
+  return mergeById(filterCatalog(JAPAN_SEED_PRODUCTS, options), products);
+}
+
+export async function listDiscoveryProducts(options?: {
+  status?: DiscoveryStatus | "all";
+  admin?: boolean;
+}) {
+  if (isSupabaseConfigured() && typeof window === "undefined") {
+    try {
+      const { listDiscoveryProductsFromDb } = await import("@/lib/discovery/db");
+      return withJapanCatalog(await listDiscoveryProductsFromDb(options), options);
+    } catch (error) {
+      if (!isMissingDiscoveryTable(error)) throw error;
+      if (options?.admin) {
+        throw new Error(
+          "Discovery tables are missing in Supabase. Apply supabase/migrations/006_discovery_products.sql and 007_discovery_ops.sql.",
+        );
+      }
+      return withJapanCatalog([], options);
+    }
+  }
+  return listDiscoveryProductsLocal(options);
+}
+
+export async function getDiscoveryProduct(id: string, admin = false) {
+  if (isSupabaseConfigured() && typeof window === "undefined") {
+    try {
+      const { getDiscoveryProductFromDb } = await import("@/lib/discovery/db");
+      const fromDb = await getDiscoveryProductFromDb(id, admin);
+      if (fromDb) return fromDb;
+    } catch (error) {
+      if (!isMissingDiscoveryTable(error)) throw error;
+      if (admin) {
+        throw new Error(
+          "Discovery tables are missing in Supabase. Apply supabase/migrations/006_discovery_products.sql and 007_discovery_ops.sql.",
+        );
+      }
+    }
+  }
+  return getDiscoveryProductLocal(id, admin);
+}
+
+export async function saveDiscoveryProduct(input: DiscoveryProductInput) {
+  const next = prepareDiscoveryProduct(input);
+  if (next.status === "approved" && !canApprove(next)) {
+    throw new Error("Approved products need an image, a source, and a live sales page.");
+  }
+  if (isSupabaseConfigured() && typeof window === "undefined") {
+    try {
+      const { saveDiscoveryProductToDb, listDiscoveryProductsFromDb } = await import("@/lib/discovery/db");
+      const existing = await listDiscoveryProductsFromDb({ admin: true, status: "all" });
+      const duplicate = findDuplicate(next, existing);
+      if (duplicate) {
+        throw new Error(`Duplicate of ${duplicate.brand} ${duplicate.productName}`);
+      }
+      return await saveDiscoveryProductToDb(next);
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Discovery tables are missing")) {
+        throw error;
+      }
+      if (!isMissingDiscoveryTable(error)) throw error;
+      throw new Error(
+        "Discovery tables are missing in Supabase. Apply supabase/migrations/006_discovery_products.sql and 007_discovery_ops.sql.",
+      );
+    }
+  }
+  return saveDiscoveryProductLocal(next);
+}
+
+export async function setDiscoveryStatus(id: string, status: DiscoveryStatus) {
+  const current = await getDiscoveryProduct(id, true);
+  if (!current) throw new Error("Product not found");
+  return saveDiscoveryProduct({ ...current, status });
+}

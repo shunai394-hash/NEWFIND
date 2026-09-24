@@ -1,0 +1,70 @@
+﻿workflows:
+  ios-release:
+    name: NEWFIND iOS Release
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      app_store_connect: NEWFIND-Codemagic
+
+    environment:
+      node: 24.14.0
+      xcode: latest
+      ios_signing:
+        provisioning_profiles:
+          - NEWFIND-App-Store-2026-09-01
+        certificates:
+          - NEWFIND-Distribution-2026
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+
+      - name: Check iOS signing files
+        script: |
+          echo "=== PROVISIONING PROFILES ==="
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" || true
+          echo "=== CERTIFICATES ==="
+          ls -la "$HOME/Library/MobileDevice/Certificates/" || true
+          echo "=== KEYCHAIN ==="
+          security find-identity -v -p codesigning || true
+
+      - name: Set production Capacitor URL
+        script: |
+          export CAPACITOR_SERVER_URL="https://newfind-self.vercel.app"
+          export CAPACITOR_RELEASE="1"
+          npx cap sync ios
+
+      - name: Build IPA
+        script: |
+          echo "=== SIGNING PROFILES ==="
+          find "$HOME/Library/MobileDevice/Provisioning Profiles" -type f -maxdepth 1 -print || true
+          echo "=== XCODE IDENTITIES ==="
+          security find-identity -v -p codesigning || true
+          echo "=== BUILD SETTINGS ==="
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -showBuildSettings | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_IDENTITY|CODE_SIGN_STYLE|PROVISIONING_PROFILE"
+    artifacts:
+      - build/ios/ipa/*.ipa
+
+    publishing:
+      app_store_connect:
+        auth: integration
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

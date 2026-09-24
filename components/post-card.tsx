@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
-import { CommentSheet } from "@/components/comment-sheet";
+import { PostComments } from "@/components/post-comments";
 import { MoreIcon, MuteIcon, VolumeIcon } from "@/components/icons";
 import { PostActions } from "@/components/post-actions";
 import { ProductLinkButton } from "@/components/product-link-button";
@@ -21,7 +21,10 @@ import {
 import { isAiResidentUsername, isLocallyBlocked } from "@/lib/moderation/client";
 import { namedCorrespondentIdentity } from "@/lib/ai/correspondent-identity";
 import { CorrespondentByline } from "@/components/correspondent-identity-card";
-import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
+import {
+  hasDisplayablePostMedia,
+  isDummyUrl,
+} from "@/lib/products/discovery-filter";
 import { isVisibleTimelinePost } from "@/lib/posts/text-post";
 import { getStore } from "@/lib/store";
 import type { PostView } from "@/lib/types";
@@ -39,7 +42,6 @@ export function PostCard({
 }) {
   const { ready, session, me, blockedIds } = useApp();
   const [post, setPost] = useState(initial);
-  const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [muted, setMuted] = useState(true);
@@ -48,6 +50,7 @@ export function PostCard({
     isLocallyBlocked(initial.authorId) || blockedIds.includes(initial.authorId),
   );
   const videoRef = useRef<HTMLVideoElement>(null);
+  const commentsRef = useRef<HTMLDivElement>(null);
   const hasMedia = hasDisplayablePostMedia(post);
   const mine = me?.id === post.authorId;
 
@@ -130,6 +133,8 @@ export function PostCard({
   const correspondent = namedCorrespondentIdentity(post.author.username, {
     displayName: post.author.displayName,
   });
+  const sourceLink =
+    post.sourceUrl && !isDummyUrl(post.sourceUrl) ? post.sourceUrl : null;
   const shareUrl =
     typeof window === "undefined"
       ? `/p/${post.id}`
@@ -140,7 +145,7 @@ export function PostCard({
 
   return (
     <article className="border-b border-neutral-200 bg-white">
-      <header className="flex items-center justify-between px-3 py-2.5">
+      <header className="flex items-start justify-between gap-2 px-3 py-2.5">
         <Link href={`/u/${post.author.username}`} className="flex min-w-0 items-center gap-2">
           <Avatar profile={post.author} size={34} />
           {correspondent ? (
@@ -157,7 +162,11 @@ export function PostCard({
             </div>
           )}
         </Link>
-        {mine ? null : (
+        <div className="flex shrink-0 items-center gap-1">
+          <p className="whitespace-nowrap px-1 text-[11px] uppercase tracking-wide text-neutral-400">
+            {timeAgo(post.createdAt)}
+          </p>
+          {mine ? null : (
           <button
             type="button"
             aria-label="通報・ブロック"
@@ -169,8 +178,21 @@ export function PostCard({
           >
             <MoreIcon className="h-5 w-5" />
           </button>
-        )}
+          )}
+        </div>
       </header>
+
+      {worn || post.caption ? (
+        <div className="space-y-1 px-3 pb-2">
+          {worn ? (
+            <p className="text-xs font-medium text-neutral-700">
+              {worn.label}
+              <span className="ml-2 font-normal text-neutral-400">出典: {worn.credit}</span>
+            </p>
+          ) : null}
+          {post.caption ? <p className="text-sm">{post.caption}</p> : null}
+        </div>
+      ) : null}
 
       {hasMedia ? (
       <div className="relative bg-neutral-200">
@@ -213,58 +235,48 @@ export function PostCard({
       </div>
       ) : null}
 
+      {post.productUrl || post.discoveryProductId ? (
+        <div className="px-3 pb-2 pt-1">
+          <ProductLinkButton post={post} className="w-full" />
+        </div>
+      ) : null}
+
+      {!post.productUrl && !post.discoveryProductId && sourceLink ? (
+        <div className="px-3 pb-2 pt-1">
+          <a
+            href={sourceLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-neutral-600 underline"
+          >
+            情報源を見る
+          </a>
+        </div>
+      ) : null}
+
       <PostActions
         post={post}
         onLike={onLike}
         onWant={onWant}
-        onComment={() => setCommentsOpen(true)}
+        onComment={() =>
+          commentsRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          })
+        }
         onSave={() => void onSave()}
         onShare={() => setShareOpen(true)}
       />
 
-      <div className="px-3 pt-1">
-        <ProductLinkButton post={post} className="w-full" />
-      </div>
-
-      <div className="space-y-2 px-3 pb-3">
-        {worn ? (
-          <p className="text-xs font-medium text-neutral-700">
-            {worn.label}
-            <span className="ml-2 font-normal text-neutral-400">出典: {worn.credit}</span>
-          </p>
-        ) : null}
-        {post.caption ? (
-          <p className="text-sm">
-            <Link href={`/u/${post.author.username}`} className="font-semibold">
-              {post.author.displayName}
-            </Link>{" "}
-            {post.caption}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            setCommentsOpen(true);
-          }}
-          className="relative z-20 -mx-1 min-h-[48px] w-full touch-manipulation px-1 py-2 text-left text-sm text-neutral-500"
-        >
-          {`コメント${post.commentCount > 0 ? ` ${post.commentCount}件` : ""}を見る`}
-        </button>
-        <p className="text-[11px] uppercase tracking-wide text-neutral-400">
-          {timeAgo(post.createdAt)}
-        </p>
-      </div>
-
-      {commentsOpen ? (
-        <CommentSheet
+      <div ref={commentsRef}>
+        <PostComments
           postId={post.id}
           userId={session?.userId ?? null}
-          onClose={() => setCommentsOpen(false)}
-          onAdded={refresh}
+          onLoginRequired={() => needLogin()}
+          onCountChange={(count) => update({ ...post, commentCount: count })}
         />
-      ) : null}
+      </div>
+
       {shareOpen ? (
         <ShareSheet
           url={shareUrl}

@@ -476,13 +476,15 @@ export const localStore: Store = {
     });
   },
 
-  async addComment(postId, userId, body, parentCommentId = null) {
+  async addComment(postId, userId, body, parentCommentId = null, media = null) {
     return mutate((state) => {
       const comment: Comment = {
         id: newId(),
         userId,
         postId,
         body: body.trim(),
+        mediaUrl: media?.url ?? null,
+        mediaType: media?.type ?? null,
         parentCommentId,
         createdAt: new Date().toISOString(),
       };

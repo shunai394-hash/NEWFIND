@@ -604,6 +604,8 @@ function buildReactions(profiles: Profile[], posts: Post[]) {
         userId: user.id,
         postId: post.id,
         body: COMMENT_BODIES[(commentN + i) % COMMENT_BODIES.length]!,
+        mediaUrl: null,
+        mediaType: null,
         parentCommentId: null,
         createdAt: post.createdAt,
       });

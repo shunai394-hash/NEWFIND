@@ -1317,6 +1317,8 @@ function buildReactions(visible: Profile[], reactors: Profile[], posts: Post[]) 
         postId: post.id,
         parentCommentId: null,
         body,
+        mediaUrl: null,
+        mediaType: null,
         createdAt: post.createdAt,
       });
       commentN += 1;

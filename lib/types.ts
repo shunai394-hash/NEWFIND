@@ -82,6 +82,8 @@ export type Comment = {
   userId: string;
   postId: string;
   body: string;
+  mediaUrl: string | null;
+  mediaType: "photo" | null;
   parentCommentId: string | null;
   createdAt: string;
 };

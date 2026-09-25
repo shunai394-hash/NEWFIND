@@ -1,9 +1,10 @@
-import type { AIAction } from "./brain";
+﻿import type { AIAction } from "./brain";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listDiscoveryProductsFromDb, saveDiscoveryProductToDb } from "@/lib/discovery/db";
 import { findDuplicate, prepareDiscoveryProduct, canonicalProductUrl } from "@/lib/discovery/rules";
 import { normalizePostMedia } from "@/lib/posts/text-post";
 import { enqueueExternalPost } from "@/lib/integration/external-post-outbox";
+import { upsertInvestigation } from "@/lib/ai/investigations";
 import type {
   DiscoveryCategory,
   DiscoveryProductInput,
@@ -370,6 +371,21 @@ export async function executeAIAction(
         };
       }
 
+      const { data: existingReply } = await supabase
+        .from("comments")
+        .select("id")
+        .eq("parent_comment_id", action.parentCommentId)
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
+      if (existingReply) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "already replied to this comment" },
+        };
+      }
+
       const { data: comment, error } = await supabase
         .from("comments")
         .insert({
@@ -383,6 +399,101 @@ export async function executeAIAction(
 
       if (error) {
         throw new Error(error.message);
+      }
+
+      return {
+        executed: true,
+        action,
+        result: { comment },
+      };
+    }
+
+    case "INVESTIGATE": {
+      const supabase = createAdminClient();
+
+      const { data: parent, error: parentError } = await supabase
+        .from("comments")
+        .select("id, post_id, body")
+        .eq("id", action.parentCommentId)
+        .eq("post_id", action.postId)
+        .maybeSingle();
+
+      if (parentError) {
+        throw new Error(parentError.message);
+      }
+
+      if (!parent) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "parent comment not found" },
+        };
+      }
+
+      const { data: existingReply } = await supabase
+        .from("comments")
+        .select("id")
+        .eq("parent_comment_id", action.parentCommentId)
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
+      if (existingReply) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "already replied to this comment" },
+        };
+      }
+
+      const { data: post } = await supabase
+        .from("posts")
+        .select("caption")
+        .eq("id", action.postId)
+        .maybeSingle();
+
+      const { data: comment, error } = await supabase
+        .from("comments")
+        .insert({
+          post_id: action.postId,
+          user_id: userId,
+          body: action.text.trim(),
+          parent_comment_id: action.parentCommentId,
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const { data: personaRow } = await supabase
+        .from("ai_personas")
+        .select("id, persona_name, resident_role")
+        .eq("profile_id", userId)
+        .maybeSingle();
+
+      if (personaRow?.id) {
+        // entityKey stays pinned to the original question so future passes
+        // re-find this same investigation; commentId is deliberately the
+        // reply we just posted (not the question) so the *next* resolution
+        // pass nests its follow-up under this reply instead of colliding
+        // with the "already replied to this comment" guard above.
+        await upsertInvestigation({
+          personaId: personaRow.id,
+          profileId: userId,
+          actorName: personaRow.persona_name || "resident",
+          actorRole: personaRow.resident_role || "resident",
+          title: `Q: ${String(parent.body ?? "").slice(0, 140)}`,
+          summary: post?.caption ? String(post.caption).slice(0, 200) : null,
+          entityKey: `comment:${action.parentCommentId}`,
+          postId: action.postId,
+          commentId: comment.id,
+          decision: "INVESTIGATE_MORE",
+          qualityOk: true,
+          qualityReason: "LOW_EVIDENCE",
+        }).catch((err) => {
+          console.warn("INVESTIGATE upsertInvestigation failed", err);
+        });
       }
 
       return {

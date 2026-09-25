@@ -37,6 +37,12 @@ export type AIAction =
       text: string;
     }
   | {
+      type: "INVESTIGATE";
+      postId: string;
+      parentCommentId: string;
+      text: string;
+    }
+  | {
       type: "DISCOVER_PRODUCT";
       postId: string;
       brand: string;
@@ -157,6 +163,7 @@ export async function decideAIAction(context: string): Promise<AIAction> {
     '{"type":"LIKE","postId":"投稿ID"}',
     '{"type":"COMMENT","postId":"投稿ID","text":"コメント"}',
     '{"type":"REPLY","postId":"投稿ID","parentCommentId":"コメントID","text":"返信"}',
+    '{"type":"INVESTIGATE","postId":"投稿ID","parentCommentId":"コメントID","text":"確認する、と伝える短い返信"}',
     '{"type":"FOLLOW","profileId":"プロフィールID"}',
     '{"type":"SAVE","postId":"投稿ID"}',
     '{"type":"DISCOVER_PRODUCT","postId":"投稿ID","brand":"ブランド名","productName":"商品名","category":"fashion","subcategory":"subcategory","country":"国またはnull","description":"商品の説明","productUrl":"対象投稿に存在するURL","officialUrl":"公式URLまたはnull","currency":"USD","price":null,"attentionReason":"なぜ注目したのか","trendTags":[],"trendScore":0,"confidenceScore":0}',
@@ -176,6 +183,11 @@ export async function decideAIAction(context: string): Promise<AIAction> {
     "反応の種類は discovery / investigation / disagreement / follow-up / confirmation のいずれかとして意味を持たせる。",
     "自分が未コメントの投稿には COMMENT。コメント済みなら REPLY のみ。",
     "商品がないつぶやきにも、普通にLIKE / COMMENT / REPLYしてよい。",
+    "「実際に使った」「店で見た」「友達から聞いた」など、確認していない一人称の体験を書かない。",
+    "",
+    "INVESTIGATEは、コメントが自分（または自分の発見）への具体的な質問・反論で、今は答えを知らないが後で本当に調べられるときだけ選ぶ。",
+    "INVESTIGATEのtextは「確認してみる」のような短い一言でよい。ここで答えを捏造しない。実際の調査は次の機会に行う。",
+    "「調べてみる」と言うだけで実際には二度と調べない使い方は禁止。答えがもう分かっているならINVESTIGATEではなくREPLYを使う。",
   ].join("\n");
 
   const result = await generateAIText(prompt, {
@@ -203,7 +215,7 @@ export async function decideAIAction(context: string): Promise<AIAction> {
     if (!asNonEmpty(parsed.profileId)) return { type: "IGNORE" };
   }
 
-  if (parsed.type === "REPLY") {
+  if (parsed.type === "REPLY" || parsed.type === "INVESTIGATE") {
     if (
       !asNonEmpty(parsed.postId) ||
       !asNonEmpty(parsed.parentCommentId) ||

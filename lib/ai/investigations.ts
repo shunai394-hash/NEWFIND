@@ -123,6 +123,36 @@ export async function loadOpenInvestigations(
   }
 }
 
+/**
+ * Open investigations tied to a real comment (opened by the INVESTIGATE
+ * action in action-executor.ts) that this persona should try to resolve
+ * with a real search pass and a grounded reply. A cooldown keeps the same
+ * question from being re-attempted every cycle -- only once it's had a
+ * chance to actually find new evidence.
+ */
+export async function loadPendingCommentInvestigations(
+  personaId: string,
+  cooldownHours = 4,
+): Promise<InvestigationRecord[]> {
+  try {
+    const admin = createAdminClient();
+    const cutoff = new Date(Date.now() - cooldownHours * 3600000).toISOString();
+    const { data, error } = await admin
+      .from("ai_investigations")
+      .select("*")
+      .eq("persona_id", personaId)
+      .in("status", ["DISCOVERY", "INVESTIGATING"])
+      .not("comment_id", "is", null)
+      .lt("updated_at", cutoff)
+      .order("updated_at", { ascending: true })
+      .limit(3);
+    if (error || !data) return [];
+    return data.map((row) => mapRow(row as Record<string, unknown>));
+  } catch {
+    return [];
+  }
+}
+
 export async function loadInvestigationsForProfile(
   profileId: string,
   limit = 6,

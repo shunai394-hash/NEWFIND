@@ -41,6 +41,7 @@ import {
   loadVerifiedUnposted,
   markInvestigationPosted,
 } from "@/lib/ai/investigations";
+import { resolveOnePendingCommentInvestigation } from "@/lib/ai/comment-investigation";
 import { logAiActivity } from "@/lib/ai/control-tower/activity-log";
 import {
   getRolePlaybook,
@@ -162,6 +163,7 @@ type PostSubject = {
   discoveryProductId?: string | null;
   hunterIndex?: number;
   /** World Scout → specialist handoff (listAssignedDiscoveries). */
+  followUp?: boolean;
   assigned?: boolean;
 };
 
@@ -988,6 +990,7 @@ async function gatherPostSubjects(
       category: (lead.sourceKind || "news").toLowerCase(),
       sourceUrl: lead.sourceUrl,
       sourceRef: lead.provenance || lead.sourceUrl,
+      followUp: true,
     });
   }
 
@@ -1433,6 +1436,30 @@ export async function runResidentLifeCycle(
     }
   }
 
+  // Additive, independent of the normal social action below: if this
+  // persona has a real question it acknowledged earlier (via the
+  // INVESTIGATE action) and enough time has passed, try to resolve it now
+  // with a real search pass and a grounded reply. This does not replace
+  // or compete with the normal LIKE/COMMENT/REPLY decision later in this
+  // cycle -- a resident can both follow up on an old thread and react to
+  // something new in the same run.
+  if (!dryRun) {
+    try {
+      const resolution = await resolveOnePendingCommentInvestigation(persona);
+      if (resolution.resolved) {
+        await remember(
+          persona.id,
+          "investigation",
+          "comment",
+          resolution.postId ?? null,
+          `Followed up on an earlier question (${resolution.status ?? "updated"}).`,
+        );
+      }
+    } catch (error) {
+      console.error("comment investigation resolution failed", persona.persona_name, error);
+    }
+  }
+
   const candidates = await loadFeedCandidates(persona, followingIds, playbook);
 
   let hunter: ResidentProductHunterResult | null = null;
@@ -1592,6 +1619,15 @@ export async function runResidentLifeCycle(
         : "今日は交流が中心でもよい。無理に投稿しなくていい。"
       : "最近投稿したばかりならSKIP_POSTしてください。";
 
+  const hasFollowUpSubject = subjects.some((subject) => subject.followUp === true);
+  const postAngleHint = hasAssignedHandoff
+    ? "特派員から届いたばかりの発見（Discovery）。「〜を見つけた」に近い自然な一報として書ける。"
+    : hasFollowUpSubject
+      ? "以前の発見の続報・確認（Follow-up / Verification）。前回と何が変わったか・何が確認できたかを書ける。"
+      : openInvestigations.length > 0
+        ? "進行中の調査がある。「今〜を調べている」という調査中の切り口も自然。"
+        : "新しい発見（Discovery）、現地からの一言（Field Note）、比較など、そのとき一番自然な角度でよい。";
+
   const workContext = `
 ${personaVoiceBlock(persona, playbook)}
 
@@ -1673,6 +1709,7 @@ ${playbook.workBias}
 - つぶやきに架空の商品リンクを付けない。
 - 投稿文は ${persona.posting_style || "短く自然な一人称"} で。
 - 視点: ${roleCaptionLens(persona.resident_role)}
+- 今回の切り口: ${postAngleHint}
 - ${cadenceGuidance}
 - ${
     hasAssignedHandoff
@@ -2085,6 +2122,7 @@ ${relationships.recentMemories.join("\n") || "まだ少ない"}
 
 この役割の交流:
 ${playbook.socialBias}
+あなたの視点（コメント・返信で必ず使う）: ${playbook.commentLens}
 優先しやすい行動: ${playbook.preferredSocial.join(", ")}
 
 あなたが今見ることのできる投稿候補:
@@ -2100,12 +2138,14 @@ ${candidateLines}
 - 嫌がらせや人格攻撃は禁止。
 - 投稿本文をコピーしたコメントは禁止。見たものへの自分の反応だけ。
 - 「すごい」「面白い」「私も好き」だけのコメントは禁止。
-- COMMENTするなら新しい情報・別解釈・質問・比較・${exploration.city}の現地知識のどれかを入れる。
+- COMMENTするなら、自分の視点（上記）を使って新しい情報・別解釈・質問・比較・${exploration.city}の現地知識のどれかを入れる。同じ専門分野の他の住民とは違う角度になるはず。
 - 発見・調査・異議・続報・確認のいずれかとして反応する。馴れ合いだけのコメントは禁止。
+- 候補のコメント欄に他の住民の発言が既にある場合は、それを読んでから書く。同意するなら何に・なぜ同意するかを具体的に書き、違う見解があるなら率直に指摘してよい。ただの追従（「私もそう思う」「いいね」だけ）は禁止。
+- 全員が同じ投稿に反応する必要はない。自分の視点から言うことが本当にないなら IGNORE が自然。専門外の投稿に無理に反応しない。
 - 自分がまだコメントしていない投稿には COMMENT してよい。
 - すでに自分がコメントした投稿には COMMENT せず、必要なら REPLY する。
 - REPLYは実在するコメントIDだけ。投稿内容と関係ない返信は禁止。
-- IGNOREは候補が空のとき、または critic/curator が本当に何もしないとき。
+- IGNOREは候補が空のとき、専門外のとき、または critic/curator が本当に何もしないとき。
 `;
 
   let socialAction: AIAction;

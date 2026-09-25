@@ -1537,6 +1537,15 @@ export async function runResidentLifeCycle(
           `Followed up on an earlier question (${resolution.status ?? "updated"}).`,
         );
       }
+      if (resolution.newDiscovery) {
+        await remember(
+          persona.id,
+          "discovery",
+          "post",
+          resolution.newDiscovery.postId,
+          "A follow-up conversation turned into a new discovery.",
+        );
+      }
     } catch (error) {
       console.error("comment investigation resolution failed", persona.persona_name, error);
     }

@@ -2,7 +2,13 @@ import type { AiPersona } from "@/lib/ai-post-engine";
 import { searchWorld, type WorldSearchResult } from "@/lib/ai/world-search";
 import { generateAIText } from "@/lib/ai/groq";
 import { parseAIJson } from "@/lib/ai/brain";
-import { executeAIAction } from "@/lib/ai/action-executor";
+import { executeAIAction, publishAIProductPost } from "@/lib/ai/action-executor";
+import { evaluateProductCandidates, type ProductHunterCandidate } from "@/lib/ai/product-hunter";
+import { classifyProductMatch } from "@/lib/ai/product-identity";
+import { listDiscoveryProductsFromDb, saveDiscoveryProductToDb } from "@/lib/discovery/db";
+import { prepareDiscoveryProduct } from "@/lib/discovery/rules";
+import type { DiscoveryProductInput } from "@/lib/discovery/types";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import {
   loadPendingCommentInvestigations,
   upsertInvestigation,
@@ -14,6 +20,10 @@ type ResolveResult = {
   status?: string;
   postId?: string;
   reason?: string;
+  newDiscovery?: {
+    discoveryProductId: string;
+    postId: string;
+  };
 };
 
 function stripQuestionPrefix(title: string): string {
@@ -86,6 +96,207 @@ async function composeGroundedReply(input: {
   };
 }
 
+const CONTINUITY_LEADS = [
+  "さっきの話がきっかけで気になって調べてみたら、",
+  "あのコメントの続きで掘ってみたら、",
+  "さっきの質問から派生して探してみたら、",
+  "会話の流れで確認しがてら見てみたら、",
+];
+
+function pickContinuityLead(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return CONTINUITY_LEADS[hash % CONTINUITY_LEADS.length];
+}
+
+function candidateToConversationDiscoveryInput(
+  candidate: ProductHunterCandidate,
+  persona: AiPersona,
+  provenance: { commentId: string; postId: string; investigationEntityKey: string | null; question: string },
+): DiscoveryProductInput {
+  const now = new Date().toISOString();
+  const productImageUrl = isUsableProductImage(candidate.productImageUrl)
+    ? candidate.productImageUrl
+    : null;
+  return {
+    id: crypto.randomUUID(),
+    brand: candidate.brand,
+    productName: candidate.productName,
+    category: candidate.category,
+    subcategory: candidate.subcategory,
+    country: candidate.country,
+    description: candidate.description,
+    productImageUrl,
+    productUrl: candidate.productUrl,
+    officialUrl: candidate.officialUrl,
+    price: candidate.price,
+    currency: candidate.currency,
+    sku: candidate.sku,
+    gtin: candidate.gtin,
+    modelNumber: candidate.modelNumber,
+    launchDate: candidate.launchDate,
+    canonicalUrl: candidate.report.canonicalUrl,
+    // Conversation-derived discoveries reuse the existing discoveryReport
+    // jsonb field for provenance instead of a new migration/table: the
+    // originating comment/post/investigation stay traceable without ever
+    // being shown to the user (captions never reference raw ids).
+    discoveryReport: {
+      ...candidate.report,
+      sourceKind: "conversation",
+      sourceCommentId: provenance.commentId,
+      sourcePostId: provenance.postId,
+      sourceInvestigationEntityKey: provenance.investigationEntityKey,
+      sourceQuestion: provenance.question,
+    },
+    trendScore: candidate.trendScore,
+    confidenceScore: candidate.confidenceScore,
+    discoverySource: "ai_conversation",
+    discoveredByResidentId: persona.id,
+    discoveredAt: now,
+    attentionReason: candidate.attentionReason,
+    status: "pending",
+    trendTags: candidate.trendTags,
+    sources: [
+      {
+        id: crypto.randomUUID(),
+        sourceType: candidate.officialUrl ? "brand_official" : "other",
+        sourceUrl: candidate.productUrl,
+        sourceTitle: `${candidate.brand} - ${candidate.productName}`,
+        sourceDomain: new URL(candidate.productUrl).hostname,
+        publishedAt: candidate.launchDate,
+        sourceExcerpt: candidate.description,
+        verificationStatus: "unverified",
+        sourceTier: candidate.officialUrl ? 1 : 4,
+        createdAt: now,
+      },
+    ],
+    people: [],
+    sales: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Turns a resolved comment-investigation into a real Discovery + POST, but
+ * ONLY when the search that grounded the reply also turned up a genuinely
+ * new, verifiable product (a real product page evaluateProductCandidates
+ * could fetch and score -- not a paraphrase of the question). This is the
+ * "would this exist without this conversation?" gate: most Q&A never
+ * clears it, and that is expected -- it should end as a plain REPLY.
+ *
+ * Every step below reuses the exact pipeline World Scout discoveries use
+ * (evaluateProductCandidates -> classifyProductMatch dedup ->
+ * prepareDiscoveryProduct -> saveDiscoveryProductToDb -> publishAIProductPost),
+ * so conversation-derived discoveries land in the same feed/pipeline and
+ * meet the same quality bar, with zero schema changes.
+ */
+async function tryCreateConversationDiscovery(input: {
+  persona: AiPersona;
+  pending: InvestigationRecord;
+  question: string;
+  commentId: string;
+  results: WorldSearchResult[];
+}): Promise<{ discoveryProductId: string; postId: string } | null> {
+  if (!input.results.length) return null;
+
+  const candidates = await evaluateProductCandidates({
+    residentId: input.persona.id,
+    residentName: input.persona.persona_name,
+    personality: input.persona.personality,
+    interests: input.persona.interests ?? [],
+    preferredCategories: input.persona.preferred_categories ?? [],
+    goals: input.persona.goals ?? [],
+    expertise: input.persona.expertise ?? [],
+    values: input.persona.values ?? [],
+    region: input.persona.region,
+    languages: input.persona.languages ?? [],
+    culture: input.persona.culture,
+    huntingSpecialty: (input.persona.expertise ?? []).slice(0, 3).join(" / ") || undefined,
+    hunterUsername: input.persona.username ?? undefined,
+    results: input.results,
+  }).catch((error) => {
+    console.warn("conversation discovery candidate evaluation failed", error);
+    return [] as ProductHunterCandidate[];
+  });
+
+  const candidate = candidates.find((item) => item.origin !== "catalog");
+  if (!candidate) return null;
+
+  let existingProducts: Awaited<ReturnType<typeof listDiscoveryProductsFromDb>> = [];
+  try {
+    existingProducts = await listDiscoveryProductsFromDb({ admin: true, status: "all" });
+  } catch (error) {
+    console.warn("conversation discovery: existing products unavailable", error);
+    return null;
+  }
+
+  const match = classifyProductMatch(
+    {
+      brand: candidate.brand,
+      productName: candidate.productName,
+      sku: candidate.sku,
+      gtin: candidate.gtin,
+      modelNumber: candidate.modelNumber,
+      productUrl: candidate.productUrl,
+      officialUrl: candidate.officialUrl,
+      attentionReason: candidate.attentionReason,
+      trendTags: candidate.trendTags,
+      price: candidate.price,
+    },
+    existingProducts,
+  );
+
+  // Paraphrase / already-known material must NOT spawn a new Discovery --
+  // duplicate and rediscovery both end here, as a normal REPLY only.
+  if (match.kind !== "new") return null;
+
+  const preparedInput = candidateToConversationDiscoveryInput(candidate, input.persona, {
+    commentId: input.commentId,
+    postId: input.pending.postId ?? "",
+    investigationEntityKey: input.pending.entityKey ?? null,
+    question: input.question,
+  });
+  const prepared = prepareDiscoveryProduct(preparedInput);
+  const saved = await saveDiscoveryProductToDb(prepared);
+
+  if (!isUsableProductImage(saved.productImageUrl)) {
+    // publishAIProductPost requires a real product image; the Discovery
+    // itself is still saved (an editor/other resident can post it later),
+    // but auto-posting here would violate the existing image requirement.
+    return { discoveryProductId: saved.id, postId: "" };
+  }
+
+  const lead = pickContinuityLead(input.commentId);
+  const caption = `${lead}${candidate.productName}${
+    candidate.brand ? `（${candidate.brand}）` : ""
+  }を見つけた。${candidate.attentionReason}`.trim();
+
+  const posted = await publishAIProductPost(input.persona.profile_id, {
+    discoveryProductId: saved.id,
+    brand: candidate.brand,
+    productName: candidate.productName,
+    category: candidate.category,
+    productUrl: candidate.productUrl,
+    productImageUrl: saved.productImageUrl,
+    description: candidate.description,
+    residentName: input.persona.persona_name,
+    attentionReason: candidate.attentionReason,
+    caption,
+  }).catch((error) => {
+    console.warn("conversation discovery: publishAIProductPost failed", error);
+    return null;
+  });
+
+  if (!posted || !posted.executed || !("postId" in posted) || !posted.postId) {
+    return { discoveryProductId: saved.id, postId: "" };
+  }
+
+  return { discoveryProductId: saved.id, postId: posted.postId };
+}
+
 /**
  * Resolves ONE pending comment-triggered investigation for a persona:
  * a real search pass grounded in the original question, then a REPLY
@@ -104,6 +315,30 @@ export async function resolveOnePendingCommentInvestigation(
   const pending = pendingList[0];
   if (!pending || !pending.postId || !pending.commentId) {
     return { resolved: false };
+  }
+
+  // Runaway guard: a question that still hasn't resolved after several real
+  // search passes is closed out instead of being retried forever (bounded
+  // on top of the existing 7-day stale-investigation expiry). No extra
+  // reply is sent here -- the persona already acknowledged the question and
+  // gave its best answer on earlier passes.
+  const MAX_FOLLOW_UP_PASSES = 4;
+  if (pending.evidenceCount >= MAX_FOLLOW_UP_PASSES) {
+    await upsertInvestigation({
+      personaId: persona.id,
+      profileId: persona.profile_id,
+      actorName: persona.persona_name,
+      actorRole: persona.resident_role || "resident",
+      title: pending.title,
+      summary: pending.summary,
+      entityKey: pending.entityKey ?? `comment:${pending.commentId}`,
+      postId: pending.postId,
+      commentId: pending.commentId,
+      decision: "IGNORE",
+      qualityOk: true,
+      qualityReason: "MAX_FOLLOW_UP_REACHED",
+    }).catch(() => undefined);
+    return { resolved: false, reason: "max follow-up passes reached" };
   }
 
   const question = stripQuestionPrefix(pending.title);
@@ -199,5 +434,25 @@ export async function resolveOnePendingCommentInvestigation(
     qualityReason: answer.found ? undefined : "LOW_EVIDENCE",
   });
 
-  return { resolved: true, status: advanced.status, postId: pending.postId };
+  // Only a confidently grounded, found answer is even worth checking for a
+  // new Discovery -- everything else (unfound / low-confidence) stays a
+  // plain REPLY, matching the "not every reply spawns a post" guard.
+  let newDiscovery: ResolveResult["newDiscovery"];
+  if (answer.found && answer.confidence >= 55 && pending.postId) {
+    const created = await tryCreateConversationDiscovery({
+      persona,
+      pending,
+      question,
+      commentId: newCommentId,
+      results,
+    }).catch((error) => {
+      console.warn("conversation-derived discovery failed", error);
+      return null;
+    });
+    if (created && created.postId) {
+      newDiscovery = { discoveryProductId: created.discoveryProductId, postId: created.postId };
+    }
+  }
+
+  return { resolved: true, status: advanced.status, postId: pending.postId, newDiscovery };
 }

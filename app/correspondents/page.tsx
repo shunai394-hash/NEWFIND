@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listCorrespondentDirectory } from "@/lib/ai/correspondent-identity";
 import { lookupNamedWorldResident } from "@/lib/ai/named-world-residents";
+import { loadCorrespondentActivityByUsername } from "@/lib/ai/correspondent-activity";
 import { Avatar } from "@/components/avatar";
 import { MarketplaceCorrespondentBoard } from "@/components/marketplace-correspondent-board";
 
@@ -11,8 +12,9 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default function CorrespondentsPage() {
+export default async function CorrespondentsPage() {
   const directory = listCorrespondentDirectory();
+  const activity = await loadCorrespondentActivityByUsername();
 
   return (
     <div className="bg-white px-5 py-8 text-black">
@@ -36,6 +38,7 @@ export default function CorrespondentsPage() {
             <ul className="mt-3 space-y-2">
               {group.correspondents.map((identity) => {
                 const named = lookupNamedWorldResident(identity.username);
+                const status = activity.get(identity.username);
                 return (
                   <li key={identity.username}>
                     <Link
@@ -49,12 +52,24 @@ export default function CorrespondentsPage() {
                         }}
                         size={42}
                       />
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold">{identity.displayName}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold">{identity.displayName}</p>
+                          {status ? (
+                            <span className="shrink-0 rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white">
+                              {status.label}
+                            </span>
+                          ) : null}
+                        </div>
                         <p className="text-[12px] text-neutral-600">{identity.title}</p>
                         <p className="mt-1 text-[11px] text-neutral-400">
                           {identity.specialties.join(" / ")}
                         </p>
+                        {status ? (
+                          <p className="mt-1 line-clamp-1 text-[11px] text-neutral-500">
+                            {status.title}
+                          </p>
+                        ) : null}
                       </div>
                     </Link>
                   </li>

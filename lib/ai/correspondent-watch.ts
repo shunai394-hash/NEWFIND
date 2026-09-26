@@ -308,6 +308,7 @@ export async function watchWorldForResident(
       snippet: result.snippet,
       sourceType: result.sourceType,
       domain: result.domain,
+      imageUrl: result.imageUrl ?? null,
       publishedAt: result.publishedAt ?? null,
       scores,
       decision: decision.decision,

@@ -168,7 +168,7 @@ function diversifyProductSources(results: WorldSearchResult[], maxPerDomain = 3)
       result.domain ||
       (() => {
         try {
-          return new URL(result.url).hostname.replace(/^www\\./, "").toLowerCase();
+          return new URL(result.url).hostname.replace(/^www\./, "").toLowerCase();
         } catch {
           return "";
         }

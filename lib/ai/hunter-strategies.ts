@@ -510,7 +510,10 @@ export function preferredSearchDomains(strategy: HunterStrategy | null): string[
       continue;
     }
     for (const [token, hosts] of Object.entries(SOURCE_DOMAIN_MAP)) {
-      if (trimmed.includes(token)) {
+      // Generic descriptors such as "muji-like pdp" must not resolve to the
+      // actual MUJI domain. Only explicit source names (or "source product"
+      // style suffixes) are allowed to map to a concrete host.
+      if (trimmed === token || trimmed.startsWith(token + " ")) {
         for (const host of hosts) domains.add(host);
       }
     }

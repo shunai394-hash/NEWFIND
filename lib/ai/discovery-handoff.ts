@@ -145,7 +145,7 @@ export async function listAssignedDiscoveries(personaId: string) {
   const { data, error } = await admin
     .from("discovery_products")
     .select(
-      "id, brand, product_name, category, product_url, official_url, product_image_url, description, status",
+      "id, brand, product_name, category, product_url, official_url, product_image_url, description, status, discovery_source, confidence_score, trend_score, attention_reason",
     )
     .eq("assigned_resident_id", personaId)
     .in("status", ["draft", "pending"])

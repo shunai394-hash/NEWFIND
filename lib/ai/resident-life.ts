@@ -970,11 +970,13 @@ async function gatherPostSubjects(
       if (dispatch.decision !== "POST") continue;
       if (dispatch.infoKind === "PRODUCT") continue;
       if (!isHttpUrl(dispatch.url)) continue;
+      if (!isUsableProductImage(dispatch.imageUrl ?? null)) continue;
       subjects.push({
         id: String(n++),
         kind: "world",
         label: `${dispatch.dispatchKind} ${dispatch.title}`.slice(0, 80),
         category: dispatch.infoKind.toLowerCase(),
+        mediaUrl: dispatch.imageUrl ?? null,
         sourceUrl: dispatch.url,
         sourceRef: dispatch.provenance,
       });

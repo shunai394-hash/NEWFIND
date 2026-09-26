@@ -84,13 +84,13 @@ function pickResidentsToAct(
   if (mode === "product_hunter") {
     const hunters = personas
       .filter((persona) => persona.resident_role === "product_hunter")
-      .sort((a, b) => dueStamp(a) - dueStamp(b));
-    const priority = hunters.filter((persona) => priorityPersonaIds.has(persona.id));
-    const dueRest = hunters.filter(
-      (persona) =>
-        !priorityPersonaIds.has(persona.id) && isDue(persona),
-    );
-    return [...priority, ...dueRest].slice(0, Math.max(1, Math.min(limit, 6)));
+      .filter((persona) => isDue(persona))
+      .sort((a, b) => {
+        const aPriority = priorityPersonaIds.has(a.id) ? 0 : 1;
+        const bPriority = priorityPersonaIds.has(b.id) ? 0 : 1;
+        return aPriority - bPriority || dueStamp(a) - dueStamp(b);
+      });
+    return hunters.slice(0, Math.max(1, Math.min(limit, 6)));
   }
 
   const featuredNames = new Set(

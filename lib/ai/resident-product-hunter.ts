@@ -455,7 +455,21 @@ export async function runResidentProductHunter(
   });
   markPipelineEvent(trace, "SEARCH_STARTED");
 
-  const assignedTracerDecisions = await processAssignedTracerDiscoveries(persona, options);
+  let assignedTracerDecisions: Array<{
+    product: string;
+    decision: string;
+    reason: string;
+  }> = [];
+  try {
+    assignedTracerDecisions = await processAssignedTracerDiscoveries(persona, options);
+  } catch (error) {
+    // TRACER handoff processing is additive. A stale/missing investigation
+    // must never prevent the resident from doing its normal world search.
+    console.warn(
+      `[AI PRODUCT HUNTER] TRACER handoff processing failed for ${persona.persona_name}; continuing normal hunt`,
+      error,
+    );
+  }
 
   let searched: WorldSearchResult[][];
   try {

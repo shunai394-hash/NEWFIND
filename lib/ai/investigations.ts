@@ -394,11 +394,15 @@ export async function upsertInvestigation(
       qualityReason: input.qualityReason,
       known: input.known,
     });
+    // Persistence failure is not a successful investigation result.
+    // Never let a computed VERIFIED/shouldPost decision escape when the
+    // database write did not actually succeed; otherwise the resident can
+    // publish an unpersisted investigation repeatedly on later patrols.
     return {
       record: previous,
-      status: fallback.status,
-      shouldPost: fallback.shouldPost,
-      nextAction: fallback.nextAction,
+      status: previous?.status ?? "DISCOVERY",
+      shouldPost: false,
+      nextAction: "retry persistence",
     };
   }
 }

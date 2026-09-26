@@ -11,6 +11,7 @@ import { fetchDiscoveryList } from "@/lib/discovery/client-api";
 import { isJapanProduct } from "@/lib/discovery/product-signals";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { filterDiscoveryPosts } from "@/lib/products/discovery-filter";
+import { productIdentityKey } from "@/lib/ai/product-identity";
 import { getStore } from "@/lib/store";
 import { type CategoryId, type PostView, type Profile } from "@/lib/types";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
@@ -18,6 +19,7 @@ import type { DiscoveryProduct } from "@/lib/discovery/types";
 type Tab = "products" | "search" | "posts";
 
 const PAGE_SIZE = 24;
+const DISCOVER_PRODUCTS_PER_CATEGORY = 12;
 
 export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) {
   const { session } = useApp();
@@ -50,6 +52,40 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
       .catch(() => setCatalog([]));
   }, []);
 
+  const discoverProducts = useMemo(() => {
+    const filtered = catalog.filter((item) => {
+      if (category === "fashion") return item.category === "fashion" || item.trendTags.includes("teen");
+      if (category === "beauty") return item.category === "beauty";
+      if (category === "accessories") return item.category === "accessories";
+      if (category === "fragrance") return item.category === "fragrance";
+      if (category === "japan_brands") {
+        return isJapanProduct(item) || item.trendTags.includes("japan_trend");
+      }
+      if (category === "celebrity") {
+        return item.category === "celebrity_style" || item.people.length > 0;
+      }
+      return true;
+    });
+
+    // 商品タブはカタログ全件をSearchと共有せず、各カテゴリの上位だけを
+    // Discover専用の「発見枠」にする。Searchはこの枠を避けて別の商品を返す。
+    const seen = new Set<string>();
+    return filtered
+      .sort((a, b) => b.trendScore - a.trendScore || b.confidenceScore - a.confidenceScore)
+      .filter((item) => {
+        const identity = productIdentityKey(item);
+        if (seen.has(identity)) return false;
+        seen.add(identity);
+        return true;
+      })
+      .slice(0, DISCOVER_PRODUCTS_PER_CATEGORY);
+  }, [category, catalog]);
+
+  const discoverProductIdentities = useMemo(
+    () => new Set(discoverProducts.map((item) => productIdentityKey(item))),
+    [discoverProducts],
+  );
+
   const shownProducts = useMemo(() => {
     const products = catalog;
     if (tab === "search") {
@@ -59,8 +95,14 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
       // when the search box is empty; otherwise Search becomes a duplicate of 商品.
       if (!q) return [];
 
-      return products.filter((item) =>
-        [
+      const seen = new Set<string>();
+      return products.filter((item) => {
+        // Avoid showing the same product in both the current Discover collection
+        // and Search. Identity matching also catches duplicate rows with different IDs.
+        const identity = productIdentityKey(item);
+        if (discoverProductIdentities.has(identity) || seen.has(identity)) return false;
+
+        const haystack = [
           item.productName,
           item.brand,
           item.description,
@@ -74,25 +116,16 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
         ]
           .filter(Boolean)
           .join(" ")
-          .toLowerCase()
-          .includes(q),
-      );
+          .toLowerCase();
+
+        if (!haystack.includes(q)) return false;
+        seen.add(identity);
+        return true;
+      });
     }
     if (tab !== "products") return [];
-    return products.filter((item) => {
-      if (category === "fashion") return item.category === "fashion" || item.trendTags.includes("teen");
-      if (category === "beauty") return item.category === "beauty";
-      if (category === "accessories") return item.category === "accessories";
-      if (category === "fragrance") return item.category === "fragrance";
-      if (category === "japan_brands") {
-        return isJapanProduct(item) || item.trendTags.includes("japan_trend");
-      }
-      if (category === "celebrity") {
-        return item.category === "celebrity_style" || item.people.length > 0;
-      }
-      return true;
-    });
-  }, [tab, query, category, catalog]);
+    return discoverProducts;
+  }, [tab, query, catalog, discoverProducts, discoverProductIdentities]);
 
   const paginatedTab = tab === "posts";
 

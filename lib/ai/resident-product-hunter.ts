@@ -156,6 +156,47 @@ function mergeSearchResults(groups: WorldSearchResult[][]) {
   return [...unique.values()];
 }
 
+function diversifyProductSources(results: WorldSearchResult[], maxPerDomain = 3) {
+  const domainCounts = new Map<string, number>();
+  const out: WorldSearchResult[] = [];
+
+  // Search providers often return several PDPs from the same retailer or
+  // brand site at the top. Keep those results available for audit/history,
+  // but do not let one domain occupy the entire hunter evaluation funnel.
+  for (const result of results) {
+    const domain =
+      result.domain ||
+      (() => {
+        try {
+          return new URL(result.url).hostname.replace(/^www\\./, "").toLowerCase();
+        } catch {
+          return "";
+        }
+      })();
+    const count = domainCounts.get(domain) ?? 0;
+    if (domain && count >= maxPerDomain) continue;
+    if (domain) domainCounts.set(domain, count + 1);
+    out.push(result);
+  }
+
+  return out;
+}
+
+function diversifyCandidatesByBrand(
+  candidates: ProductHunterCandidate[],
+  maxPerBrand = 2,
+) {
+  const brandCounts = new Map<string, number>();
+  return candidates.filter((candidate) => {
+    const brand = (candidate.brand || "").trim().toLowerCase();
+    if (!brand) return true;
+    const count = brandCounts.get(brand) ?? 0;
+    if (count >= maxPerBrand) return false;
+    brandCounts.set(brand, count + 1);
+    return true;
+  });
+}
+
 function candidateToDiscoveryInput(
   candidate: ProductHunterCandidate,
   residentId: string,
@@ -555,7 +596,7 @@ export async function runResidentProductHunter(
   }
 
   const newsSignals = sharedWorldNews.filter(isNewsSignal);
-  const productSources = productResults.filter((result) => {
+  const productSources = diversifyProductSources(productResults.filter((result) => {
     if (!isProductSource(result)) return false;
     const key = result.url.replace(/\/$/, "").toLowerCase();
     if (recentUrlSet.has(key)) {
@@ -575,7 +616,7 @@ export async function runResidentProductHunter(
       return false;
     }
     return true;
-  });
+  }), 3);
   trace.funnel.specialtyPass = productSources.length;
   const searchResults = [...newsSignals, ...productSources];
   const searchQuery = huntQueries.map((item) => item.query).join(" || ");
@@ -611,7 +652,7 @@ export async function runResidentProductHunter(
     explorationAxis: options?.exploration?.axis,
   };
 }
-  const candidates = await evaluateProductCandidates({
+  const evaluatedCandidates = await evaluateProductCandidates({
     residentId: persona.id,
     residentName: persona.persona_name,
     personality: persona.personality,
@@ -627,6 +668,7 @@ export async function runResidentProductHunter(
     hunterUsername: persona.username ?? undefined,
     results: searchResults,
   });
+  const candidates = diversifyCandidatesByBrand(evaluatedCandidates, 2);
   const savedProductIds: string[] = [];
   const discoveries: ResidentProductHunterDiscovery[] = [];
   const decisions: Array<{ product: string; decision: string; reason: string }> = [];

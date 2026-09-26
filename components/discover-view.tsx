@@ -54,9 +54,25 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
     const products = catalog;
     if (tab === "search") {
       const q = query.trim().toLowerCase();
-      if (!q) return products;
+
+      // Search is query-driven. Do not expose the entire Discover product catalog
+      // when the search box is empty; otherwise Search becomes a duplicate of 商品.
+      if (!q) return [];
+
       return products.filter((item) =>
-        [item.productName, item.brand, item.description, ...item.people.map((person) => person.personName)]
+        [
+          item.productName,
+          item.brand,
+          item.description,
+          item.category,
+          item.subcategory,
+          item.country,
+          item.productUrl,
+          item.officialUrl,
+          ...item.trendTags,
+          ...item.people.map((person) => person.personName),
+        ]
+          .filter(Boolean)
           .join(" ")
           .toLowerCase()
           .includes(q),
@@ -247,7 +263,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
             </section>
           ) : null}
 
-          {(tab === "products" || tab === "search") && shownProducts.length > 0 ? (
+          {(tab === "products" || (tab === "search" && query.trim())) && shownProducts.length > 0 ? (
             <section>
               <p className="mb-2 px-3 pt-3 text-xs font-semibold text-neutral-400">商品</p>
               <div className="grid grid-cols-2 gap-px bg-neutral-200">

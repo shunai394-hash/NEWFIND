@@ -17,7 +17,7 @@ import type { EngineRunType, EngineTrigger } from "@/lib/ai/control-tower/types"
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 import { listAssignedDiscoveryResidentIds } from "@/lib/ai/discovery-handoff";
 
-const DEFAULT_ACT_LIMIT = 8;
+const DEFAULT_ACT_LIMIT = 12;
 
 export type AiEngineMode = "ai_engine" | "world_scout" | "product_hunter";
 
@@ -71,7 +71,7 @@ function pickResidentsToAct(
     return personas
       .filter((persona) => persona.resident_role === "world_scout")
       .sort((a, b) => dueStamp(a) - dueStamp(b))
-      .slice(0, Math.max(1, Math.min(limit, 3)));
+      .slice(0, Math.max(1, Math.min(limit, 4)));
   }
   if (mode === "product_hunter") {
     const hunters = personas
@@ -79,7 +79,7 @@ function pickResidentsToAct(
       .sort((a, b) => dueStamp(a) - dueStamp(b));
     const priority = hunters.filter((persona) => priorityPersonaIds.has(persona.id));
     const rest = hunters.filter((persona) => !priorityPersonaIds.has(persona.id));
-    return [...priority, ...rest].slice(0, Math.max(1, Math.min(limit, 4)));
+    return [...priority, ...rest].slice(0, Math.max(1, Math.min(limit, 6)));
   }
 
   const featuredNames = new Set(

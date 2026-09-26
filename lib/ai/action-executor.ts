@@ -212,6 +212,50 @@ export async function executeAIAction(
         };
       }
 
+      // AI resident posts must not repost the same product on a short cadence.
+      // The patrol can revisit the same catalog/discovery item; guard at write time too.
+      if (productUrl) {
+        const { data: recentProductPosts, error: recentProductError } = await supabase
+          .from("posts")
+          .select("id")
+          .eq("author_id", userId)
+          .eq("product_url", productUrl)
+          .gte("created_at", new Date(Date.now() - 48 * 36e5).toISOString())
+          .limit(1);
+
+        if (recentProductError) {
+          throw new Error(recentProductError.message);
+        }
+        if (recentProductPosts?.length) {
+          return {
+            executed: false,
+            action,
+            result: { reason: "same product posted recently", duplicate: true },
+          };
+        }
+      }
+
+      if (action.discoveryProductId?.trim()) {
+        const { data: recentDiscoveryPosts, error: recentDiscoveryError } = await supabase
+          .from("posts")
+          .select("id")
+          .eq("author_id", userId)
+          .eq("discovery_product_id", action.discoveryProductId.trim())
+          .gte("created_at", new Date(Date.now() - 48 * 36e5).toISOString())
+          .limit(1);
+
+        if (recentDiscoveryError && !/discovery_product_id|schema cache|42703/i.test(recentDiscoveryError.message)) {
+          throw new Error(recentDiscoveryError.message);
+        }
+        if (recentDiscoveryPosts?.length) {
+          return {
+            executed: false,
+            action,
+            result: { reason: "same discovery posted recently", duplicate: true },
+          };
+        }
+      }
+
       const payload: Record<string, unknown> = {
         author_id: userId,
         media_type: media.mediaType,

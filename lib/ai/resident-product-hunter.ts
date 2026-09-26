@@ -97,8 +97,7 @@ function marketplaceHuntAsHunterResult(
       price: candidate.price,
       sku: candidate.sku,
       gtin: candidate.gtin,
-      modelNumber: candidate.asin || candidate.epid,
-      launchDate: null,
+      modelNumber: candidate.asin || candidate.epid,      launchDate: null,
       attentionReason: item.evaluation.whyNow,
       trendTags: [],
       trendScore: item.evaluation.scores.demandConfidence,
@@ -197,8 +196,10 @@ function candidateToDiscoveryInput(
     discoverySource: "ai",
     discoveredByResidentId: residentId,
     discoveredAt: now,
-    attentionReason: candidate.attentionReason,
-    status: "pending",
+    attentionReason: candidate.attentionReason,    // AIが実際の商品ページ・画像・一次ソースまで確認できた商品は、
+    // pendingで止めずDiscover公開対象にする。pendingのままだと公開Discoverは
+    // editorialの固定シードだけになり、同じブランドの商品が占有してしまう。
+    status: productImageUrl && candidate.productUrl ? "approved" : "pending",
     trendTags: tags,
     sources: [
       {
@@ -215,7 +216,23 @@ function candidateToDiscoveryInput(
       },
     ],
     people: [],
-    sales: [],
+    sales: candidate.productUrl
+      ? [
+          {
+            id: crypto.randomUUID(),
+            sellerName: candidate.officialUrl ? candidate.brand : "Source product page",
+            productUrl: candidate.productUrl,
+            price: candidate.price,
+            currency: candidate.currency,
+            availability: "unknown",
+            officialStore: Boolean(candidate.officialUrl),
+            sellerKind: candidate.officialUrl ? "official" : "retailer",
+            affiliateUrl: null,
+            lastVerifiedAt: now,
+            createdAt: now,
+          },
+        ]
+      : [],
     createdAt: now,
     updatedAt: now,
   };
@@ -297,8 +314,7 @@ async function processAssignedTracerDiscoveries(
     await upsertInvestigation({
       personaId: persona.id,
       profileId: persona.profile_id ?? null,
-      actorName: persona.persona_name,
-      actorRole: persona.resident_role || "product_hunter",
+      actorName: persona.persona_name,      actorRole: persona.resident_role || "product_hunter",
       title: productName,
       summary:
         String(product.attention_reason ?? "") ||
@@ -397,8 +413,7 @@ export async function runResidentProductHunter(
     goals: persona.goals ?? [],
     expertise: persona.expertise ?? [],
     values: persona.values ?? [],
-    country: persona.country_code || persona.region || null,
-    language: persona.languages?.[0],
+    country: persona.country_code || persona.region || null,    language: persona.languages?.[0],
     favoriteBrands: persona.favorite_brands ?? [],
     region: persona.region,
     discoveryKeywords: specialist?.discoveryKeywords ?? persona.interests ?? [],
@@ -497,8 +512,7 @@ export async function runResidentProductHunter(
     }
     return emptyHunter({
       funnelSummary: funnelSummary(trace.funnel),
-      decisions: [{ product: "none", decision: "WAIT", reason: message }],
-    });
+      decisions: [{ product: "none", decision: "WAIT", reason: message }],    });
   }
 
   let productResults = mergeSearchResults(searched);
@@ -597,7 +611,6 @@ export async function runResidentProductHunter(
     explorationAxis: options?.exploration?.axis,
   };
 }
-
   const candidates = await evaluateProductCandidates({
     residentId: persona.id,
     residentName: persona.persona_name,
@@ -697,8 +710,7 @@ export async function runResidentProductHunter(
         name: persona.persona_name,
         username: persona.username,
         role: persona.resident_role,
-        values: persona.values,
-        interests: persona.interests,
+        values: persona.values,        interests: persona.interests,
         expertise: persona.expertise,
         huntingSpecialty,
         countryCode: persona.country_code,
@@ -797,8 +809,7 @@ export async function runResidentProductHunter(
       actorName: trace.actorName,
       actorRole: "product_hunter",
       action: savedProductIds.length ? "candidate_found" : "no_action",
-      detail: funnelSummary(trace.funnel),
-      relatedProductId: savedProductIds[0] ?? null,
+      detail: funnelSummary(trace.funnel),      relatedProductId: savedProductIds[0] ?? null,
       metadata: {
         funnel: trace.funnel,
         events: trace.events,
@@ -825,4 +836,3 @@ export async function runResidentProductHunter(
     explorationAxis: options?.exploration?.axis,
   };
 }
-

@@ -78,6 +78,7 @@ export type WorldDispatch = {
   snippet: string;
   sourceType: string;
   domain: string;
+  imageUrl?: string | null;
   publishedAt: string | null;
   scores: WorldSignalScores;
   decision: ResidentChoice;

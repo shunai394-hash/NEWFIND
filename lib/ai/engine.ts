@@ -29,7 +29,12 @@ export type AiEngineRequest = {
 
 function dueStamp(persona: AiPersona): number {
   const parsed = Date.parse(persona.next_action_at || "");
-  return Number.isFinite(parsed) ? parsed : Date.now();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function isDue(persona: AiPersona, now = Date.now()): boolean {
+  const parsed = Date.parse(persona.next_action_at || "");
+  return !Number.isFinite(parsed) || parsed <= now;
 }
 
 function pickByRole(personas: AiPersona[], limit: number): AiPersona[] {
@@ -69,7 +74,10 @@ function pickResidentsToAct(
 ): AiPersona[] {
   if (mode === "world_scout") {
     return personas
-      .filter((persona) => persona.resident_role === "world_scout")
+      .filter(
+        (persona) =>
+          persona.resident_role === "world_scout" && isDue(persona),
+      )
       .sort((a, b) => dueStamp(a) - dueStamp(b))
       .slice(0, Math.max(1, Math.min(limit, 4)));
   }
@@ -78,8 +86,11 @@ function pickResidentsToAct(
       .filter((persona) => persona.resident_role === "product_hunter")
       .sort((a, b) => dueStamp(a) - dueStamp(b));
     const priority = hunters.filter((persona) => priorityPersonaIds.has(persona.id));
-    const rest = hunters.filter((persona) => !priorityPersonaIds.has(persona.id));
-    return [...priority, ...rest].slice(0, Math.max(1, Math.min(limit, 6)));
+    const dueRest = hunters.filter(
+      (persona) =>
+        !priorityPersonaIds.has(persona.id) && isDue(persona),
+    );
+    return [...priority, ...dueRest].slice(0, Math.max(1, Math.min(limit, 6)));
   }
 
   const featuredNames = new Set(
@@ -92,24 +103,39 @@ function pickResidentsToAct(
     MARKETPLACE_RESIDENTS.map((resident) => resident.personaName),
   );
   const featured = personas
-    .filter((persona) => featuredNames.has(persona.persona_name))
+    .filter(
+      (persona) =>
+        featuredNames.has(persona.persona_name) && isDue(persona),
+    )
     .sort((a, b) => dueStamp(a) - dueStamp(b));
   const scouts = personas
-    .filter((persona) => persona.resident_role === "world_scout")
+    .filter(
+      (persona) =>
+        persona.resident_role === "world_scout" && isDue(persona),
+    )
     .sort((a, b) => dueStamp(a) - dueStamp(b));
   const specialists = personas
-    .filter((persona) => specialistNames.has(persona.persona_name))
+    .filter(
+      (persona) =>
+        specialistNames.has(persona.persona_name) && isDue(persona),
+    )
     .sort((a, b) => dueStamp(a) - dueStamp(b));
   const marketplace = personas
-    .filter((persona) => marketplaceNames.has(persona.persona_name))
+    .filter(
+      (persona) =>
+        marketplaceNames.has(persona.persona_name) && isDue(persona),
+    )
     .sort((a, b) => dueStamp(a) - dueStamp(b));
-  const rest = personas.filter(
-    (persona) =>
-      !featuredNames.has(persona.persona_name) &&
-      !specialistNames.has(persona.persona_name) &&
-      !marketplaceNames.has(persona.persona_name) &&
-      persona.resident_role !== "world_scout",
-  );
+  const rest = personas
+    .filter(
+      (persona) =>
+        !featuredNames.has(persona.persona_name) &&
+        !specialistNames.has(persona.persona_name) &&
+        !marketplaceNames.has(persona.persona_name) &&
+        persona.resident_role !== "world_scout" &&
+        isDue(persona),
+    )
+    .sort((a, b) => dueStamp(a) - dueStamp(b));
 
   const picked = [...featured.slice(0, 3)];
   if (scouts[0] && !picked.some((row) => row.id === scouts[0].id)) {

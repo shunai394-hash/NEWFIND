@@ -246,7 +246,7 @@ async function processAssignedTracerDiscoveries(
     region: persona.region,
     languages: persona.languages,
   });
-  const decisions: Array<{ product: string; decision: string; reason: string }> = [...assignedTracerDecisions];
+  const decisions: Array<{ product: string; decision: string; reason: string }> = [];
 
   for (const product of tracerProducts) {
     const brand = String(product.brand ?? "Unknown");

@@ -140,6 +140,28 @@ export async function assignDiscoveryToResident(input: {
   return { personaId: chosen.id, personaName: chosen.persona_name };
 }
 
+export async function listAssignedDiscoveryResidentIds(): Promise<Set<string>> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("discovery_products")
+    .select("assigned_resident_id")
+    .not("assigned_resident_id", "is", null)
+    .in("status", ["draft", "pending"]);
+
+  if (error) {
+    if (/assigned_resident_id|42703/i.test(error.message)) {
+      return new Set();
+    }
+    throw new Error(error.message);
+  }
+
+  return new Set(
+    (data ?? [])
+      .map((row) => row.assigned_resident_id)
+      .filter((id): id is string => Boolean(id)),
+  );
+}
+
 export async function listAssignedDiscoveries(personaId: string) {
   const admin = createAdminClient();
   const { data, error } = await admin

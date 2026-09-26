@@ -319,6 +319,39 @@ export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
         throw new Error("Existing discovery product not found: " + existing.id);
       }
 
+      // A previous weak discovery may have been saved as pending. If a later
+      // discovery has a usable image/source/sales page and is approved, promote
+      // the existing canonical product instead of silently keeping it invisible.
+      if (
+        input.status === "approved" &&
+        isUsableProductImage(input.productImageUrl) &&
+        input.sources.length > 0 &&
+        input.sales.length > 0
+      ) {
+        const { error: promoteError } = await supabase
+          .from("discovery_products")
+          .update({
+            status: "approved",
+            product_image_url: input.productImageUrl,
+            official_url: input.officialUrl,
+            confidence_score: input.confidenceScore ?? existingProduct.confidenceScore,
+            trend_score: input.trendScore ?? existingProduct.trendScore,
+            attention_reason: input.attentionReason ?? existingProduct.attentionReason,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+
+        if (promoteError) throw new Error(promoteError.message);
+
+        console.log(
+          "DISCOVERY: promoted existing product:",
+          input.productUrl,
+          "existingId:",
+          existing.id,
+        );
+        return (await getDiscoveryProductFromDb(existing.id, true)) ?? existingProduct;
+      }
+
       console.log(
         "DISCOVERY: duplicate product skipped:",
         input.productUrl,

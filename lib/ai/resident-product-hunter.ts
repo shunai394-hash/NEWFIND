@@ -43,6 +43,9 @@ import {
   type NewfindMarketplaceHuntResult,
 } from "@/lib/marketplace/newfind";
 import { emptyDiscoveryReport } from "@/lib/ai/discovery-report";
+import { listAssignedDiscoveries } from "@/lib/ai/discovery-handoff";
+import { loadOpenInvestigations, upsertInvestigation } from "@/lib/ai/investigations";
+import { productIdentityKey } from "@/lib/ai/product-identity";
 import type { ExplorationQuest } from "@/lib/ai/today-exploration";
 
 export type ResidentProductHunterDiscovery = {
@@ -218,6 +221,105 @@ function candidateToDiscoveryInput(
   };
 }
 
+async function processAssignedTracerDiscoveries(
+  persona: AiPersona,
+  options?: { selfState?: SelfState | null; experiences?: Experience[] },
+): Promise<Array<{ product: string; decision: string; reason: string }>> {
+  const assigned = await listAssignedDiscoveries(persona.id);
+  const tracerProducts = assigned.filter((product) => product.discovery_source === "tracer");
+  if (tracerProducts.length === 0) return [];
+
+  const openInvestigations = await loadOpenInvestigations(persona.id);
+  const huntingSpecialty =
+    getSpecialistHunterByUsername(persona.username)?.huntingSpecialty ||
+    (persona.expertise ?? []).slice(0, 3).join(" / ") ||
+    undefined;
+  const state = options?.selfState ?? buildSelfState({
+    name: persona.persona_name,
+    username: persona.username,
+    role: persona.resident_role,
+    values: persona.values,
+    interests: persona.interests,
+    expertise: persona.expertise,
+    huntingSpecialty,
+    countryCode: persona.country_code,
+    region: persona.region,
+    languages: persona.languages,
+  });
+  const decisions: Array<{ product: string; decision: string; reason: string }> = [...assignedTracerDecisions];
+
+  for (const product of tracerProducts) {
+    const brand = String(product.brand ?? "Unknown");
+    const productName = String(product.product_name ?? "");
+    const identity = productIdentityKey({
+      brand,
+      productName,
+      productUrl: product.product_url,
+      officialUrl: product.official_url,
+    });
+    const existing = openInvestigations.find(
+      (item) => item.productId === String(product.id) || item.entityKey === identity,
+    );
+    if (!existing) continue;
+
+    const decision = decideTowardProduct({
+      persona: {
+        name: persona.persona_name,
+        username: persona.username,
+        role: persona.resident_role,
+        values: persona.values,
+        interests: persona.interests,
+        expertise: persona.expertise,
+        huntingSpecialty,
+        countryCode: persona.country_code,
+        region: persona.region,
+        languages: persona.languages,
+      },
+      state,
+      product: {
+        brand,
+        productName,
+        url: product.product_url,
+        category: String(product.category ?? "other"),
+        description: String(product.description ?? ""),
+        evidenceScore: Number(product.confidence_score ?? 0),
+        origin: "tracer",
+        officialUrl: product.official_url,
+      },
+      experiences: options?.experiences,
+    });
+    decisions.push({
+      product: `${brand} ${productName}`.trim(),
+      decision: decision.decision,
+      reason: decision.reasonSummary,
+    });
+
+    await upsertInvestigation({
+      personaId: persona.id,
+      profileId: persona.profile_id ?? null,
+      actorName: persona.persona_name,
+      actorRole: persona.resident_role || "product_hunter",
+      title: productName,
+      summary:
+        String(product.attention_reason ?? "") ||
+        String(product.description ?? "") ||
+        `TRACER candidate for ${brand} ${productName}`,
+      beat: String(product.category ?? "other"),
+      sourceUrl: product.official_url || product.product_url,
+      sourceTitle: productName,
+      sourceKind: "tracer_product_candidate",
+      entityKey: identity,
+      productId: String(product.id),
+      evidenceCount: 1,
+      confidence: Number(product.confidence_score ?? 0),
+      decision: decision.decision,
+      qualityOk: true,
+    });
+  }
+
+  return decisions;
+}
+
 export async function runResidentProductHunter(
   persona: AiPersona,
   sharedWorldNews: WorldSearchResult[] = [],
@@ -353,6 +455,8 @@ export async function runResidentProductHunter(
   });
   markPipelineEvent(trace, "SEARCH_STARTED");
 
+  const assignedTracerDecisions = await processAssignedTracerDiscoveries(persona, options);
+
   let searched: WorldSearchResult[][];
   try {
     searched = await Promise.all(
@@ -473,7 +577,7 @@ export async function runResidentProductHunter(
       discoveries: [],
     funnelSummary: funnelSummary(trace.funnel),
     intent: options?.intent ?? undefined,
-    decisions: [],
+    decisions: assignedTracerDecisions,
     searchPasses,
     newResultCount: productSources.length,
     explorationAxis: options?.exploration?.axis,

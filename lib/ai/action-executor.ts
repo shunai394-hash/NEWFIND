@@ -104,21 +104,13 @@ export async function executeAIAction(
         throw new Error(lookupError.message);
       }
 
+      // LIKE is an idempotent AI action. Re-running patrols must not
+      // accidentally undo a previous like.
       if (existing) {
-        const { error } = await supabase
-          .from("likes")
-          .delete()
-          .eq("user_id", userId)
-          .eq("post_id", action.postId);
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
         return {
           executed: true,
           action,
-          result: { liked: false },
+          result: { liked: true, alreadyLiked: true },
         };
       }
 

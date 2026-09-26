@@ -2044,17 +2044,30 @@ ${playbook.workBias}
         workResult = { dryRun: true, subject: subject.label };
         workType = "POST";
       } else {
-        workResult = await executeWorkPost(
-          persona,
-          subject,
-          posted.caption,
-          hunter,
-        );
+        try {
+          workResult = await executeWorkPost(
+            persona,
+            subject,
+            posted.caption,
+            hunter,
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error("work post execution failed", persona.persona_name, error);
+          workResult = {
+            executed: false,
+            skipped: true,
+            reason: "WORK_POST_FAILED",
+            error: message,
+          };
+        }
         const skipped =
           workResult != null &&
           typeof workResult === "object" &&
-          "skipped" in workResult &&
-          Boolean((workResult as { skipped?: boolean }).skipped);
+          ("skipped" in workResult || "executed" in workResult) &&
+          (Boolean((workResult as { skipped?: boolean }).skipped) ||
+            (("executed" in workResult) &&
+              (workResult as { executed?: boolean }).executed === false));
         if (skipped) {
           workType = hunter ? "PRODUCT_HUNT" : "SKIP_POST";
         } else {
@@ -2291,17 +2304,35 @@ ${candidateLines}
   const socialMemory = roleSocialMemory(playbook, socialAction);
   if (!memoryCandidate) memoryCandidate = socialMemory.content;
 
-  const socialResult = dryRun
-    ? { dryRun: true, action: socialAction.type }
-    : await executeAIAction(socialAction, persona.profile_id);
+  let socialResult: unknown;
+  let socialSucceeded = false;
+  if (dryRun) {
+    socialResult = { dryRun: true, action: socialAction.type };
+    socialSucceeded = socialAction.type !== "IGNORE";
+  } else {
+    try {
+      socialResult = await executeAIAction(socialAction, persona.profile_id);
+      socialSucceeded =
+        socialAction.type !== "IGNORE" &&
+        Boolean(
+          socialResult &&
+            typeof socialResult === "object" &&
+            (!("error" in (socialResult as { error?: unknown })) &&
+              (!("executed" in (socialResult as { executed?: unknown })) ||
+                (socialResult as { executed?: boolean }).executed !== false)),
+        );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("social action execution failed", persona.persona_name, error);
+      socialResult = {
+        executed: false,
+        error: message,
+        action: socialAction.type,
+      };
+    }
+  }
 
-  if (
-    !dryRun &&
-    socialAction.type !== "IGNORE" &&
-    socialResult &&
-    typeof socialResult === "object" &&
-    !("error" in (socialResult as { error?: unknown }))
-  ) {
+  if (!dryRun && socialSucceeded) {
     await logAiActivity({
       personaId: persona.id,
       actorName: persona.display_name || persona.persona_name,
@@ -2312,7 +2343,7 @@ ${candidateLines}
     });
   }
 
-  if (!dryRun && socialAction.type !== "IGNORE") {
+  if (!dryRun && socialSucceeded) {
     const subjectId =
       "postId" in socialAction
         ? socialAction.postId
@@ -2460,7 +2491,7 @@ ${candidateLines}
         : `Social: ${socialAction.type} | intent ${selfState.currentIntent.stance}:${selfState.currentFocus}`,
       {
         discoveryDelta: hunter?.savedProductIds.length ?? 0,
-        interactionDelta: socialAction.type === "IGNORE" ? 0 : 1,
+        interactionDelta: socialSucceeded ? 1 : 0,
         humanLine,
         selfState,
         experience,

@@ -70,12 +70,19 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
     // 商品タブはカタログ全件をSearchと共有せず、各カテゴリの上位だけを
     // Discover専用の「発見枠」にする。Searchはこの枠を避けて別の商品を返す。
     const seen = new Set<string>();
+    const brandCounts = new Map<string, number>();
     return filtered
       .sort((a, b) => b.trendScore - a.trendScore || b.confidenceScore - a.confidenceScore)
       .filter((item) => {
         const identity = productIdentityKey(item);
         if (seen.has(identity)) return false;
+        // Discover is a discovery surface, not a single-brand catalog.
+        // Keep a brand from occupying the whole first screen when other brands exist.
+        const brandKey = (item.normalizedBrand || item.brand || "").trim().toLowerCase();
+        const count = brandCounts.get(brandKey) ?? 0;
+        if (brandKey && count >= 2) return false;
         seen.add(identity);
+        if (brandKey) brandCounts.set(brandKey, count + 1);
         return true;
       })
       .slice(0, DISCOVER_PRODUCTS_PER_CATEGORY);

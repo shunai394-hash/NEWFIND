@@ -752,7 +752,7 @@ async function persistPersonaState(
     .join(" / ")
     .slice(-480);
 
-  await admin
+  const { error: stateError } = await admin
     .from("ai_personas")
     .update({
       last_action: lastAction,
@@ -767,6 +767,10 @@ async function persistPersonaState(
         (persona.interaction_count ?? 0) + (extras?.interactionDelta ?? 0),
     })
     .eq("id", persona.id);
+
+  if (stateError) {
+    throw new Error(`AI resident state update failed: ${stateError.message}`);
+  }
 
   if (extras?.selfState) {
     await persistSelfSnapshot({

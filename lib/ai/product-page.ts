@@ -156,6 +156,42 @@ export function isAcceptableProductPageImage(
   return true;
 }
 
+export async function extractWorldPageImage(
+  html: string,
+  pageUrl: string,
+): Promise<string | null> {
+  const candidates: string[] = [];
+
+  for (const key of ["og:image", "twitter:image", "twitter:image:src"]) {
+    const value = metaContent(html, [key]);
+    if (value) candidates.push(value);
+  }
+
+  for (const value of imagesFromImageLink(html)) {
+    candidates.push(value);
+  }
+
+  for (const match of html.matchAll(/<img\b[^>]*>/gi)) {
+    const tag = match[0];
+    const src =
+      tag.match(/\bsrc=["']([^"']+)["']/i)?.[1] ||
+      tag.match(/\bdata-src=["']([^"']+)["']/i)?.[1] ||
+      "";
+    if (src) candidates.push(src);
+  }
+
+  for (const candidate of candidates) {
+    const resolved = resolveUrl(candidate, pageUrl);
+    if (!resolved) continue;
+    if (!/^https?:\/\//i.test(resolved)) continue;
+    if (!isUsableProductImage(resolved)) continue;
+    if (/\.(svg|gif)(\?|$)/i.test(new URL(resolved).pathname)) continue;
+    return resolved;
+  }
+
+  return null;
+}
+
 export async function fetchPageHtml(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, {

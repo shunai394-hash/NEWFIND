@@ -18,6 +18,8 @@ export const EXPLORATION_AXES = [
   "trend_signals",
   "independent_creators",
   "cross_region",
+  "future_technology",
+  "earth_science",
 ] as const;
 
 export type ExplorationAxis = (typeof EXPLORATION_AXES)[number];
@@ -72,6 +74,8 @@ const AXIS_SOURCES: Record<ExplorationAxis, SourceClass[]> = {
   trend_signals: ["trend", "specialist_media", "community"],
   independent_creators: ["indie_brand", "community", "startup"],
   cross_region: ["specialist_media", "official", "local_media"],
+  future_technology: ["specialist_media", "startup", "official"],
+  earth_science: ["specialist_media", "official", "community"],
 };
 
 const LOCAL_MEDIA: Record<string, string[]> = {
@@ -127,7 +131,11 @@ const AXIS_GOALS: Record<ExplorationAxis, (city: string, beat: string) => string
   independent_creators: (city, beat) =>
     `Look for ${city} makers and small labels in ${beat}, not global mall brands`,
   cross_region: (city, beat) =>
-    `Compare how ${beat} from ${city} is landing in a neighboring market`,
+    `Compare how \${beat} from \${city} is landing in a neighboring market`,
+  future_technology: (_city, beat) =>
+    `Find credible future-facing products, prototypes, materials, robotics, energy and technology around \${beat}`,
+  earth_science: (city, beat) =>
+    `Find new earth-science discoveries about oceans, climate, geology, space-earth systems and natural phenomena relevant to \${city}`,
 };
 
 function unique(values: string[]) {
@@ -162,7 +170,7 @@ export function extractSeenEntities(experiences: Experience[]): SeenExploration 
   for (const item of experiences.slice(0, 12)) {
     const blob = `${item.seen} ${item.reason} ${item.outcome} ${item.next} ${item.entityKey ?? ""}`;
     const axisMatch = blob.match(
-      /axis=(new_products|emerging_brands|local_retail|local_media|trend_signals|independent_creators|cross_region)/,
+      /axis=(new_products|emerging_brands|local_retail|local_media|trend_signals|independent_creators|cross_region|future_technology|earth_science)/,
     );
     if (axisMatch && isExplorationAxis(axisMatch[1])) axes.push(axisMatch[1]);
 
@@ -251,6 +259,35 @@ function followUpQueries(seen: SeenExploration, axis: ExplorationAxis, city: str
     out.push(`${city} retailer new arrivals ${beat}`);
   }
   return unique(out).slice(0, 2);
+}
+
+function axisSpecificQuery(
+  axis: ExplorationAxis,
+  city: string,
+  beat: string,
+  language?: string,
+): string | null {
+  if (axis === "future_technology") {
+    return [
+      "future technology",
+      "prototype OR emerging product OR new device",
+      beat,
+      city,
+      "2026",
+      language === "ja" ? "日本語" : "",
+    ].filter(Boolean).join(" ");
+  }
+  if (axis === "earth_science") {
+    return [
+      "earth science",
+      "new discovery OR research OR observation",
+      "geology ocean climate volcano earthquake satellite",
+      city,
+      "2026",
+      language === "ja" ? "日本語" : "",
+    ].filter(Boolean).join(" ");
+  }
+  return null;
 }
 
 function queryForSource(
@@ -344,7 +381,15 @@ export function planTodayExploration(input: {
     ...seen.queries,
     ...(input.recentQuests ?? []).flatMap((quest) => quest.queries),
   ]).slice(0, 8);
+  const axisQuery = axisSpecificQuery(
+    axis,
+    axis === "cross_region" ? compare : city,
+    beat,
+    input.persona.languages?.[0],
+  );
+
   const rawQueries = unique([
+    ...(axisQuery ? [axisQuery] : []),
     ...followUps,
     ...sources.map((source) =>
       queryForSource(

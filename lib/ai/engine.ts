@@ -15,6 +15,7 @@ import {
 import { ensureAgentOs } from "@/lib/ai/agent-os";
 import type { EngineRunType, EngineTrigger } from "@/lib/ai/control-tower/types";
 import type { WorldSearchResult } from "@/lib/ai/world-search";
+import { listAssignedDiscoveryResidentIds } from "@/lib/ai/discovery-handoff";
 
 const DEFAULT_ACT_LIMIT = 8;
 
@@ -28,7 +29,7 @@ export type AiEngineRequest = {
 
 function dueStamp(persona: AiPersona): number {
   const parsed = Date.parse(persona.next_action_at || "");
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
 function pickByRole(personas: AiPersona[], limit: number): AiPersona[] {
@@ -64,6 +65,7 @@ function pickResidentsToAct(
   personas: AiPersona[],
   limit: number,
   mode: AiEngineMode,
+  priorityPersonaIds: Set<string> = new Set(),
 ): AiPersona[] {
   if (mode === "world_scout") {
     return personas
@@ -72,10 +74,12 @@ function pickResidentsToAct(
       .slice(0, Math.max(1, Math.min(limit, 3)));
   }
   if (mode === "product_hunter") {
-    return personas
+    const hunters = personas
       .filter((persona) => persona.resident_role === "product_hunter")
-      .sort((a, b) => dueStamp(a) - dueStamp(b))
-      .slice(0, Math.max(1, Math.min(limit, 4)));
+      .sort((a, b) => dueStamp(a) - dueStamp(b));
+    const priority = hunters.filter((persona) => priorityPersonaIds.has(persona.id));
+    const rest = hunters.filter((persona) => !priorityPersonaIds.has(persona.id));
+    return [...priority, ...rest].slice(0, Math.max(1, Math.min(limit, 4)));
   }
 
   const featuredNames = new Set(
@@ -251,7 +255,17 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       typeof input.limit === "number" && input.limit > 0
         ? Math.min(Math.floor(input.limit), personas.length || 1)
         : Math.min(DEFAULT_ACT_LIMIT, personas.length || 1);
-    const acting = pickResidentsToAct(personas, limit, mode);
+    const priorityPersonaIds =
+      mode === "product_hunter"
+        ? await listAssignedDiscoveryResidentIds()
+        : new Set<string>();
+
+    const acting = pickResidentsToAct(
+      personas,
+      limit,
+      mode,
+      priorityPersonaIds,
+    );
 
     if (personas.length === 0 || acting.length === 0) {
       await finishEngineRun({

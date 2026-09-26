@@ -131,11 +131,11 @@ const AXIS_GOALS: Record<ExplorationAxis, (city: string, beat: string) => string
   independent_creators: (city, beat) =>
     `Look for ${city} makers and small labels in ${beat}, not global mall brands`,
   cross_region: (city, beat) =>
-    `Compare how \${beat} from \${city} is landing in a neighboring market`,
+    `Compare how ${beat} from ${city} is landing in a neighboring market`,
   future_technology: (_city, beat) =>
-    `Find credible future-facing products, prototypes, materials, robotics, energy and technology around \${beat}`,
+    `Find credible future-facing products, prototypes, materials, robotics, energy and technology around ${beat}`,
   earth_science: (city, beat) =>
-    `Find new earth-science discoveries about oceans, climate, geology, space-earth systems and natural phenomena relevant to \${city}`,
+    `Find new earth-science discoveries about oceans, climate, geology, space-earth systems and natural phenomena relevant to ${city}`,
 };
 
 function unique(values: string[]) {

@@ -133,8 +133,15 @@ function isMissingDiscoveryTable(error: unknown) {
   return /discovery_products|schema cache|42P01/i.test(message);
 }
 
-function withJapanCatalog(products: DiscoveryProduct[], options?: { status?: DiscoveryStatus | "all"; admin?: boolean }) {
-  return mergeById(filterCatalog(JAPAN_SEED_PRODUCTS, options), products);
+function withJapanCatalog(
+  products: DiscoveryProduct[],
+  options?: { status?: DiscoveryStatus | "all"; admin?: boolean },
+) {
+  // Supabase is the live discovery source. Japan seed data is only a cold-start
+  // fallback; once real discovery rows exist, never let the editorial seed
+  // catalog occupy the Discover surface.
+  if (products.length > 0) return products;
+  return filterCatalog(JAPAN_SEED_PRODUCTS, options);
 }
 
 export async function listDiscoveryProducts(options?: {

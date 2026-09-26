@@ -1,6 +1,7 @@
 import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
 import {
   extractProductImageFromHtml,
+  extractWorldPageImage,
   extractUrlsFromText,
   fetchPageHtml,
   htmlIndicatesConcreteProduct,
@@ -1259,6 +1260,36 @@ function imageFetchPriority(result: WorldSearchResult): number {
   return 2;
 }
 
+
+async function enrichWorldImages(
+  results: WorldSearchResult[],
+): Promise<WorldSearchResult[]> {
+  const pending = results.filter(
+    (result) =>
+      result.sourceRole !== "product" &&
+      result.origin !== "catalog" &&
+      !result.imageUrl,
+  );
+  const toFetch = pending.slice(0, 6);
+  const fetched = await Promise.all(
+    toFetch.map(async (result) => {
+      const html = await fetchPageHtml(result.url);
+      if (!html) return result;
+      const imageUrl = await extractWorldPageImage(html, result.url);
+      return imageUrl ? { ...result, imageUrl } : result;
+    }),
+  );
+  const byKey = new Map<string, WorldSearchResult>();
+  for (const result of fetched) {
+    const key = resultKey(result.url);
+    if (key) byKey.set(key, result);
+  }
+  return results.map((result) => {
+    const key = resultKey(result.url);
+    return key && byKey.has(key) ? byKey.get(key)! : result;
+  });
+}
+
 async function enrichProductImages(
   results: WorldSearchResult[],
 ): Promise<WorldSearchResult[]> {
@@ -1476,9 +1507,13 @@ class CombinedWorldSearchProvider
       ).length,
     );
 
+    const worldResults = await enrichWorldImages(
+      webResults.filter((result) => result.sourceRole !== "product"),
+    );
+
     const combined = [
       ...withImages,
-      ...webResults.filter((result) => result.sourceRole !== "product"),
+      ...worldResults,
       ...catalogResults,
     ];
 

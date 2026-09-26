@@ -1011,8 +1011,63 @@ async function gatherPostSubjects(
 function dropRepeatedSubjects(
   subjects: PostSubject[],
   avoidEntities: string[],
+  recentOwnPostKeys: Set<string> = new Set(),
 ) {
-  return subjects.filter((subject) => !subjectLooksRepeated(subject, avoidEntities));
+  return subjects.filter((subject) => {
+    if (subjectLooksRepeated(subject, avoidEntities)) return false;
+    const urlKey = (subject.productUrl || subject.sourceUrl || "").trim().replace(/\\/$/, "").toLowerCase();
+    if (urlKey && recentOwnPostKeys.has(`url:${urlKey}`)) return false;
+    if (subject.discoveryProductId && recentOwnPostKeys.has(`discovery:${subject.discoveryProductId}`)) return false;
+    return true;
+  });
+}
+
+async function loadRecentOwnPostKeys(profileId: string, hours = 48) {
+  if (!isUuid(profileId)) return new Set<string>();
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("posts")
+      .select("product_url, discovery_product_id")
+      .eq("author_id", profileId)
+      .gte("created_at", new Date(Date.now() - hours * 36e5).toISOString())
+      .limit(100);
+
+    if (error) {
+      if (/discovery_product_id|schema cache|42703/i.test(error.message)) {
+        const fallback = await admin
+          .from("posts")
+          .select("product_url")
+          .eq("author_id", profileId)
+          .gte("created_at", new Date(Date.now() - hours * 36e5).toISOString())
+          .limit(100);
+        if (fallback.error) throw new Error(fallback.error.message);
+        return new Set(
+          (fallback.data ?? [])
+            .map((row) => String(row.product_url ?? "").trim().replace(/\\/$/, "").toLowerCase())
+            .filter(Boolean)
+            .map((url) => `url:${url}`),
+        );
+      }
+      throw new Error(error.message);
+    }
+
+    const keys = new Set<string>();
+    for (const row of data ?? []) {
+      const url = String(row.product_url ?? "").trim().replace(/\\/$/, "").toLowerCase();
+      if (url) keys.add(`url:${url}`);
+      const discoveryId = String(row.discovery_product_id ?? "").trim();
+      if (discoveryId) keys.add(`discovery:${discoveryId}`);
+    }
+    return keys;
+  } catch (error) {
+    console.error("loadRecentOwnPostKeys failed", personaSafeName(profileId), error);
+    return new Set<string>();
+  }
+}
+
+function personaSafeName(_profileId: string) {
+  return "AI resident";
 }
 
 async function loadFeedCandidates(
@@ -1515,10 +1570,12 @@ export async function runResidentLifeCycle(
       provenance: item.entityKey,
     })),
   );
-  const subjects = dropRepeatedSubjects(rawSubjects, [
-    ...exploration.avoidEntities,
-    ...intent.avoid,
-  ]);
+  const recentOwnPostKeys = await loadRecentOwnPostKeys(persona.profile_id);
+  const subjects = dropRepeatedSubjects(
+    rawSubjects,
+    [...exploration.avoidEntities, ...intent.avoid],
+    recentOwnPostKeys,
+  );
   const assignedDiscoverySubjects = subjects.filter(isAssignedDiscoverySubject);
   const postableAssignedDiscoveries = assignedDiscoverySubjects.filter(
     isPostableAssignedDiscovery,

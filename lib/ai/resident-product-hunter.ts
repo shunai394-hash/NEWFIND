@@ -741,20 +741,35 @@ export async function runResidentProductHunter(
 
     const input = candidateToDiscoveryInput(candidate, persona.id, false);
     const prepared = prepareDiscoveryProduct(input);
-    const saved = await saveDiscoveryProductToDb(prepared);
+    try {
+      const saved = await saveDiscoveryProductToDb(prepared);
 
-    savedProductIds.push(saved.id);
-    discoveries.push({
-      candidateIndex,
-      discoveryProductId: saved.id,
-    });
-    existingProducts = [...existingProducts, saved];
-    trace.funnel.saved += 1;
-    recordDrop(trace, {
-      url: candidate.productUrl,
-      title: candidate.productName,
-      reason: "SAVED",
-    });
+      savedProductIds.push(saved.id);
+      discoveries.push({
+        candidateIndex,
+        discoveryProductId: saved.id,
+      });
+      existingProducts = [...existingProducts, saved];
+      trace.funnel.saved += 1;
+      recordDrop(trace, {
+        url: candidate.productUrl,
+        title: candidate.productName,
+        reason: "SAVED",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      recordDrop(trace, {
+        url: candidate.productUrl,
+        title: candidate.productName,
+        reason: "SAVE_FAILED",
+        detail: message,
+      });
+      console.error(
+        `[AI PRODUCT HUNTER] discovery save failed for ${candidate.brand} / ${candidate.productName}`,
+        error,
+      );
+      continue;
+    }
   }
 
   markPipelineEvent(trace, "SAVE_COMPLETED");

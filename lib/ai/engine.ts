@@ -321,7 +321,12 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       worldNews = [];
     }
 
-    const googleTrends = await getGoogleTrendsForWorld(["JP", "US", "GB", "KR"], 6);
+    let googleTrends: Awaited<ReturnType<typeof getGoogleTrendsForWorld>> = [];
+    try {
+      googleTrends = await getGoogleTrendsForWorld(["JP", "US", "GB", "KR"], 6);
+    } catch (error) {
+      console.error("Google Trends failed. Continuing without trends.", error);
+    }
     const results = [];
 
     for (const persona of acting) {

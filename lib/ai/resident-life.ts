@@ -1015,7 +1015,7 @@ function dropRepeatedSubjects(
 ) {
   return subjects.filter((subject) => {
     if (subjectLooksRepeated(subject, avoidEntities)) return false;
-    const urlKey = (subject.productUrl || subject.sourceUrl || "").trim().replace(/\\/$/, "").toLowerCase();
+    const urlKey = (subject.productUrl || subject.sourceUrl || "").trim().replace(/\/$/, "").toLowerCase();
     if (urlKey && recentOwnPostKeys.has(`url:${urlKey}`)) return false;
     if (subject.discoveryProductId && recentOwnPostKeys.has(`discovery:${subject.discoveryProductId}`)) return false;
     return true;
@@ -1044,7 +1044,7 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 48) {
         if (fallback.error) throw new Error(fallback.error.message);
         return new Set(
           (fallback.data ?? [])
-            .map((row) => String(row.product_url ?? "").trim().replace(/\\/$/, "").toLowerCase())
+            .map((row) => String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase())
             .filter(Boolean)
             .map((url) => `url:${url}`),
         );
@@ -1054,7 +1054,7 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 48) {
 
     const keys = new Set<string>();
     for (const row of data ?? []) {
-      const url = String(row.product_url ?? "").trim().replace(/\\/$/, "").toLowerCase();
+      const url = String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase();
       if (url) keys.add(`url:${url}`);
       const discoveryId = String(row.discovery_product_id ?? "").trim();
       if (discoveryId) keys.add(`discovery:${discoveryId}`);

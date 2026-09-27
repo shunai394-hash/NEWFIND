@@ -1173,7 +1173,10 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<Rec
             productName: String(row.caption ?? ""),
             category: String(row.category ?? ""),
           })) {
-            context.visualArchetypes.add(archetype);
+            context.visualArchetypes.set(
+              archetype,
+              (context.visualArchetypes.get(archetype) ?? 0) + 1,
+            );
           }
         }
         return context;

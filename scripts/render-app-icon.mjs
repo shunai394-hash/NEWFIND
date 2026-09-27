@@ -444,7 +444,7 @@ async function main() {
       await pngFromSvg(withBg, size, { opaque: true }),
     );
   }
-  await writeFile(`${iosDir}/AppIcon.png`, marketing1024);
+  await writeFile(`${iosDir}/AppIcon.png`, master1024);
   await writeFile(`${iosDir}/Contents.json`, iosContentsJson());
 
   const leftover = path.join(ROOT, `${iosDir}/AppIcon-512@2x.png`);

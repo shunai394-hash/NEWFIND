@@ -1084,19 +1084,19 @@ function subjectVisualArchetypes(subject: {
     .toLowerCase();
 
   const rules: Array<[string, RegExp]> = [
-    ["bottle", /bottle|flacon|vial|ampoule|perfume|parfum|fragrance/],
-    ["jar", /jar|pot|balm|cream|ointment/],
-    ["vessel", /vessel|ceramic|pottery|potter|stoneware|tableware|container/],
-    ["lip", /lipstick|lip gloss|lip balm|lip tint|lip liner/],
-    ["eye", /mascara|eyeliner|eye shadow|eyeshadow/],
-    ["shoe", /shoe|sneaker|trainer|loafer|boot|heel/],
-    ["bag", /bag|handbag|tote|pouch|clutch|backpack/],
-    ["jewelry", /jewelry|jewellery|necklace|earring|bracelet|ring/],
-    ["outerwear", /jacket|coat|blazer|parka|trench/],
-    ["top", /shirt|blouse|sweater|hoodie|cardigan|top/],
-    ["bottom", /jeans|trouser|pants|skirt|shorts/],
-    ["hat", /hat|cap|beanie/],
-    ["gadget", /phone|headphone|earbud|camera|keyboard|mouse|gadget/],
+    ["bottle", /\\b(?:bottle|flacon|vial|ampoule|perfume|parfum|fragrance)\\b/],
+    ["jar", /\\b(?:jar|pot|balm|cream|ointment)\\b/],
+    ["vessel", /\\b(?:vessel|ceramic|pottery|potter|stoneware|tableware|container)\\b/],
+    ["lip", /\\b(?:lipstick|lip gloss|lip balm|lip tint|lip liner)\\b/],
+    ["eye", /\\b(?:mascara|eyeliner|eye shadow|eyeshadow)\\b/],
+    ["shoe", /\\b(?:shoe|sneaker|trainer|loafer|boot|heel)\\b/],
+    ["bag", /\\b(?:bag|handbag|tote|pouch|clutch|backpack)\\b/],
+    ["jewelry", /\\b(?:jewelry|jewellery|necklace|earring|bracelet|ring)\\b/],
+    ["outerwear", /\\b(?:jacket|coat|blazer|parka|trench)\\b/],
+    ["top", /\\b(?:shirt|blouse|sweater|hoodie|cardigan|top)\\b/],
+    ["bottom", /\\b(?:jeans|trouser|pants|skirt|shorts)\\b/],
+    ["hat", /\\b(?:hat|cap|beanie)\\b/],
+    ["gadget", /\\b(?:phone|headphone|earbud|camera|keyboard|mouse|gadget)\\b/],
   ];
 
   return rules

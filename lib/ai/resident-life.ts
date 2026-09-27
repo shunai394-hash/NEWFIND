@@ -1210,13 +1210,34 @@ function personaSafeName(_profileId: string) {
   return "AI resident";
 }
 
-async function loadRecentCommunityPostKeys(hours = 24) {
-  const keys = new Set<string>();
+type CommunityPostContext = {
+  keys: Set<string>;
+  domainCounts: Map<string, number>;
+  captions: string[];
+};
+
+function normalizeHost(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.hostname.replace(/^www\\./i, "").toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+async function loadRecentCommunityPostKeys(hours = 24): Promise<CommunityPostContext> {
+  const empty: CommunityPostContext = {
+    keys: new Set<string>(),
+    domainCounts: new Map<string, number>(),
+    captions: [],
+  };
+
   try {
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("posts")
-      .select("author_id, product_url, discovery_product_id")
+      .select("author_id, product_url, discovery_product_id, caption")
       .gte("created_at", new Date(Date.now() - hours * 36e5).toISOString())
       .order("created_at", { ascending: false })
       .limit(300);
@@ -1224,34 +1245,62 @@ async function loadRecentCommunityPostKeys(hours = 24) {
     if (error) throw new Error(error.message);
 
     for (const row of data ?? []) {
-      const url = String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase();
-      if (url) keys.add(`url:${url}`);
+      const productUrl = String(row.product_url ?? "").trim();
+      const sourceUrl = productUrl;
+      const url = productUrl.replace(/\/$/, "").toLowerCase();
+      if (url) empty.keys.add(`url:${url}`);
+
       const discoveryId = String(row.discovery_product_id ?? "").trim();
-      if (discoveryId) keys.add(`discovery:${discoveryId}`);
+      if (discoveryId) empty.keys.add(`discovery:${discoveryId}`);
+
+      const host = normalizeHost(sourceUrl);
+      if (host) {
+        empty.domainCounts.set(host, (empty.domainCounts.get(host) ?? 0) + 1);
+      }
+
+      const caption = String(row.caption ?? "").trim();
+      if (caption) empty.captions.push(caption.toLowerCase());
     }
   } catch (error) {
     console.error("loadRecentCommunityPostKeys failed", error);
   }
-  return keys;
+
+  return empty;
 }
 
 function dropCommunityRepeatedSubjects(
   subjects: PostSubject[],
-  recentCommunityPostKeys: Set<string>,
+  recentCommunity: CommunityPostContext,
 ) {
   return subjects.filter((subject) => {
     // Assigned World Scout handoffs are deliberate cross-resident assignments.
     if (subject.assigned) return true;
 
-    const url = (subject.productUrl || subject.sourceUrl || "")
-      .trim()
-      .replace(/\/$/, "")
-      .toLowerCase();
-    if (url && recentCommunityPostKeys.has(`url:${url}`)) return false;
+    const productUrl = (subject.productUrl || "").trim();
+    const url = productUrl.replace(/\/$/, "").toLowerCase();
+    if (url && recentCommunity.keys.has(`url:${url}`)) return false;
 
     if (
       subject.discoveryProductId &&
-      recentCommunityPostKeys.has(`discovery:${subject.discoveryProductId}`)
+      recentCommunity.keys.has(`discovery:${subject.discoveryProductId}`)
+    ) {
+      return false;
+    }
+
+    // Do not let one source dominate the resident network. Four recent posts
+    // from the same domain is enough to make another source preferable.
+    const host = normalizeHost(productUrl);
+    if (host && (recentCommunity.domainCounts.get(host) ?? 0) >= 4) {
+      return false;
+    }
+
+    // Brand concentration is softer than URL/domain duplication. Only apply
+    // it when the subject has an explicit brand and that brand appears in
+    // three or more recent AI captions.
+    const brand = (subject.brand || "").trim().toLowerCase();
+    if (
+      brand.length >= 2 &&
+      recentCommunity.captions.filter((caption) => caption.includes(brand)).length >= 3
     ) {
       return false;
     }
@@ -1761,7 +1810,7 @@ export async function runResidentLifeCycle(
     })),
   );
   const recentOwnPostContext = await loadRecentOwnPostKeys(persona.profile_id);
-  const recentCommunityPostKeys = await loadRecentCommunityPostKeys();
+  const recentCommunity = await loadRecentCommunityPostKeys();
   const ownFilteredSubjects = dropRepeatedSubjects(
     rawSubjects,
     [...exploration.avoidEntities, ...intent.avoid],
@@ -1769,7 +1818,7 @@ export async function runResidentLifeCycle(
   );
   const subjects = dropCommunityRepeatedSubjects(
     ownFilteredSubjects,
-    recentCommunityPostKeys,
+    recentCommunity,
   );
   const assignedDiscoverySubjects = subjects.filter(isAssignedDiscoverySubject);
   const postableAssignedDiscoveries = assignedDiscoverySubjects.filter(

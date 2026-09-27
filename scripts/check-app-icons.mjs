@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
@@ -35,6 +36,14 @@ async function main() {
       `${image.filename} is ${meta.width}x${meta.height}, expected ${expected}x${expectedH}`,
     );
   }
+
+  const iosMarketing = path.join(IOS_DIR, "AppIcon.png");
+  const iosHome = path.join(ROOT, "public/brand/icon-home-1024.png");
+  assert(
+    crypto.createHash("sha256").update(fs.readFileSync(iosMarketing)).digest("hex") ===
+      crypto.createHash("sha256").update(fs.readFileSync(iosHome)).digest("hex"),
+    "iOS App Store icon must match the finalized home-screen icon artwork",
+  );
 
   const android = path.join(
     ROOT,

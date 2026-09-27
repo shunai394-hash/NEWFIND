@@ -3,6 +3,7 @@ import { upsertInvestigation } from "@/lib/ai/investigations";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { productIdentityKey } from "@/lib/ai/product-identity";
 import { canonicalProductUrl } from "@/lib/discovery/rules";
+import { isUsableProductImage } from "@/lib/discovery/media";
 import type { TracerInboundEventType } from "./types";
 
 function asString(value: unknown): string | null {
@@ -76,6 +77,7 @@ async function handleProductCandidate(
   });
 
   const admin = createAdminClient();
+  const publishable = isUsableProductImage(imageUrl);
 
   const existing = await admin
     .from("discovery_products")
@@ -92,6 +94,23 @@ async function handleProductCandidate(
       .eq("duplicate_key", identity)
       .maybeSingle();
     productId = byKey.data?.id as string | undefined;
+  }
+
+  if (productId && publishable) {
+    const { error: promoteError } = await admin
+      .from("discovery_products")
+      .update({
+        status: "approved",
+        product_image_url: imageUrl,
+        official_url: asString(payload.official_url) || asString(payload.officialUrl) || canonical,
+        confidence_score: asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40,
+        trend_score: asNumber(payload.demand_score) ?? 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", productId);
+    if (promoteError) {
+      return { ok: false, detail: `discovery promotion failed: ${promoteError.message}` };
+    }
   }
 
   if (!productId) {
@@ -116,7 +135,7 @@ async function handleProductCandidate(
           asString(payload.discovery_reason) ||
           asString(payload.why_now) ||
           "TRACER product candidate",
-        status: "pending",
+        status: publishable ? "approved" : "pending",
         trend_score: asNumber(payload.demand_score) ?? 0,
         confidence_score:
           asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40,

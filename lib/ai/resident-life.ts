@@ -1061,7 +1061,7 @@ async function gatherPostSubjects(
 
 type RecentOwnPostContext = {
   keys: Set<string>;
-  visualArchetypes: Set<string>;
+  visualArchetypes: Map<string, number>;
   brandCounts: Map<string, number>;
 };
 
@@ -1109,7 +1109,7 @@ function dropRepeatedSubjects(
   avoidEntities: string[],
   recent: RecentOwnPostContext = {
     keys: new Set<string>(),
-    visualArchetypes: new Set<string>(),
+    visualArchetypes: new Map<string, number>(),
     brandCounts: new Map<string, number>(),
   },
 ) {
@@ -1119,12 +1119,17 @@ function dropRepeatedSubjects(
     if (urlKey && recent.keys.has(`url:${urlKey}`)) return false;
     if (subject.discoveryProductId && recent.keys.has(`discovery:${subject.discoveryProductId}`)) return false;
 
-    // Do not let a resident keep posting the same visual archetype (e.g.
-    // bottles/jars/shoes/bags) when it has already appeared recently.
-    // This is intentionally lexical and cheap; it never replaces role/quality
-    // decisions and it does not require an image model.
+    // One recent shoe/bag/bottle must not suppress the entire category for
+    // three days. Require the same visual archetype to have appeared at least
+    // twice before treating it as a repetition signal.
     const archetypes = subjectVisualArchetypes(subject);
-    if (archetypes.some((key) => recent.visualArchetypes.has(key))) return false;
+    if (
+      archetypes.some(
+        (key) => (recent.visualArchetypes.get(key) ?? 0) >= 2,
+      )
+    ) {
+      return false;
+    }
 
     const brandKey = (subject.brand || "").trim().toLowerCase();
     if (brandKey && (recent.brandCounts.get(brandKey) ?? 0) >= 2) return false;
@@ -1136,7 +1141,7 @@ function dropRepeatedSubjects(
 async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<RecentOwnPostContext> {
   const empty = {
     keys: new Set<string>(),
-    visualArchetypes: new Set<string>(),
+    visualArchetypes: new Map<string, number>(),
     brandCounts: new Map<string, number>(),
   };
   if (!isUuid(profileId)) return empty;
@@ -1188,7 +1193,10 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<Rec
         productName: caption,
         category,
       })) {
-        empty.visualArchetypes.add(archetype);
+        empty.visualArchetypes.set(
+          archetype,
+          (empty.visualArchetypes.get(archetype) ?? 0) + 1,
+        );
       }
 
       const brandMatch = caption.match(/(?:^|[|·•/\\-])\\s*([a-z0-9][a-z0-9 .&'’-]{1,48})\\s+(?:[A-Z][^|·•/\\-]{1,48})$/i);
@@ -1287,20 +1295,20 @@ function dropCommunityRepeatedSubjects(
       return false;
     }
 
-    // Do not let one source dominate the resident network. Four recent posts
-    // from the same domain is enough to make another source preferable.
+    // A source should diversify, not disappear because a few residents used it.
+    // Only suppress a domain after six recent posts across the community.
     const host = normalizeHost(productUrl);
-    if (host && (recentCommunity.domainCounts.get(host) ?? 0) >= 4) {
+    if (host && (recentCommunity.domainCounts.get(host) ?? 0) >= 6) {
       return false;
     }
 
     // Brand concentration is softer than URL/domain duplication. Only apply
     // it when the subject has an explicit brand and that brand appears in
-    // three or more recent AI captions.
+    // four or more recent AI captions.
     const brand = (subject.brand || "").trim().toLowerCase();
     if (
       brand.length >= 2 &&
-      recentCommunity.captions.filter((caption) => caption.includes(brand)).length >= 3
+      recentCommunity.captions.filter((caption) => caption.includes(brand)).length >= 4
     ) {
       return false;
     }
@@ -1575,6 +1583,46 @@ async function executeWorkPost(
     },
     persona.profile_id,
   );
+}
+
+async function generateCadencePostFallback(input: {
+  persona: AiPersona;
+  playbook: RolePlaybook;
+  subject: PostSubject;
+}): Promise<string | null> {
+  const { persona, playbook, subject } = input;
+  try {
+    const caption = (
+      await generateAIText(
+        [
+          `Write one natural NEWFIND post for this resident now.`,
+          personaVoiceBlock(persona, playbook),
+          `Real subject: ${subject.brand || ""} ${subject.productName || subject.label}`,
+          `Category: ${subject.category || "other"}`,
+          `Source URL: ${subject.sourceUrl || subject.productUrl || ""}`,
+          "Use only the supplied facts. Do not invent product details.",
+          "Write 1-3 short sentences from the resident's own perspective.",
+          "Do not copy the subject title or source text.",
+          "Return only the post caption.",
+        ].join("\n"),
+        { temperature: 0.9, maxTokens: 180 },
+      )
+    )
+      .trim()
+      .replace(/^["']|["']$/g, "");
+
+    if (!caption || captionCopiesSubject(caption, subject)) return null;
+    const quality = evaluateCaptionQuality({
+      caption,
+      role: persona.resident_role,
+      recentCaptions: [],
+      subjectLabel: subject.label,
+    });
+    return quality.ok ? caption : null;
+  } catch (error) {
+    console.error("cadence fallback caption failed", persona.persona_name, error);
+    return null;
+  }
 }
 
 export async function runResidentLifeCycle(
@@ -2223,6 +2271,37 @@ ${playbook.workBias}
     } catch (error) {
       console.error("life post retry failed", persona.persona_name, error);
       workDecision = fallbackLifePost(persona, subjects, true);
+    }
+  }
+
+  if (
+    workDecision.type === "SKIP_POST" &&
+    cadenceReady &&
+    subjects.length > 0
+  ) {
+    const fallbackSubject =
+      postableAssignedDiscoveries[0] ??
+      subjects.find(
+        (subject) =>
+          Boolean(subject.mediaUrl) &&
+          (isProductLikeSubject(subject) || subject.kind === "world"),
+      ) ??
+      subjects.find(isProductLikeSubject) ??
+      subjects[0];
+
+    if (fallbackSubject) {
+      const fallbackCaption = await generateCadencePostFallback({
+        persona,
+        playbook,
+        subject: fallbackSubject,
+      });
+      if (fallbackCaption) {
+        workDecision = {
+          type: "POST",
+          caption: fallbackCaption,
+          subjectId: fallbackSubject.id,
+        };
+      }
     }
   }
 

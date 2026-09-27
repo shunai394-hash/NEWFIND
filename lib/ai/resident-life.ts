@@ -422,6 +422,43 @@ ${personaVoiceBlock(persona, playbook)}
   }
 }
 
+function isBeautyCorrespondentWorldSubject(persona: AiPersona, dispatch: {
+  title: string;
+  snippet?: string | null;
+  category?: string | null;
+  sourceUrl?: string | null;
+}): boolean {
+  const identityText = [
+    persona.resident_role,
+    ...(persona.expertise ?? []),
+    ...(persona.interests ?? []),
+    ...(persona.preferred_categories ?? []),
+  ].join(" ").toLowerCase();
+
+  const isBeautyBeat =
+    /beauty|fragrance|skincare|cosmetic|perfume|makeup/.test(identityText);
+  if (!isBeautyBeat) return true;
+
+  const text = [
+    dispatch.title,
+    dispatch.snippet ?? "",
+    dispatch.category ?? "",
+    dispatch.sourceUrl ?? "",
+  ].join(" ").toLowerCase();
+
+  // A beauty correspondent may cover craft/material culture when it is
+  // explicitly tied to beauty, fragrance, skincare, cosmetics, or a beauty
+  // house. Generic vessels/objects are not enough.
+  const beautySignals =
+    /beauty|skincare|cosmetic|cosmetics|makeup|make-up|fragrance|perfume|parfum|scent|serum|cream|lipstick|foundation|mascara|essence|formulation|beauty brand|beauty house|maison de beauté|cosmé(t|e)s?/i.test(text);
+
+  const objectOnlySignals =
+    /craft|crafted|craftsmanship|ceramic|pottery|potter|vessel|bottle|jar|container|sculpture|handmade|artisan|art object|decor|homeware|tableware/i.test(text);
+
+  if (objectOnlySignals && !beautySignals) return false;
+  return beautySignals;
+}
+
 function isProductLikeSubject(subject: PostSubject | undefined): boolean {
   if (!subject) return false;
   if (subject.kind === "world" || subject.kind === "news") return false;
@@ -975,6 +1012,16 @@ async function gatherPostSubjects(
       if (dispatch.infoKind === "PRODUCT") continue;
       if (!isHttpUrl(dispatch.url)) continue;
       if (!isUsableProductImage(dispatch.imageUrl ?? null)) continue;
+      if (
+        !isBeautyCorrespondentWorldSubject(persona, {
+          title: dispatch.title,
+          snippet: dispatch.snippet,
+          category: dispatch.infoKind,
+          sourceUrl: dispatch.url,
+        })
+      ) {
+        continue;
+      }
       subjects.push({
         id: String(n++),
         kind: "world",

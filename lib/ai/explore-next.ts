@@ -28,14 +28,19 @@ export function planNextHunt(input: {
 }): NextHuntHint {
   const strategy = getHunterStrategy(input.persona.username);
   const day = new Date().toISOString().slice(0, 10);
+  const huntWindow = Math.floor(Date.now() / (6 * 36e5));
   const mode = huntModeFromSignals(input.signals);
-  const vocabSkip = mode === "leave" ? 3 : mode === "explore" ? 1 : 0;
+  // Rotate the vocabulary every six hours so repeated patrols on the same day
+  // do not keep issuing the same search lane.
+  const rotationOffset = huntWindow % 3;
+  const vocabSkip =
+    (mode === "leave" ? 3 : mode === "explore" ? 1 : 0) + rotationOffset;
   const vocabulary = (
     input.intent?.terms?.length
       ? input.intent.terms
       : rotateVocabulary(
           strategy,
-          `${input.persona.id}:${day}`,
+          `${input.persona.id}:${day}:${huntWindow}`,
           3,
           vocabSkip,
         )

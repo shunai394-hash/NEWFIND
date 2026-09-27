@@ -1210,6 +1210,56 @@ function personaSafeName(_profileId: string) {
   return "AI resident";
 }
 
+async function loadRecentCommunityPostKeys(hours = 24) {
+  const keys = new Set<string>();
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("posts")
+      .select("author_id, product_url, discovery_product_id")
+      .gte("created_at", new Date(Date.now() - hours * 36e5).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(300);
+
+    if (error) throw new Error(error.message);
+
+    for (const row of data ?? []) {
+      const url = String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase();
+      if (url) keys.add(`url:${url}`);
+      const discoveryId = String(row.discovery_product_id ?? "").trim();
+      if (discoveryId) keys.add(`discovery:${discoveryId}`);
+    }
+  } catch (error) {
+    console.error("loadRecentCommunityPostKeys failed", error);
+  }
+  return keys;
+}
+
+function dropCommunityRepeatedSubjects(
+  subjects: PostSubject[],
+  recentCommunityPostKeys: Set<string>,
+) {
+  return subjects.filter((subject) => {
+    // Assigned World Scout handoffs are deliberate cross-resident assignments.
+    if (subject.assigned) return true;
+
+    const url = (subject.productUrl || subject.sourceUrl || "")
+      .trim()
+      .replace(/\/$/, "")
+      .toLowerCase();
+    if (url && recentCommunityPostKeys.has(`url:${url}`)) return false;
+
+    if (
+      subject.discoveryProductId &&
+      recentCommunityPostKeys.has(`discovery:${subject.discoveryProductId}`)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
 async function loadFeedCandidates(
   persona: AiPersona,
   followingIds: Set<string>,
@@ -1711,10 +1761,15 @@ export async function runResidentLifeCycle(
     })),
   );
   const recentOwnPostContext = await loadRecentOwnPostKeys(persona.profile_id);
-  const subjects = dropRepeatedSubjects(
+  const recentCommunityPostKeys = await loadRecentCommunityPostKeys();
+  const ownFilteredSubjects = dropRepeatedSubjects(
     rawSubjects,
     [...exploration.avoidEntities, ...intent.avoid],
     recentOwnPostContext,
+  );
+  const subjects = dropCommunityRepeatedSubjects(
+    ownFilteredSubjects,
+    recentCommunityPostKeys,
   );
   const assignedDiscoverySubjects = subjects.filter(isAssignedDiscoverySubject);
   const postableAssignedDiscoveries = assignedDiscoverySubjects.filter(

@@ -1059,61 +1059,150 @@ async function gatherPostSubjects(
   return unique.slice(0, 8);
 }
 
+type RecentOwnPostContext = {
+  keys: Set<string>;
+  visualArchetypes: Set<string>;
+  brandCounts: Map<string, number>;
+};
+
+function subjectVisualArchetypes(subject: {
+  label?: string | null;
+  productName?: string | null;
+  brand?: string | null;
+  category?: string | null;
+  sourceUrl?: string | null;
+}) {
+  const text = [
+    subject.label,
+    subject.productName,
+    subject.brand,
+    subject.category,
+    subject.sourceUrl,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const rules: Array<[string, RegExp]> = [
+    ["bottle", /bottle|flacon|vial|ampoule|perfume|parfum|fragrance/],
+    ["jar", /jar|pot|balm|cream|ointment/],
+    ["vessel", /vessel|ceramic|pottery|potter|stoneware|tableware|container/],
+    ["lip", /lipstick|lip gloss|lip balm|lip tint|lip liner/],
+    ["eye", /mascara|eyeliner|eye shadow|eyeshadow/],
+    ["shoe", /shoe|sneaker|trainer|loafer|boot|heel/],
+    ["bag", /bag|handbag|tote|pouch|clutch|backpack/],
+    ["jewelry", /jewelry|jewellery|necklace|earring|bracelet|ring/],
+    ["outerwear", /jacket|coat|blazer|parka|trench/],
+    ["top", /shirt|blouse|sweater|hoodie|cardigan|top/],
+    ["bottom", /jeans|trouser|pants|skirt|shorts/],
+    ["hat", /hat|cap|beanie/],
+    ["gadget", /phone|headphone|earbud|camera|keyboard|mouse|gadget/],
+  ];
+
+  return rules
+    .filter(([, pattern]) => pattern.test(text))
+    .map(([name]) => name);
+}
+
 function dropRepeatedSubjects(
   subjects: PostSubject[],
   avoidEntities: string[],
-  recentOwnPostKeys: Set<string> = new Set(),
+  recent: RecentOwnPostContext = {
+    keys: new Set<string>(),
+    visualArchetypes: new Set<string>(),
+    brandCounts: new Map<string, number>(),
+  },
 ) {
   return subjects.filter((subject) => {
     if (subjectLooksRepeated(subject, avoidEntities)) return false;
     const urlKey = (subject.productUrl || subject.sourceUrl || "").trim().replace(/\/$/, "").toLowerCase();
-    if (urlKey && recentOwnPostKeys.has(`url:${urlKey}`)) return false;
-    if (subject.discoveryProductId && recentOwnPostKeys.has(`discovery:${subject.discoveryProductId}`)) return false;
+    if (urlKey && recent.keys.has(`url:${urlKey}`)) return false;
+    if (subject.discoveryProductId && recent.keys.has(`discovery:${subject.discoveryProductId}`)) return false;
+
+    // Do not let a resident keep posting the same visual archetype (e.g.
+    // bottles/jars/shoes/bags) when it has already appeared recently.
+    // This is intentionally lexical and cheap; it never replaces role/quality
+    // decisions and it does not require an image model.
+    const archetypes = subjectVisualArchetypes(subject);
+    if (archetypes.some((key) => recent.visualArchetypes.has(key))) return false;
+
+    const brandKey = (subject.brand || "").trim().toLowerCase();
+    if (brandKey && (recent.brandCounts.get(brandKey) ?? 0) >= 2) return false;
+
     return true;
   });
 }
 
-async function loadRecentOwnPostKeys(profileId: string, hours = 48) {
-  if (!isUuid(profileId)) return new Set<string>();
+async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<RecentOwnPostContext> {
+  const empty = {
+    keys: new Set<string>(),
+    visualArchetypes: new Set<string>(),
+    brandCounts: new Map<string, number>(),
+  };
+  if (!isUuid(profileId)) return empty;
+
   try {
     const admin = createAdminClient();
+    const cutoff = new Date(Date.now() - hours * 36e5).toISOString();
     const { data, error } = await admin
       .from("posts")
-      .select("product_url, discovery_product_id")
+      .select("product_url, discovery_product_id, caption, category")
       .eq("author_id", profileId)
-      .gte("created_at", new Date(Date.now() - hours * 36e5).toISOString())
+      .gte("created_at", cutoff)
       .limit(100);
 
     if (error) {
       if (/discovery_product_id|schema cache|42703/i.test(error.message)) {
         const fallback = await admin
           .from("posts")
-          .select("product_url")
+          .select("product_url, caption, category")
           .eq("author_id", profileId)
-          .gte("created_at", new Date(Date.now() - hours * 36e5).toISOString())
+          .gte("created_at", cutoff)
           .limit(100);
         if (fallback.error) throw new Error(fallback.error.message);
-        return new Set(
-          (fallback.data ?? [])
-            .map((row) => String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase())
-            .filter(Boolean)
-            .map((url) => `url:${url}`),
-        );
+        const context = { ...empty, keys: new Set<string>() };
+        for (const row of fallback.data ?? []) {
+          const url = String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase();
+          if (url) context.keys.add(`url:${url}`);
+          for (const archetype of subjectVisualArchetypes({
+            productName: String(row.caption ?? ""),
+            category: String(row.category ?? ""),
+          })) {
+            context.visualArchetypes.add(archetype);
+          }
+        }
+        return context;
       }
       throw new Error(error.message);
     }
 
-    const keys = new Set<string>();
     for (const row of data ?? []) {
       const url = String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase();
-      if (url) keys.add(`url:${url}`);
+      if (url) empty.keys.add(`url:${url}`);
       const discoveryId = String(row.discovery_product_id ?? "").trim();
-      if (discoveryId) keys.add(`discovery:${discoveryId}`);
+      if (discoveryId) empty.keys.add(`discovery:${discoveryId}`);
+
+      const caption = String(row.caption ?? "");
+      const category = String(row.category ?? "");
+      for (const archetype of subjectVisualArchetypes({
+        productName: caption,
+        category,
+      })) {
+        empty.visualArchetypes.add(archetype);
+      }
+
+      const brandMatch = caption.match(/(?:^|[|·•/\\-])\\s*([a-z0-9][a-z0-9 .&'’-]{1,48})\\s+(?:[A-Z][^|·•/\\-]{1,48})$/i);
+      if (brandMatch?.[1]) {
+        const brandKey = brandMatch[1].trim().toLowerCase();
+        if (brandKey.length >= 2) {
+          empty.brandCounts.set(brandKey, (empty.brandCounts.get(brandKey) ?? 0) + 1);
+        }
+      }
     }
-    return keys;
+    return empty;
   } catch (error) {
     console.error("loadRecentOwnPostKeys failed", personaSafeName(profileId), error);
-    return new Set<string>();
+    return empty;
   }
 }
 
@@ -1621,11 +1710,11 @@ export async function runResidentLifeCycle(
       provenance: item.entityKey,
     })),
   );
-  const recentOwnPostKeys = await loadRecentOwnPostKeys(persona.profile_id);
+  const recentOwnPostContext = await loadRecentOwnPostKeys(persona.profile_id);
   const subjects = dropRepeatedSubjects(
     rawSubjects,
     [...exploration.avoidEntities, ...intent.avoid],
-    recentOwnPostKeys,
+    recentOwnPostContext,
   );
   const assignedDiscoverySubjects = subjects.filter(isAssignedDiscoverySubject);
   const postableAssignedDiscoveries = assignedDiscoverySubjects.filter(

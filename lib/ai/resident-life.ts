@@ -1120,6 +1120,7 @@ function subjectVisualArchetypes(subject: {
     ["bottle", /\\b(?:bottle|flacon|vial|ampoule|perfume|parfum|fragrance)\\b/],
     ["jar", /\\b(?:jar|pot|balm|cream|ointment)\\b/],
     ["vessel", /\\b(?:vessel|ceramic|pottery|potter|stoneware|tableware|container)\\b/],
+    ["craft_object", /\\b(?:craft|crafted|craftsmanship|ceramic|pottery|potter|vessel|artisan|handmade|maker)\\b/],
     ["lip", /\\b(?:lipstick|lip gloss|lip balm|lip tint|lip liner)\\b/],
     ["eye", /\\b(?:mascara|eyeliner|eye shadow|eyeshadow)\\b/],
     ["shoe", /\\b(?:shoe|sneaker|trainer|loafer|boot|heel)\\b/],
@@ -1258,6 +1259,7 @@ type CommunityPostContext = {
   keys: Set<string>;
   domainCounts: Map<string, number>;
   captions: string[];
+  visualArchetypes: Map<string, number>;
 };
 
 function normalizeHost(value: string | null | undefined): string | null {
@@ -1275,6 +1277,7 @@ async function loadRecentCommunityPostKeys(hours = 24): Promise<CommunityPostCon
     keys: new Set<string>(),
     domainCounts: new Map<string, number>(),
     captions: [],
+    visualArchetypes: new Map<string, number>(),
   };
 
   try {
@@ -1303,7 +1306,18 @@ async function loadRecentCommunityPostKeys(hours = 24): Promise<CommunityPostCon
       }
 
       const caption = String(row.caption ?? "").trim();
-      if (caption) empty.captions.push(caption.toLowerCase());
+      if (caption) {
+        empty.captions.push(caption.toLowerCase());
+        for (const archetype of subjectVisualArchetypes({
+          label: caption,
+          category: "community_post",
+        })) {
+          empty.visualArchetypes.set(
+            archetype,
+            (empty.visualArchetypes.get(archetype) ?? 0) + 1,
+          );
+        }
+      }
     }
   } catch (error) {
     console.error("loadRecentCommunityPostKeys failed", error);
@@ -1335,6 +1349,16 @@ function dropCommunityRepeatedSubjects(
     // Only suppress a domain after six recent posts across the community.
     const host = normalizeHost(productUrl);
     if (host && (recentCommunity.domainCounts.get(host) ?? 0) >= 6) {
+      return false;
+    }
+
+    // Craft/vessel objects were repeatedly leaking across unrelated residents.
+    // Keep the feed diverse without suppressing ordinary fashion/beauty objects.
+    const subjectArchetypes = subjectVisualArchetypes(subject);
+    if (
+      subjectArchetypes.includes("craft_object") &&
+      (recentCommunity.visualArchetypes.get("craft_object") ?? 0) >= 2
+    ) {
       return false;
     }
 

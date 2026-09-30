@@ -3,10 +3,6 @@
     {
       "path": "/api/ai-act",
       "schedule": "0 */2 * * *"
-    },
-    {
-      "path": "/api/ai-act",
-      "schedule": "0 1 * * *"
     }
   ]
 }

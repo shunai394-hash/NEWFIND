@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/ai-act",
-      "schedule": "0 0 * * *"
+      "schedule": "0 */2 * * *"
     },
     {
       "path": "/api/ai-act",
-      "schedule": "0 12 * * *"
+      "schedule": "0 1 * * *"
     }
   ]
 }

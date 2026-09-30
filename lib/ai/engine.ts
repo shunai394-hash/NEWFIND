@@ -102,56 +102,24 @@ function pickResidentsToAct(
   const marketplaceNames = new Set(
     MARKETPLACE_RESIDENTS.map((resident) => resident.personaName),
   );
-  const featured = personas
-    .filter(
-      (persona) =>
-        featuredNames.has(persona.persona_name) && isDue(persona),
-    )
-    .sort((a, b) => dueStamp(a) - dueStamp(b));
-  const scouts = personas
-    .filter(
-      (persona) =>
-        persona.resident_role === "world_scout" && isDue(persona),
-    )
-    .sort((a, b) => dueStamp(a) - dueStamp(b));
-  const specialists = personas
-    .filter(
-      (persona) =>
-        specialistNames.has(persona.persona_name) && isDue(persona),
-    )
-    .sort((a, b) => dueStamp(a) - dueStamp(b));
-  const marketplace = personas
-    .filter(
-      (persona) =>
-        marketplaceNames.has(persona.persona_name) && isDue(persona),
-    )
-    .sort((a, b) => dueStamp(a) - dueStamp(b));
-  const rest = personas
-    .filter(
-      (persona) =>
-        !featuredNames.has(persona.persona_name) &&
-        !specialistNames.has(persona.persona_name) &&
-        !marketplaceNames.has(persona.persona_name) &&
-        persona.resident_role !== "world_scout" &&
-        isDue(persona),
-    )
-    .sort((a, b) => dueStamp(a) - dueStamp(b));
+  // Every due resident must get a fair turn. Previously featured residents
+  // were always inserted first, which could starve ordinary residents when
+  // the engine limit was smaller than the active population.
+  const due = personas
+    .filter((persona) => isDue(persona))
+    .sort((a, b) => {
+      const dueDelta = dueStamp(a) - dueStamp(b);
+      if (dueDelta !== 0) return dueDelta;
 
-  const picked = [...featured.slice(0, 3)];
-  if (scouts[0] && !picked.some((row) => row.id === scouts[0].id)) {
-    picked.push(scouts[0]);
-  }
-  if (marketplace[0] && !picked.some((row) => row.id === marketplace[0].id)) {
-    picked.push(marketplace[0]);
-  }
-  const remaining = Math.max(0, limit - picked.length);
-  const specialistSlots =
-    remaining === 0
-      ? 0
-      : Math.min(specialists.length, Math.max(1, Math.ceil(remaining / 2)));
-  picked.push(...specialists.slice(0, specialistSlots));
-  const restRemaining = Math.max(0, limit - picked.length);
-  return [...picked, ...pickByRole(rest, restRemaining)].slice(0, limit);
+      // Keep role diversity when residents become due at the same instant.
+      const aRole = a.resident_role || "general_user";
+      const bRole = b.resident_role || "general_user";
+      if (aRole !== bRole) return aRole.localeCompare(bRole);
+
+      return a.persona_name.localeCompare(b.persona_name);
+    });
+
+  return due.slice(0, limit);
 }
 
 function summarizeResults(results: unknown[]) {

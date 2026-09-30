@@ -263,6 +263,18 @@ function main() {
   assert(afterXp.role === "product_hunter", "experience cannot replace resident role");
   assert(namedCorrespondentIdentity("human_user") === null, "human profiles are not auto-titled correspondents");
 
+  const criticCraft = dispatchFor(critic, result({
+    title: "Handmade bottle craft exhibition opens in London",
+    url: "https://example.com/london-bottle-craft",
+    snippet: "Glass bottles, ceramic craft and handmade objects are on display.",
+    sourceType: "magazine",
+    sourceRole: "news",
+    domain: "example.com",
+    publishedAt: new Date().toISOString(),
+  }));
+  assert(criticCraft.scores.relevance === 0, `fashion critic must reject non-fashion craft, got relevance ${criticCraft.scores.relevance}`);
+  assert(criticCraft.decision === "IGNORE", `fashion critic must ignore off-beat craft, got ${criticCraft.decision}`);
+
   const criticWeak = dispatchFor(critic, result({
     title: "Random blog says this jacket is fine",
     url: "https://myblog.test/jacket",

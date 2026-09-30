@@ -82,6 +82,7 @@ import {
   correspondentIdentityFromLens,
   correspondentIdentityStatement,
 } from "@/lib/ai/correspondent-identity";
+import { textFitsHunterSpecialty } from "@/lib/ai/specialty-fit";
 
 
 export type ResidentLifeCycleOptions = {
@@ -1056,7 +1057,39 @@ async function gatherPostSubjects(
     unique.push(subject);
   }
 
-  return unique.slice(0, 8);
+  // Correspondent identity is a hard editorial boundary, not just prompt guidance.
+  // Keep the existing resident role intact, but reject off-beat subjects before POST.
+  const beatFiltered = unique.filter((subject) => {
+    const role = (persona.resident_role || "").trim().toLowerCase();
+    if (role === "general_user" || role === "world_scout") return true;
+
+    const identityText = [
+      subject.label,
+      subject.productName,
+      subject.brand,
+      subject.category,
+      subject.sourceUrl,
+      subject.productUrl,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const huntingSpecialty = (persona.expertise ?? []).slice(0, 3).join(" / ");
+    const fits = textFitsHunterSpecialty({
+      text: identityText,
+      username: persona.username,
+      huntingSpecialty,
+    });
+
+    if (!fits) {
+      console.log(
+        `[AI BEAT GATE] skipped off-beat subject for ${persona.persona_name}: ${subject.label}`,
+      );
+    }
+    return fits;
+  });
+
+  return beatFiltered.slice(0, 8);
 }
 
 type RecentOwnPostContext = {

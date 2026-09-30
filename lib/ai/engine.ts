@@ -3,9 +3,6 @@ import { getSharedWorldNews } from "@/lib/ai/gdelt";
 import { getGoogleTrendsForWorld } from "@/lib/ai/google-trends";
 import { ensureAiResidentPopulation } from "@/lib/ai/resident-factory";
 import { ensureFeaturedLivingResidents } from "@/lib/ai/ensure-featured-residents";
-import { featuredResidentsForScheduling } from "@/lib/ai/featured-living-residents";
-import { SPECIALIST_PRODUCT_HUNTERS } from "@/lib/ai/specialist-product-hunters";
-import { MARKETPLACE_RESIDENTS } from "@/lib/ai/marketplace-residents";
 import { runResidentLifeCycle } from "@/lib/ai/resident-life";
 import { logAiActivity } from "@/lib/ai/control-tower/activity-log";
 import {

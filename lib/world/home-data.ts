@@ -560,17 +560,41 @@ async function loadProducts(
     .order("created_at", { ascending: false })
     .limit(8);
 
-  if (error) {
-    console.warn("[world-home] products", error.message);
+  if (!error && data?.length) {
+    return data.map((row) => ({
+      id: row.id as string,
+      brand: (row.brand as string) ?? "",
+      name: (row.product_name as string) ?? "",
+      imageUrl: (row.product_image_url as string | null) ?? null,
+      href: `/products/${row.id}`,
+    }));
+  }
+
+  // Keep the world homepage populated from real AI product posts even when
+  // discovery_products has not been materialized yet. Never invent a product:
+  // only published AI posts carrying an actual product URL are eligible.
+  const { data: aiPosts, error: aiPostError } = await supabase
+    .from("ai_posts")
+    .select("id, product_url, product_label, media_url, thumbnail_url, published_at")
+    .eq("status", "published")
+    .not("product_url", "is", null)
+    .neq("product_url", "")
+    .order("published_at", { ascending: false })
+    .limit(8);
+
+  if (aiPostError) {
+    console.warn("[world-home] products", error?.message ?? aiPostError.message);
     return [];
   }
 
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    brand: (row.brand as string) ?? "",
-    name: (row.product_name as string) ?? "",
-    imageUrl: (row.product_image_url as string | null) ?? null,
-    href: `/products/${row.id}`,
+  return (aiPosts ?? []).map((row) => ({
+    id: String(row.id),
+    brand: "",
+    name: String(row.product_label ?? "Discovery"),
+    imageUrl:
+      (row.thumbnail_url as string | null) ||
+      (row.media_url as string | null),
+    href: String(row.product_url),
   }));
 }
 

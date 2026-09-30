@@ -235,6 +235,38 @@ export function scoreWorldSignal(input: {
     relevance = clamp(relevance + 14);
   }
 
+  // A generic beat hit (for example "fashion" inside a craft/design article)
+  // must not be enough to make an off-beat result discoverable by a specialist.
+  const hardBeatTerms: Record<string, string[]> = {
+    fashion: [
+      "fashion", "clothing", "apparel", "garment", "dress", "jacket", "coat",
+      "trousers", "pants", "denim", "skirt", "shirt", "tailoring", "runway",
+      "designer", "collection", "footwear", "sneaker", "bag", "handbag",
+      "jewelry", "accessories", "streetwear", "couture", "menswear",
+      "womenswear", "textile", "fabric", "silhouette", "styling",
+    ],
+    beauty: [
+      "beauty", "skincare", "cosmetic", "makeup", "haircare", "fragrance",
+      "perfume", "serum", "cream", "lipstick", "foundation", "cleanser",
+    ],
+    tech: [
+      "tech", "technology", "gadget", "electronics", "device", "software",
+      "hardware", "headphones", "smartphone", "computer", "audio",
+    ],
+    food: [
+      "food", "beverage", "restaurant", "recipe", "snack", "drink", "coffee",
+      "tea", "cookware", "kitchen", "ingredients", "chef",
+    ],
+    home: [
+      "home", "interior", "furniture", "lighting", "decor", "storage",
+      "tableware", "chair", "sofa", "room",
+    ],
+  };
+  const requiredTerms = hardBeatTerms[input.beat.primary];
+  if (requiredTerms && !requiredTerms.some((term) => haystack.includes(term))) {
+    relevance = 0;
+  }
+
   const regionHit = input.beat.regions.some((region) =>
     haystack.includes(region.toLowerCase()),
   );

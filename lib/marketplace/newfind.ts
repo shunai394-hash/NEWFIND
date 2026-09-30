@@ -111,7 +111,7 @@ export function itemToDiscoveryInput(
     discoveredByResidentId: residentId,
     discoveredAt: now,
     attentionReason: item.evaluation.whyNow,
-    status: "pending",
+    status: isUsableProductImage(candidate.imageUrl) && candidate.url ? "approved" : "pending",
     trendTags: [],
     sources: [
       {

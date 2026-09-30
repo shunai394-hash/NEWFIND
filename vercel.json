@@ -2,15 +2,31 @@
   "crons": [
     {
       "path": "/api/ai-act",
-      "schedule": "0 6 * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/ai-act",
-      "schedule": "0 18 * * *"
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/ai-act",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/ai-act",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/ai-act",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/ai-act",
+      "schedule": "0 20 * * *"
     },
     {
       "path": "/api/ai-act?mode=product_hunter",
-      "schedule": "0 9 * * *"
+      "schedule": "30 2 * * *"
     },
     {
       "path": "/api/integrations/outbox/drain",

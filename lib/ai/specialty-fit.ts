@@ -151,12 +151,14 @@ export function textFitsHunterSpecialty(input: {
   username?: string | null;
   huntingSpecialty?: string;
   strategy?: HunterStrategy | null;
+  strict?: boolean;
 }): boolean {
   const lane = hunterLane(input.username, input.huntingSpecialty);
   if (!lane || lane === "world") return true;
   const haystack = input.text;
   if (REJECT[lane]?.test(haystack)) return false;
   if (ACCEPT[lane]?.test(haystack)) return true;
+  if (input.strict) return false;
   const vocabulary = input.strategy?.searchVocabulary ?? [];
   return vocabulary.some((term) => {
     const token = term.trim().toLowerCase();

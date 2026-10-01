@@ -26,7 +26,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
   const viewerId = session?.userId ?? null;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<CategoryId>("fashion");
+  const [category, setCategory] = useState<CategoryId | "all">("all");
   const [posts, setPosts] = useState<PostView[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +54,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
 
   const discoverProducts = useMemo(() => {
     const filtered = catalog.filter((item) => {
+      if (category === "all") return true;
       if (category === "fashion") return item.category === "fashion" || item.trendTags.includes("teen");
       if (category === "beauty") return item.category === "beauty";
       if (category === "accessories") return item.category === "accessories";
@@ -261,9 +262,9 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
 
       {tab === "products" ? (
         <div className="flex gap-2 overflow-x-auto bg-white px-3 py-3">
-          {POST_CATEGORIES.filter((id) =>
+          {(["all", ...POST_CATEGORIES.filter((id) =>
             ["fashion", "beauty", "accessories", "fragrance", "japan_brands", "celebrity"].includes(id),
-          ).map((id) => (
+          )] as const).map((id) => (
             <button
               key={id}
               type="button"
@@ -272,7 +273,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
                 category === id ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600"
               }`}
             >
-              {CATEGORY_LABELS[id]}
+              {id === "all" ? "すべて" : CATEGORY_LABELS[id]}
             </button>
           ))}
         </div>

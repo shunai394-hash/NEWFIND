@@ -1118,20 +1118,20 @@ function subjectVisualArchetypes(subject: {
     .toLowerCase();
 
   const rules: Array<[string, RegExp]> = [
-    ["bottle", /\\b(?:bottle|flacon|vial|ampoule|perfume|parfum|fragrance)\\b/],
-    ["jar", /\\b(?:jar|pot|balm|cream|ointment)\\b/],
-    ["vessel", /\\b(?:vessel|ceramic|pottery|potter|stoneware|tableware|container)\\b/],
-    ["craft_object", /\\b(?:craft|crafted|craftsmanship|ceramic|pottery|potter|vessel|artisan|handmade|maker)\\b/],
-    ["lip", /\\b(?:lipstick|lip gloss|lip balm|lip tint|lip liner)\\b/],
-    ["eye", /\\b(?:mascara|eyeliner|eye shadow|eyeshadow)\\b/],
-    ["shoe", /\\b(?:shoe|sneaker|trainer|loafer|boot|heel)\\b/],
-    ["bag", /\\b(?:bag|handbag|tote|pouch|clutch|backpack)\\b/],
-    ["jewelry", /\\b(?:jewelry|jewellery|necklace|earring|bracelet|ring)\\b/],
-    ["outerwear", /\\b(?:jacket|coat|blazer|parka|trench)\\b/],
-    ["top", /\\b(?:shirt|blouse|sweater|hoodie|cardigan|top)\\b/],
-    ["bottom", /\\b(?:jeans|trouser|pants|skirt|shorts)\\b/],
-    ["hat", /\\b(?:hat|cap|beanie)\\b/],
-    ["gadget", /\\b(?:phone|headphone|earbud|camera|keyboard|mouse|gadget)\\b/],
+    ["bottle", /\b(?:bottle|flacon|vial|ampoule|perfume|parfum|fragrance)\b/],
+    ["jar", /\b(?:jar|pot|balm|cream|ointment)\b/],
+    ["vessel", /\b(?:vessel|ceramic|pottery|potter|stoneware|tableware|container)\b/],
+    ["craft_object", /\b(?:craft|crafted|craftsmanship|ceramic|pottery|potter|vessel|artisan|handmade|maker)\b/],
+    ["lip", /\b(?:lipstick|lip gloss|lip balm|lip tint|lip liner)\b/],
+    ["eye", /\b(?:mascara|eyeliner|eye shadow|eyeshadow)\b/],
+    ["shoe", /\b(?:shoe|sneaker|trainer|loafer|boot|heel)\b/],
+    ["bag", /\b(?:bag|handbag|tote|pouch|clutch|backpack)\b/],
+    ["jewelry", /\b(?:jewelry|jewellery|necklace|earring|bracelet|ring)\b/],
+    ["outerwear", /\b(?:jacket|coat|blazer|parka|trench)\b/],
+    ["top", /\b(?:shirt|blouse|sweater|hoodie|cardigan|top)\b/],
+    ["bottom", /\b(?:jeans|trouser|pants|skirt|shorts)\b/],
+    ["hat", /\b(?:hat|cap|beanie)\b/],
+    ["gadget", /\b(?:phone|headphone|earbud|camera|keyboard|mouse|gadget)\b/],
   ];
 
   return rules
@@ -1332,6 +1332,12 @@ function dropCommunityRepeatedSubjects(
   recentCommunity: CommunityPostContext,
 ) {
   return subjects.filter((subject) => {
+    // Craft/vessel objects were repeatedly leaking into the world feed.
+    // Treat them as a hard stop at the final community gate, including assigned
+    // discoveries, so an assignment cannot bypass the repetition/editorial rule.
+    const subjectArchetypes = subjectVisualArchetypes(subject);
+    if (subjectArchetypes.includes("craft_object")) return false;
+
     // Assigned World Scout handoffs are deliberate cross-resident assignments.
     if (subject.assigned) return true;
 
@@ -1355,7 +1361,6 @@ function dropCommunityRepeatedSubjects(
 
     // Craft/vessel objects were repeatedly leaking across unrelated residents.
     // Keep the feed diverse without suppressing ordinary fashion/beauty objects.
-    const subjectArchetypes = subjectVisualArchetypes(subject);
     if (
       subjectArchetypes.includes("craft_object") &&
       (recentCommunity.visualArchetypes.get("craft_object") ?? 0) >= 2

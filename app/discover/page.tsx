@@ -1,5 +1,5 @@
 ﻿import { DiscoverView } from "@/components/discover-view";
 
 export default function DiscoverPage() {
-  return <DiscoverView initialTab="search" />;
+  return <DiscoverView initialTab="products" />;
 }

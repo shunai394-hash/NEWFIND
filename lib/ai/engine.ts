@@ -90,15 +90,6 @@ function pickResidentsToAct(
     return hunters.slice(0, Math.max(1, Math.min(limit, 6)));
   }
 
-  const featuredNames = new Set(
-    featuredResidentsForScheduling().map((resident) => resident.personaName),
-  );
-  const specialistNames = new Set(
-    SPECIALIST_PRODUCT_HUNTERS.map((resident) => resident.personaName),
-  );
-  const marketplaceNames = new Set(
-    MARKETPLACE_RESIDENTS.map((resident) => resident.personaName),
-  );
   // Every due resident must get a fair turn. Previously featured residents
   // were always inserted first, which could starve ordinary residents when
   // the engine limit was smaller than the active population.

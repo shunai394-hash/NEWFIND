@@ -41,6 +41,7 @@ export const DROP_OFF_REASONS = [
   "RATE_LIMITED",
   "SAVED",
   "POSTED",
+  "SAVE_FAILED",
 ] as const;
 
 export type DropOffReason = (typeof DROP_OFF_REASONS)[number];

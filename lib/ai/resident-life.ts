@@ -1079,6 +1079,7 @@ async function gatherPostSubjects(
       text: identityText,
       username: persona.username,
       huntingSpecialty,
+      strict: true,
     });
 
     if (!fits) {

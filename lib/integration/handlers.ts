@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { productIdentityKey } from "@/lib/ai/product-identity";
 import { canonicalProductUrl } from "@/lib/discovery/rules";
 import { isUsableProductImage } from "@/lib/discovery/media";
+import { publishBrandBridgeToFeed } from "./brandbridge-feed";
 import type { TracerInboundEventType } from "./types";
 
 function asString(value: unknown): string | null {
@@ -46,6 +47,10 @@ async function handleProductCandidate(
   payload: Record<string, unknown>,
 ): Promise<{ ok: boolean; detail: string }> {
   const isBrandBridge = eventType === "brandbridge_product";
+  if (isBrandBridge) {
+    const feed = await publishBrandBridgeToFeed({ eventId, payload });
+    await storeBridgeNote({ eventType, eventId, payload: { ...payload, feed } });
+  }
   const productUrl =
     asString(payload.product_url) ||
     asString(payload.productUrl) ||

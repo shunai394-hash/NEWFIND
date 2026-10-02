@@ -41,9 +41,11 @@ async function storeBridgeNote(input: {
 }
 
 async function handleProductCandidate(
+  eventType: TracerInboundEventType,
   eventId: string,
   payload: Record<string, unknown>,
 ): Promise<{ ok: boolean; detail: string }> {
+  const isBrandBridge = eventType === "brandbridge_product";
   const productUrl =
     asString(payload.product_url) ||
     asString(payload.productUrl) ||
@@ -102,7 +104,9 @@ async function handleProductCandidate(
       .update({
         status: "approved",
         product_image_url: imageUrl,
-        official_url: asString(payload.official_url) || asString(payload.officialUrl) || canonical,
+        ...(!isBrandBridge && (asString(payload.official_url) || asString(payload.officialUrl))
+          ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
+          : {}),
         confidence_score: asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40,
         trend_score: asNumber(payload.demand_score) ?? 0,
         updated_at: new Date().toISOString(),
@@ -125,7 +129,10 @@ async function handleProductCandidate(
         description: asString(payload.discovery_reason) || asString(payload.note) || "",
         product_image_url: imageUrl,
         product_url: canonical,
-        official_url: asString(payload.official_url) || asString(payload.officialUrl),
+        official_url:
+          !isBrandBridge
+            ? asString(payload.official_url) || asString(payload.officialUrl)
+            : null,
         price: asNumber(payload.price),
         currency: asString(payload.currency) || "JPY",
         canonical_url: canonical,
@@ -171,7 +178,7 @@ async function handleProductCandidate(
       beat: category,
       sourceUrl: canonical,
       sourceTitle: productName,
-      sourceKind: "tracer_product_candidate",
+      sourceKind: isBrandBridge ? "brandbridge_product" : "tracer_product_candidate",
       entityKey: identity,
       productId,
       evidenceCount: 1,
@@ -184,7 +191,7 @@ async function handleProductCandidate(
   }
 
   await storeBridgeNote({
-    eventType: "product_candidate",
+    eventType,
     eventId,
     payload: { ...payload, productId, assigned },
   });
@@ -219,7 +226,8 @@ export async function processInboundEvent(input: {
 
   switch (input.eventType) {
     case "product_candidate":
-      return handleProductCandidate(input.eventId, input.payload);
+    case "brandbridge_product":
+      return handleProductCandidate(input.eventType, input.eventId, input.payload);
     case "market_info":
     case "demand_info":
     case "sales_test_result":

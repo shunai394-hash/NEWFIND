@@ -190,7 +190,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     service: "newfind-tracer-inbound",
-    accepts: ["market_info", "product_candidate", "demand_info", "sales_test_result"],
+    accepts: ["market_info", "product_candidate", "demand_info", "sales_test_result", "brandbridge_product"],
     auth: ["HMAC X-Integration-*", "Bearer shared secret (legacy)"],
   });
 }

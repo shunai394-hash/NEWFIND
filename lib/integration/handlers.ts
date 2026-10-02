@@ -102,7 +102,9 @@ async function handleProductCandidate(
       .update({
         status: "approved",
         product_image_url: imageUrl,
-        official_url: asString(payload.official_url) || asString(payload.officialUrl) || canonical,
+        ...(asString(payload.official_url) || asString(payload.officialUrl)
+          ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
+          : {}),
         confidence_score: asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40,
         trend_score: asNumber(payload.demand_score) ?? 0,
         updated_at: new Date().toISOString(),
@@ -219,6 +221,7 @@ export async function processInboundEvent(input: {
 
   switch (input.eventType) {
     case "product_candidate":
+    case "brandbridge_product":
       return handleProductCandidate(input.eventId, input.payload);
     case "market_info":
     case "demand_info":

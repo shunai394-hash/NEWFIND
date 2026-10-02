@@ -143,7 +143,8 @@ export async function POST(request: Request) {
       | "market_info"
       | "product_candidate"
       | "demand_info"
-      | "sales_test_result",
+      | "sales_test_result"
+      | "brandbridge_product",
     eventId: envelope.event_id,
     payload: envelope.payload,
     causationId: envelope.causation_id,

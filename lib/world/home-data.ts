@@ -550,7 +550,7 @@ async function loadFeaturedResidents(
   );
 }
 
-function isHomepageProductEligible(product: {
+export function isHomepageProductEligible(product: {
   brand: string;
   name: string;
   imageUrl: string | null;

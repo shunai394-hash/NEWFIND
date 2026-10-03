@@ -1064,7 +1064,38 @@ export async function evaluateProductCandidates(
       }
     }
 
-    const finalCandidates = [...unique.values()].slice(0, 3);
+    const diversity = new Set<string>();
+    const diversified: ProductHunterCandidate[] = [];
+
+    for (const candidate of unique.values()) {
+      const family = `${candidate.category}:${candidate.subcategory || "general"}`;
+      const brandKey = candidate.brand.trim().toLowerCase();
+      const duplicateFamily = diversified.some((item) =>
+        `${item.category}:${item.subcategory || "general"}` === family,
+      );
+      const duplicateBrand = diversified.some(
+        (item) => item.brand.trim().toLowerCase() === brandKey,
+      );
+
+      // Prefer discovery breadth: do not let one brand/category occupy the whole batch.
+      if ((duplicateFamily && diversified.length < 2) || (duplicateBrand && diversified.length < 2)) {
+        continue;
+      }
+
+      diversified.push(candidate);
+      diversity.add(family);
+      if (diversified.length >= 3) break;
+    }
+
+    // If strict diversity leaves too few, fill from remaining verified candidates.
+    if (diversified.length < 3) {
+      for (const candidate of unique.values()) {
+        if (!diversified.includes(candidate)) diversified.push(candidate);
+        if (diversified.length >= 3) break;
+      }
+    }
+
+    const finalCandidates = diversified.slice(0, 3);
     trace.funnel.aiSelected = finalCandidates.length;
     markPipelineEvent(trace, "QUALITY_CHECK_COMPLETED");
 

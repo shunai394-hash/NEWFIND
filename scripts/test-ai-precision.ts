@@ -5,6 +5,7 @@ import { classifyProductMatch } from "../lib/ai/product-identity";
 import { evaluateSalesTarget } from "../lib/ai/entity-verification";
 import { canonicalizeSourceUrl } from "../lib/ai/agent-os/hash";
 import { sourceReliabilityLabel } from "../lib/ai/agent-os/quality";
+import { isRejectedProductType, sourceIdentityMatches } from "../lib/ai/product-hunter";
 import { funnelSummary, emptyFunnel, recordDrop, createPipelineTrace } from "../lib/ai/pipeline-trace";
 import type { DiscoveryProduct } from "../lib/discovery/types";
 
@@ -222,6 +223,36 @@ function main() {
       huntingSpecialty: "startup hardware",
     }),
     "Tech Hunter must prefer tech PDPs",
+  );
+
+  assert(
+    isRejectedProductType("Handcrafted ceramic bottle for decorative display"),
+    "craft/decorative bottle must be rejected",
+  );
+  assert(
+    isRejectedProductType("Pottery vessel handmade ornament"),
+    "pottery vessel must be rejected",
+  );
+  assert(
+    !isRejectedProductType("Aesop fragrance bottle 50ml"),
+    "ordinary commercial fragrance bottle must remain eligible",
+  );
+
+  const supportedSource = {
+    title: "Acme New Fragrance Eau de Parfum",
+    snippet: "50ml. Price 80. Add to bag.",
+    url: "https://acme.test/products/new-fragrance",
+    domain: "acme.test",
+    sourceType: "brand_official" as const,
+    sourceRole: "product" as const,
+  };
+  assert(
+    sourceIdentityMatches("Acme", "New Fragrance Eau de Parfum", supportedSource),
+    "source identity must match concrete product evidence",
+  );
+  assert(
+    !sourceIdentityMatches("Other Brand", "Completely Different Camera", supportedSource),
+    "mismatched model output must be rejected",
   );
 
   const existing = [productFixture()];

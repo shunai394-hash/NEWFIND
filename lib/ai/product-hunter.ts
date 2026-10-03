@@ -295,11 +295,11 @@ const REJECT_PRODUCT_PATTERNS = [
   /\\bwood\\s+carving\\b/i,
 ];
 
-function isRejectedProductType(text: string): boolean {
+export function isRejectedProductType(text: string): boolean {
   return REJECT_PRODUCT_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-function sourceIdentityMatches(
+export function sourceIdentityMatches(
   brand: string,
   productName: string,
   source: WorldSearchResult,

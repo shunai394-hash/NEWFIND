@@ -7,6 +7,7 @@ export const TRACER_INBOUND_EVENT_TYPES = [
   "demand_info",
   "sales_test_result",
   "brandbridge_product",
+  "product_withdrawn",
 ] as const;
 export type TracerInboundEventType = (typeof TRACER_INBOUND_EVENT_TYPES)[number];
 

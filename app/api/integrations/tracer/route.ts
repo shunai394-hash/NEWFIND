@@ -144,7 +144,8 @@ export async function POST(request: Request) {
       | "product_candidate"
       | "demand_info"
       | "sales_test_result"
-      | "brandbridge_product",
+      | "brandbridge_product"
+      | "product_withdrawn",
     eventId: envelope.event_id,
     payload: envelope.payload,
     causationId: envelope.causation_id,
@@ -190,7 +191,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     service: "newfind-tracer-inbound",
-    accepts: ["market_info", "product_candidate", "demand_info", "sales_test_result", "brandbridge_product"],
+    accepts: ["market_info", "product_candidate", "demand_info", "sales_test_result", "brandbridge_product", "product_withdrawn"],
     auth: ["HMAC X-Integration-*", "Bearer shared secret (legacy)"],
   });
 }

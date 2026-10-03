@@ -5,6 +5,7 @@ import { productIdentityKey } from "@/lib/ai/product-identity";
 import { canonicalProductUrl } from "@/lib/discovery/rules";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { publishBrandBridgeToFeed } from "./brandbridge-feed";
+import { checkTracerPublicationAttestation, withdrawnProductUrls } from "./tracer-attestation";
 import type { TracerInboundEventType } from "./types";
 
 function asString(value: unknown): string | null {
@@ -47,6 +48,12 @@ async function handleProductCandidate(
   payload: Record<string, unknown>,
 ): Promise<{ ok: boolean; detail: string }> {
   const isBrandBridge = eventType === "brandbridge_product";
+  // Publish gate: a TRACER product is promoted only with TRACER's signed
+  // attestation that it is published and passed the Sales Test Gate.
+  if (!isBrandBridge) {
+    const attestation = checkTracerPublicationAttestation(payload);
+    if (!attestation.ok) return { ok: false, detail: attestation.reason };
+  }
   if (isBrandBridge) {
     const feed = await publishBrandBridgeToFeed({ eventId, payload });
     await storeBridgeNote({ eventType, eventId, payload: { ...payload, feed } });
@@ -114,6 +121,10 @@ async function handleProductCandidate(
           : {}),
         confidence_score: asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40,
         trend_score: asNumber(payload.demand_score) ?? 0,
+        // Re-promotion carries TRACER's current price; never keep a stale one.
+        ...(!isBrandBridge && asNumber(payload.price) !== null
+          ? { price: asNumber(payload.price), currency: asString(payload.currency) || "JPY" }
+          : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", productId);
@@ -209,6 +220,29 @@ async function handleProductCandidate(
   };
 }
 
+// TRACER unpublished the listing: take its promotion out of the public feed.
+// Only TRACER-sourced, currently approved rows are touched; nothing is
+// deleted (status moves to "pending", which the public feed excludes).
+async function handleProductWithdrawn(
+  eventId: string,
+  payload: Record<string, unknown>,
+): Promise<{ ok: boolean; detail: string }> {
+  const urls = withdrawnProductUrls(payload);
+  if (urls.length === 0) return { ok: false, detail: "product_withdrawn requires product_urls" };
+  const candidates = Array.from(new Set(urls.flatMap((url) => [url, canonicalProductUrl(url) || url])));
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("discovery_products")
+    .update({ status: "pending", updated_at: new Date().toISOString() })
+    .in("product_url", candidates)
+    .eq("discovery_source", "tracer")
+    .eq("status", "approved")
+    .select("id");
+  if (error) return { ok: false, detail: `withdraw failed: ${error.message}` };
+  await storeBridgeNote({ eventType: "product_withdrawn", eventId, payload: { ...payload, withdrawn: data?.length ?? 0 } });
+  return { ok: true, detail: `withdrawn ${data?.length ?? 0} discovery product(s)` };
+}
+
 async function handleFactOnly(
   eventType: TracerInboundEventType,
   eventId: string,
@@ -233,6 +267,8 @@ export async function processInboundEvent(input: {
     case "product_candidate":
     case "brandbridge_product":
       return handleProductCandidate(input.eventType, input.eventId, input.payload);
+    case "product_withdrawn":
+      return handleProductWithdrawn(input.eventId, input.payload);
     case "market_info":
     case "demand_info":
     case "sales_test_result":

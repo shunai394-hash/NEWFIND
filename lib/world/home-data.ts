@@ -596,7 +596,7 @@ async function loadProducts(
   const { data, error } = await supabase
     .from("discovery_products")
     .select(
-      "id, brand, product_name, product_image_url, price, description, confidence_score, evidence_score, resident_fit_score",
+      "id, brand, product_name, product_image_url, product_url, official_url, price, description, sku, gtin, model_number, confidence_score",
     )
     .eq("status", "approved")
     .order("created_at", { ascending: false })
@@ -613,12 +613,15 @@ async function loadProducts(
           description: (row.description as string | null) ?? null,
         }),
       )
-      .filter(
-        (row) =>
-          Number(row.confidence_score ?? 0) >= 55 &&
-          Number(row.evidence_score ?? 0) >= 55 &&
-          Number(row.resident_fit_score ?? 0) >= 50,
-      )
+      .filter((row) => {
+        const verifiedIdentity = Boolean(
+          String(row.official_url ?? "").trim() ||
+            String(row.sku ?? "").trim() ||
+            String(row.gtin ?? "").trim() ||
+            String(row.model_number ?? "").trim(),
+        );
+        return Number(row.confidence_score ?? 0) >= 55 && verifiedIdentity;
+      })
       .slice(0, 8);
 
     if (eligible.length) {

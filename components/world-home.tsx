@@ -585,21 +585,21 @@ function DiscoveryStory({
             ) : null}
             {index === 4 ? (
               <div className="flex flex-wrap gap-2 border-t border-neutral-100 px-4 py-3">
-                {(
-                  [
-                    { label: "Save", href: product?.href ?? "/discover" },
-                    { label: "Shop", href: product?.href ?? "/discover" },
-                    { label: "Share", href: product?.href ?? "/discover" },
-                  ] as const
-                ).map((item) => (
+                {product ? (
                   <Link
-                    key={item.label}
-                    href={item.href}
+                    href={product.href}
                     className="rounded-full bg-[#C6FF00] px-3 py-1 text-[11px] font-semibold text-black"
                   >
-                    {item.label}
+                    Open this discovery
                   </Link>
-                ))}
+                ) : (
+                  <Link
+                    href="/discover"
+                    className="rounded-full bg-[#C6FF00] px-3 py-1 text-[11px] font-semibold text-black"
+                  >
+                    Explore discoveries
+                  </Link>
+                )}
               </div>
             ) : null}
           </div>

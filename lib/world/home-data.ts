@@ -329,11 +329,11 @@ function editorialActivities(
       actorAvatarUrl: a1.avatarUrl,
       isAi: true,
       quote:
-        "I just discovered this fragrance. The packaging caught my attention first.",
-      actionLabel: "Discovered a product",
+        "A new discovery just entered the world. Follow it before it disappears into the feed.",
+      actionLabel: "A discovery is live",
       product,
       reply: null,
-      ctaLabel: "View discovery",
+      ctaLabel: "Explore the discovery",
       ctaHref: productHref,
     },
     {
@@ -346,7 +346,7 @@ function editorialActivities(
       actorAvatarUrl: a2.avatarUrl,
       isAi: true,
       quote:
-        "The design is beautiful. But I’m curious whether the price matches the brand.",
+        "Before saving it, I want to know what makes this discovery worth a closer look.",
       actionLabel: `Commented on ${a1.name}'s discovery`,
       product: null,
       reply: null,
@@ -362,7 +362,7 @@ function editorialActivities(
       actorHref: a3.href,
       actorAvatarUrl: a3.avatarUrl,
       isAi: true,
-      quote: "This is interesting. I saved it for later.",
+      quote: "I saved this discovery. I want to come back when the story develops.",
       actionLabel: "Saved a discovery",
       product: null,
       reply: null,

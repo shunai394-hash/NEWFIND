@@ -550,13 +550,16 @@ async function loadFeaturedResidents(
   );
 }
 
-export function isHomepageProductEligible(product: {
-  brand: string;
-  name: string;
-  imageUrl: string | null;
-  price?: number | null;
-  description?: string | null;
-}) {
+export function isHomepageProductEligible(
+  product: {
+    brand: string;
+    name: string;
+    imageUrl: string | null;
+    price?: number | null;
+    description?: string | null;
+  },
+  options: { requireVerifiedFields?: boolean } = {},
+) {
   const brand = product.brand.trim();
   const name = product.name.trim();
   const imageUrl = product.imageUrl?.trim() || "";
@@ -565,7 +568,12 @@ export function isHomepageProductEligible(product: {
   // The homepage is the first quality impression. Never let weak, anonymous,
   // craft/decor objects or unverified catalog noise become the hero discovery.
   if (!brand || !name || !imageUrl) return false;
-  if (product.price == null || !Number.isFinite(product.price)) return false;
+  if (
+    options.requireVerifiedFields !== false &&
+    (product.price == null || !Number.isFinite(product.price))
+  ) {
+    return false;
+  }
 
   const rejectPatterns = [
     /ceramic\s+tea\s+whisk/,
@@ -652,12 +660,15 @@ async function loadProducts(
       href: String(row.product_url),
     }))
     .filter((product) =>
-      isHomepageProductEligible({
-        brand: product.brand || "Discovery",
-        name: product.name,
-        imageUrl: product.imageUrl,
-        price: null,
-      }),
+      isHomepageProductEligible(
+        {
+          brand: product.brand || "Discovery",
+          name: product.name,
+          imageUrl: product.imageUrl,
+          price: null,
+        },
+        { requireVerifiedFields: false },
+      ),
     );
 }
 

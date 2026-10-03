@@ -170,6 +170,11 @@ function isLikelyConcreteProduct(
   const snippet = source.snippet.toLowerCase();
   const url = source.url.toLowerCase();
 
+  if (isRejectedProductType(`${productName} ${brand} ${description} ${title} ${snippet}`)) {
+    console.log("PRODUCT HUNTER: rejected low-value craft/decorative product:", productName, source.url);
+    return false;
+  }
+
   if (
     /openbeautyfacts\.org/i.test(url) &&
     /\/product\/[a-z0-9]/i.test(url)
@@ -269,6 +274,76 @@ function isLikelyConcreteProduct(
   }
 
   return true;
+}
+
+const REJECT_PRODUCT_PATTERNS = [
+  /\\bhandmade\\s+(?:bottle|vessel|jar|container)\\b/i,
+  /\\bhandcrafted\\s+(?:bottle|vessel|jar|container)\\b/i,
+  /\\bcraft(?:ed)?\\s+(?:bottle|vessel|jar|container)\\b/i,
+  /\\bceramic\\s+(?:bottle|vessel|jar|container)\\b/i,
+  /\\bpottery\\s+(?:bottle|vessel|jar|container)\\b/i,
+  /\\bdecorative\\s+(?:bottle|vessel|jar|container)\\b/i,
+  /\\bart(?:isan|isanal)\\s+(?:bottle|vessel|jar|container)\\b/i,
+  /\\bglass\\s+art\\s+(?:bottle|vessel)\\b/i,
+  /\\bhandmade\\s+(?:decor|ornament|object|craft)\\b/i,
+  /\\bhandcrafted\\s+(?:decor|ornament|object|craft)\\b/i,
+  /\\bceramic\\s+tea\\s+whisk\\b/i,
+  /\\bpottery\\b/i,
+  /\\bfigurine\\b/i,
+  /\\bdecorative\\s+object\\b/i,
+  /\\bresin\\s+art\\b/i,
+  /\\bwood\\s+carving\\b/i,
+];
+
+export function isRejectedProductType(text: string): boolean {
+  return REJECT_PRODUCT_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+export function sourceIdentityMatches(
+  brand: string,
+  productName: string,
+  source: WorldSearchResult,
+): boolean {
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\\p{L}\\p{N}]+/gu, " ")
+      .split(/\\s+/)
+      .filter((token) => token.length >= 3);
+
+  const brandTokens = new Set(normalize(brand));
+  const nameTokens = normalize(productName);
+  const sourceText = normalize(
+    [source.title, source.snippet].filter(Boolean).join(" "),
+  );
+
+  if (brandTokens.size && [...brandTokens].some((token) => sourceText.includes(token))) {
+    return true;
+  }
+
+  const sourceSet = new Set(sourceText);
+  const meaningfulNameTokens = nameTokens.filter(
+    (token) => !["the", "and", "for", "with", "new", "official"].includes(token),
+  );
+  const overlap = meaningfulNameTokens.filter((token) => sourceSet.has(token)).length;
+  return overlap >= Math.min(2, meaningfulNameTokens.length);
+}
+
+function hasSpecificAttentionReason(value: string, residentName: string): boolean {
+  const text = value.trim();
+  if (text.length < 20) return false;
+  const normalized = text.toLowerCase();
+  const generic = [
+    "noticed this product",
+    "interesting product",
+    "looks interesting",
+    "great product",
+    "i like this product",
+    "this product is interesting",
+  ];
+  if (generic.some((phrase) => normalized.includes(phrase))) return false;
+  return normalized.includes(residentName.trim().toLowerCase()) ||
+    /because|noticed|caught my eye|i(?:'m| am) interested|気にな|目に留ま|惹かれ/u.test(normalized);
 }
 
 function normalizeUrl(value: string): string {
@@ -424,6 +499,9 @@ function buildHunterPrompt(
     "Do not turn the resident into a political-news poster.",
     "",
     "Return at most 3 product candidates. Keep every description and attentionReason under 120 characters.",
+    "Do not choose handmade/handcrafted/crafted bottles, vessels, pottery, ceramic decor, figurines, ornaments, resin art, wood carvings, or decorative objects.",
+    "Do not confuse a fragrance bottle or packaged product with a craft/decorative bottle: choose the actual commercial product and explain why this resident noticed it.",
+    "attentionReason must contain a concrete resident-specific observation, not generic praise.",
     "Only return products supported by PRODUCT SOURCES.",
     "confidenceScore must be 50 or higher.",
     "Return JSON only.",
@@ -654,6 +732,28 @@ export async function evaluateProductCandidates(
 
       const requestedDescription = safeString(candidate.description).slice(0, 500);
 
+      if (isRejectedProductType(`${brand} ${productName} ${requestedDescription} ${source.title} ${source.snippet}`)) {
+        console.log("PRODUCT HUNTER: rejected blocked product type:", productName);
+        recordDrop(trace, {
+          url: source.url,
+          title: productName,
+          reason: "NOT_PRODUCT",
+          detail: "blocked craft/decorative product type",
+        });
+        continue;
+      }
+
+      if (!sourceIdentityMatches(brand, productName, source)) {
+        console.log("PRODUCT HUNTER: rejected source/product identity mismatch:", productName, source.url);
+        recordDrop(trace, {
+          url: source.url,
+          title: productName,
+          reason: "AI_REJECTED",
+          detail: "product identity not supported by source title/snippet",
+        });
+        continue;
+      }
+
       /*
        * officialUrl must also come from an actual product source.
        * Never trust an invented URL from the model.
@@ -796,9 +896,18 @@ export async function evaluateProductCandidates(
       const currency = pageCurrency;
       const price = pagePrice;
 
-      const attentionReason =
-        safeString(candidate.attentionReason).slice(0, 200) ||
-        `${input.residentName} noticed this product.`;
+      const attentionReason = safeString(candidate.attentionReason).slice(0, 200);
+
+      if (!hasSpecificAttentionReason(attentionReason, input.residentName)) {
+        console.log("PRODUCT HUNTER: rejected generic resident reasoning:", productName);
+        recordDrop(trace, {
+          url: source.url,
+          title: productName,
+          reason: "AI_REJECTED",
+          detail: "attentionReason lacks resident-specific evidence",
+        });
+        continue;
+      }
 
       const trendTags = safeTrendTags(candidate.trendTags);
       const trendScore = safeScore(candidate.trendScore);
@@ -955,7 +1064,34 @@ export async function evaluateProductCandidates(
       }
     }
 
-    const finalCandidates = [...unique.values()].slice(0, 3);
+    const diversified: ProductHunterCandidate[] = [];
+
+    for (const candidate of unique.values()) {
+      const family = `${candidate.category}:${candidate.subcategory || "general"}`;
+      const brandKey = candidate.brand.trim().toLowerCase();
+      const duplicateFamily = diversified.some((item) =>
+        `${item.category}:${item.subcategory || "general"}` === family,
+      );
+      const duplicateBrand = diversified.some(
+        (item) => item.brand.trim().toLowerCase() === brandKey,
+      );
+
+      // First pass favors breadth. A batch should not collapse into one brand/category.
+      if (duplicateFamily || duplicateBrand) continue;
+
+      diversified.push(candidate);
+      if (diversified.length >= 3) break;
+    }
+
+    // If strict diversity leaves too few, fill from remaining verified candidates.
+    if (diversified.length < 3) {
+      for (const candidate of unique.values()) {
+        if (!diversified.includes(candidate)) diversified.push(candidate);
+        if (diversified.length >= 3) break;
+      }
+    }
+
+    const finalCandidates = diversified.slice(0, 3);
     trace.funnel.aiSelected = finalCandidates.length;
     markPipelineEvent(trace, "QUALITY_CHECK_COMPLETED");
 

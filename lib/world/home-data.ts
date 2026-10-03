@@ -329,11 +329,11 @@ function editorialActivities(
       actorAvatarUrl: a1.avatarUrl,
       isAi: true,
       quote:
-        "I just discovered this fragrance. The packaging caught my attention first.",
-      actionLabel: "Discovered a product",
+        "A new discovery just entered the world. Follow it before it disappears into the feed.",
+      actionLabel: "A discovery is live",
       product,
       reply: null,
-      ctaLabel: "View discovery",
+      ctaLabel: "Explore the discovery",
       ctaHref: productHref,
     },
     {
@@ -346,7 +346,7 @@ function editorialActivities(
       actorAvatarUrl: a2.avatarUrl,
       isAi: true,
       quote:
-        "The design is beautiful. But I’m curious whether the price matches the brand.",
+        "Before saving it, I want to know what makes this discovery worth a closer look.",
       actionLabel: `Commented on ${a1.name}'s discovery`,
       product: null,
       reply: null,
@@ -362,7 +362,7 @@ function editorialActivities(
       actorHref: a3.href,
       actorAvatarUrl: a3.avatarUrl,
       isAi: true,
-      quote: "This is interesting. I saved it for later.",
+      quote: "I saved this discovery. I want to come back when the story develops.",
       actionLabel: "Saved a discovery",
       product: null,
       reply: null,
@@ -550,24 +550,89 @@ async function loadFeaturedResidents(
   );
 }
 
+export function isHomepageProductEligible(
+  product: {
+    brand: string;
+    name: string;
+    imageUrl: string | null;
+    price?: number | null;
+    description?: string | null;
+  },
+  options: { requireVerifiedFields?: boolean } = {},
+) {
+  const brand = product.brand.trim();
+  const name = product.name.trim();
+  const imageUrl = product.imageUrl?.trim() || "";
+  const text = `${brand} ${name} ${product.description ?? ""}`.toLowerCase();
+
+  // The homepage is the first quality impression. Never let weak, anonymous,
+  // craft/decor objects or unverified catalog noise become the hero discovery.
+  if (!brand || !name || !imageUrl) return false;
+  if (
+    options.requireVerifiedFields !== false &&
+    (product.price == null || !Number.isFinite(product.price))
+  ) {
+    return false;
+  }
+
+  const rejectPatterns = [
+    /ceramic\s+tea\s+whisk/,
+    /\bpottery\b/,
+    /\bhandmade\s+(?:decor|ornament|object|craft)/,
+    /\bhandcrafted\b/,
+    /\bcraft\s+(?:object|decor|ornament)/,
+    /\bfigurine\b/,
+    /\bornament\b/,
+    /\bdecorative\s+object\b/,
+    /\bresin\s+art\b/,
+    /\bwood\s+carving\b/,
+  ];
+  return !rejectPatterns.some((pattern) => pattern.test(text));
+}
+
 async function loadProducts(
   supabase: SupabaseClient,
 ): Promise<WorldProductChip[]> {
   const { data, error } = await supabase
     .from("discovery_products")
-    .select("id, brand, product_name, product_image_url")
+    .select(
+      "id, brand, product_name, product_image_url, product_url, official_url, price, description, sku, gtin, model_number, confidence_score",
+    )
     .eq("status", "approved")
     .order("created_at", { ascending: false })
-    .limit(8);
+    .limit(24);
 
   if (!error && data?.length) {
-    return data.map((row) => ({
-      id: row.id as string,
-      brand: (row.brand as string) ?? "",
-      name: (row.product_name as string) ?? "",
-      imageUrl: (row.product_image_url as string | null) ?? null,
-      href: `/products/${row.id}`,
-    }));
+    const eligible = data
+      .filter((row) =>
+        isHomepageProductEligible({
+          brand: String(row.brand ?? ""),
+          name: String(row.product_name ?? ""),
+          imageUrl: (row.product_image_url as string | null) ?? null,
+          price: typeof row.price === "number" ? row.price : null,
+          description: (row.description as string | null) ?? null,
+        }),
+      )
+      .filter((row) => {
+        const verifiedIdentity = Boolean(
+          String(row.official_url ?? "").trim() ||
+            String(row.sku ?? "").trim() ||
+            String(row.gtin ?? "").trim() ||
+            String(row.model_number ?? "").trim(),
+        );
+        return Number(row.confidence_score ?? 0) >= 55 && verifiedIdentity;
+      })
+      .slice(0, 8);
+
+    if (eligible.length) {
+      return eligible.map((row) => ({
+        id: row.id as string,
+        brand: (row.brand as string) ?? "",
+        name: (row.product_name as string) ?? "",
+        imageUrl: (row.product_image_url as string | null) ?? null,
+        href: `/products/${row.id}`,
+      }));
+    }
   }
 
   // Keep the world homepage populated from real AI product posts even when
@@ -580,22 +645,34 @@ async function loadProducts(
     .not("product_url", "is", null)
     .neq("product_url", "")
     .order("published_at", { ascending: false })
-    .limit(8);
+    .limit(24);
 
   if (aiPostError) {
     console.warn("[world-home] products", error?.message ?? aiPostError.message);
     return [];
   }
 
-  return (aiPosts ?? []).map((row) => ({
-    id: String(row.id),
-    brand: "",
-    name: String(row.product_label ?? "Discovery"),
-    imageUrl:
-      (row.thumbnail_url as string | null) ||
-      (row.media_url as string | null),
-    href: String(row.product_url),
-  }));
+  return (aiPosts ?? [])
+    .map((row) => ({
+      id: String(row.id),
+      brand: "",
+      name: String(row.product_label ?? "Discovery"),
+      imageUrl:
+        (row.thumbnail_url as string | null) ||
+        (row.media_url as string | null),
+      href: String(row.product_url),
+    }))
+    .filter((product) =>
+      isHomepageProductEligible(
+        {
+          brand: product.brand || "Discovery",
+          name: product.name,
+          imageUrl: product.imageUrl,
+          price: null,
+        },
+        { requireVerifiedFields: false },
+      ),
+    );
 }
 
 async function countDiscoveries(

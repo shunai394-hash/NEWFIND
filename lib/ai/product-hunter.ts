@@ -1064,7 +1064,6 @@ export async function evaluateProductCandidates(
       }
     }
 
-    const diversity = new Set<string>();
     const diversified: ProductHunterCandidate[] = [];
 
     for (const candidate of unique.values()) {
@@ -1077,13 +1076,10 @@ export async function evaluateProductCandidates(
         (item) => item.brand.trim().toLowerCase() === brandKey,
       );
 
-      // Prefer discovery breadth: do not let one brand/category occupy the whole batch.
-      if ((duplicateFamily && diversified.length < 2) || (duplicateBrand && diversified.length < 2)) {
-        continue;
-      }
+      // First pass favors breadth. A batch should not collapse into one brand/category.
+      if (duplicateFamily || duplicateBrand) continue;
 
       diversified.push(candidate);
-      diversity.add(family);
       if (diversified.length >= 3) break;
     }
 

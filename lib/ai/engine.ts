@@ -14,7 +14,8 @@ import type { EngineRunType, EngineTrigger } from "@/lib/ai/control-tower/types"
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 import { listAssignedDiscoveryResidentIds } from "@/lib/ai/discovery-handoff";
 
-// Keep the daily cron bounded: resident life is intentionally sequential because\n// each turn can perform several AI/network operations. Six turns per run\n// preserves rotation while leaving enough headroom for the 300s Vercel budget.\nconst DEFAULT_ACT_LIMIT = 6;
+// Keep the daily cron bounded: resident life is intentionally sequential because\n// each turn can perform several AI/network operations. Six turns per run\n// preserves rotation while leaving enough headroom for the 300s Vercel budget.\nconst DEFAULT_ACT_LIMIT = 4;
+const MAX_RUN_MS = 240_000; // Leave headroom before Vercel's 300s execution ceiling.
 
 export type AiEngineMode = "ai_engine" | "world_scout" | "product_hunter";
 
@@ -284,8 +285,22 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       console.error("Google Trends failed. Continuing without trends.", error);
     }
     const results = [];
+    const runStartedAt = Date.now();
 
     for (const persona of acting) {
+      // A resident turn can fan out into search, AI generation, Supabase writes,
+      // editorial review, and world correspondence. Stop starting new turns
+      // before the platform timeout so one slow cycle cannot kill the patrol.
+      if (Date.now() - runStartedAt >= MAX_RUN_MS) {
+        await logAiActivity({
+          actorName: "SYSTEM",
+          actorRole: "engine",
+          action: "run_budget_reached",
+          detail: `stopped before ${persona.persona_name}; elapsed=${Date.now() - runStartedAt}ms`,
+          relatedRunId: lock.runId,
+        });
+        break;
+      }
       try {
         results.push(
           await runResidentLifeCycle(persona, worldNews, googleTrends, {

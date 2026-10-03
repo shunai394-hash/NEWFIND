@@ -23,6 +23,10 @@ import {
   TRACER_INBOUND_EVENT_TYPES,
   NEWFIND_OUTBOUND_EVENT_TYPES,
 } from "../lib/integration/types";
+import {
+  checkTracerPublicationAttestation,
+  withdrawnProductUrls,
+} from "../lib/integration/tracer-attestation";
 
 process.env.INTEGRATION_HMAC_SECRET = "test-shared-secret-for-integration";
 process.env.INTEGRATION_KEY = "newfind-tracer";
@@ -51,6 +55,8 @@ async function main() {
       "product_candidate",
       "demand_info",
       "sales_test_result",
+      "brandbridge_product",
+      "product_withdrawn",
     ]);
     assert.deepEqual([...NEWFIND_OUTBOUND_EVENT_TYPES], [
       "viewed",
@@ -59,6 +65,66 @@ async function main() {
       "liked",
       "purchased",
     ]);
+  });
+
+  const published = {
+    product_name: "Wireless Mouse",
+    product_url: "https://tracer-self.vercel.app/shop/wireless-mouse-1",
+    sales_url: "https://tracer-self.vercel.app/shop/wireless-mouse-1",
+    tracer_url: "https://tracer-self.vercel.app/shop/wireless-mouse-1",
+    market_url: "https://www.amazon.co.jp/dp/B000000000",
+    price: 2300,
+    currency: "JPY",
+    tracer_listing_id: "11111111-1111-1111-1111-111111111111",
+    tracer_published: true,
+    sales_test_gate: "passed",
+  };
+
+  await test("publish gate: published + gate-passed TRACER product accepted", () => {
+    const r = checkTracerPublicationAttestation(published);
+    assert.equal(r.ok, true);
+  });
+
+  await test("publish gate: unpublished / draft / VALIDATING rejected", () => {
+    assert.deepEqual(checkTracerPublicationAttestation({ ...published, tracer_published: false }), { ok: false, reason: "tracer_not_published" });
+    const { tracer_published: _p, ...noFlag } = published;
+    void _p;
+    assert.equal(checkTracerPublicationAttestation(noFlag).ok, false);
+    assert.equal(checkTracerPublicationAttestation({ ...published, tracer_published: "true" }).ok, false);
+  });
+
+  await test("publish gate: TEST_READY-only (no Sales Test Gate) rejected", () => {
+    assert.deepEqual(checkTracerPublicationAttestation({ ...published, sales_test_gate: "pending" }), { ok: false, reason: "tracer_sales_test_gate_not_passed" });
+    // Legacy "test_ready_opportunity" events normalize to product_candidate
+    // but carry no attestation, so they can no longer be promoted.
+    assert.equal(normalizeInboundEventType("test_ready_opportunity"), "product_candidate");
+    assert.equal(checkTracerPublicationAttestation({ product_name: "x", product_url: "https://x", price: 1 }).ok, false);
+  });
+
+  await test("publish gate: listing id required", () => {
+    assert.deepEqual(checkTracerPublicationAttestation({ ...published, tracer_listing_id: "" }), { ok: false, reason: "tracer_listing_id_missing" });
+  });
+
+  await test("payload integrity: product link must be TRACER sales page, not marketplace", () => {
+    assert.deepEqual(
+      checkTracerPublicationAttestation({ ...published, product_url: published.market_url }),
+      { ok: false, reason: "tracer_product_url_not_sales_url" },
+    );
+  });
+
+  await test("payload integrity: price must be a positive number", () => {
+    for (const price of [0, -1, null, "abc", undefined]) {
+      assert.equal(checkTracerPublicationAttestation({ ...published, price }).ok, false, String(price));
+    }
+    assert.equal(checkTracerPublicationAttestation({ ...published, price: "2300" }).ok, true);
+  });
+
+  await test("withdrawal: urls parsed, deduped, non-http dropped", () => {
+    assert.deepEqual(
+      withdrawnProductUrls({ product_urls: [published.sales_url, published.sales_url, "javascript:alert(1)", "", published.market_url] }),
+      [published.sales_url, published.market_url],
+    );
+    assert.deepEqual(withdrawnProductUrls({}), []);
   });
 
   await test("legacy aliases normalize", () => {

@@ -790,31 +790,20 @@ function MiniConversation({ activity }: { activity?: WorldActivity }) {
   );
 }
 
-function MosaicFace({
-  face,
-}: {
+function MosaicFace({ face, className = "" }: {
   face: { name: string; role: string; avatarUrl: string | null; href: string | null };
+  className?: string;
 }) {
   const body = (
     <>
-      <Avatar
-        profile={{ displayName: face.name, avatarUrl: face.avatarUrl }}
-        size={48}
-      />
-      <p className="mt-1 max-w-[72px] truncate text-[10px] font-semibold">{face.name}</p>
-      <p className="max-w-[72px] truncate text-[9px] text-white/45">{face.role}</p>
+      <Avatar profile={{ displayName: face.name, avatarUrl: face.avatarUrl }} size={52} />
+      <p className="mt-2 text-[11px] font-semibold">{face.name}</p>
+      <p className="max-w-[110px] text-[9px] text-white/40">{face.role}</p>
     </>
   );
-  if (face.href) {
-    return (
-      <Link href={face.href} className="text-center">
-        {body}
-      </Link>
-    );
-  }
-  return <div className="text-center">{body}</div>;
+  const classes = `absolute z-10 text-center transition duration-500 hover:scale-105 ${className}`;
+  return face.href ? <Link href={face.href} className={classes}>{body}</Link> : <div className={classes}>{body}</div>;
 }
-
 function QuoteChip({
   name,
   text,

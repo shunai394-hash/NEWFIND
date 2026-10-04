@@ -36,6 +36,12 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: AI precision regression tests
+        run: npm run test:ai-precision
+
+      - name: AI mind regression tests
+        run: npm run test:ai-mind
+
       - name: AI correspondent regression tests
         run: npm run test:ai-correspondent
 

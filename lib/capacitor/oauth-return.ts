@@ -9,7 +9,7 @@ import {
 
 const processedCodes = new Set<string>();
 let inFlightCode: string | null = null;
-let started = false;
+let listenerPromise: Promise<() => void> | null = null;
 
 function isOAuthCallbackUrl(url: URL): boolean {
   const combined = `${url.hostname}${url.pathname}`.replace(/\/+/g, "/");
@@ -134,29 +134,40 @@ export async function handleOAuthReturnUrl(rawUrl: string): Promise<boolean> {
  * Safe to call once from a client component; no-ops on web.
  */
 export async function startNativeOAuthReturnListener(): Promise<() => void> {
-  if (typeof window === "undefined" || started || !isCapacitorNative()) {
+  if (typeof window === "undefined" || !isCapacitorNative()) {
     return () => {};
   }
+  if (listenerPromise) return listenerPromise;
 
-  started = true;
-  const { App } = await import("@capacitor/app");
+  listenerPromise = (async () => {
+    const { App } = await import("@capacitor/app");
 
-  const onUrl = (raw: string | undefined) => {
-    if (!raw) return;
-    void handleOAuthReturnUrl(raw).catch((err) => {
-      console.error("[oauth-return] handle failed", err);
+    const onUrl = (raw: string | undefined) => {
+      if (!raw) return;
+      void handleOAuthReturnUrl(raw).catch((err) => {
+        console.error("[oauth-return] handle failed", err);
+      });
+    };
+
+    // Register first: a callback can arrive while the initial launch URL is read.
+    const handle = await App.addListener("appUrlOpen", (event) => {
+      onUrl(event.url);
     });
-  };
 
-  const launch = await App.getLaunchUrl().catch(() => undefined);
-  onUrl(launch?.url);
+    const launch = await App.getLaunchUrl().catch(() => undefined);
+    onUrl(launch?.url);
 
-  const handle = await App.addListener("appUrlOpen", (event) => {
-    onUrl(event.url);
+    let cleaned = false;
+    return () => {
+      if (cleaned) return;
+      cleaned = true;
+      if (listenerPromise) listenerPromise = null;
+      void handle.remove();
+    };
+  })().catch((err) => {
+    listenerPromise = null;
+    throw err;
   });
 
-  return () => {
-    started = false;
-    void handle.remove();
-  };
+  return listenerPromise;
 }

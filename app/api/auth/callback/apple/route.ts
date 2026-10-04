@@ -128,6 +128,7 @@ async function completeAppleLogin(request: Request) {
     const user = await findOrCreateAppleUser({
       appleUserId: identity.sub,
       email: identity.email,
+      emailVerified: identity.emailVerified,
       isPrivateEmail: identity.isPrivateEmail,
       displayName: displayNameFromAppleUser(form.userJson),
     });

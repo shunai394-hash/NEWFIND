@@ -67,8 +67,10 @@ const DISCOVERY_STEPS = [
 
 export function WorldHome({ data }: { data: WorldHomeData }) {
   return (
-    <div className="bg-white text-black">
+    <div className="bg-white text-black selection:bg-[#C6FF00] selection:text-black">
+      <LandingNav />
       <WorldHero data={data} />
+      <SignalMarquee />
       <WhatsHappening activities={data.activities} />
       <MeetResidents featured={data.featured} />
       <WorldCorrespondents />
@@ -121,6 +123,38 @@ function WorldHero({ data }: { data: WorldHomeData }) {
     </section>
   );
 }
+function LandingNav() {
+  return (
+    <header className="absolute inset-x-0 top-0 z-50">
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
+        <Link href="/" className="flex items-center gap-2 text-[18px] font-semibold tracking-[-0.03em] text-white">
+          <span className="grid h-8 w-8 place-items-center rounded-full border border-[#C6FF00]/70 text-[10px] font-black text-[#C6FF00]">N</span>
+          NEWFIND
+        </Link>
+        <nav className="hidden items-center gap-7 text-[12px] font-medium text-white/60 md:flex">
+          <a href="#happening" className="transition hover:text-white">Live world</a>
+          <a href="#residents" className="transition hover:text-white">Residents</a>
+          <a href="#discover" className="transition hover:text-white">Explore</a>
+        </nav>
+        <Link href="/feed" className="rounded-full border border-white/20 px-4 py-2 text-[12px] font-semibold text-white transition hover:border-[#C6FF00] hover:bg-[#C6FF00] hover:text-black">
+          Enter NEWFIND
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+function SignalMarquee() {
+  const labels = ["DISCOVER","REACT","CONVERSE","DISCOVER","SAVE","SHOP","SHARE"];
+  return (
+    <div className="overflow-hidden border-y border-black/10 bg-[#C6FF00] py-3 text-[10px] font-bold tracking-[.24em] text-black">
+      <div className="newfind-marquee flex w-max gap-8 whitespace-nowrap">
+        {[...labels, ...labels].map((label, i) => <span key={i} className="flex items-center gap-8">{label}<i className="h-1 w-1 rounded-full bg-black/50" /></span>)}
+      </div>
+    </div>
+  );
+}
+
 function WorldMetrics({
   metrics,
 }: {
@@ -195,7 +229,7 @@ function HeroMosaic({
 
 function WhatsHappening({ activities }: { activities: WorldActivity[] }) {
   return (
-    <section id="happening" className="scroll-mt-16 bg-[#f4f4f1] px-5 py-12">
+    <section id="happening" className="scroll-mt-16 bg-[#f4f4f1] px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
       <p className="text-[10px] font-semibold tracking-[0.16em] text-neutral-400">
         LIVE IN THE WORLD
       </p>
@@ -207,16 +241,16 @@ function WhatsHappening({ activities }: { activities: WorldActivity[] }) {
       </p>
       <p className="mt-1 text-[13px] text-neutral-400">発見は、会話から始まる。</p>
 
-      <div className="mt-7 space-y-4">
-        {activities.map((activity) => (
-          <ActivityCard key={activity.id} activity={activity} />
+      <div className="mx-auto mt-12 grid max-w-[1440px] gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {activities.slice(0, 6).map((activity, index) => (
+          <ActivityCard key={activity.id} activity={activity} featured={index === 0} />
         ))}
       </div>
     </section>
   );
 }
 
-function ActivityCard({ activity }: { activity: WorldActivity }) {
+function ActivityCard({ activity, featured = false }: { activity: WorldActivity; featured?: boolean }) {
   const name = (
     <span className="font-semibold">
       {activity.actorName}
@@ -225,7 +259,7 @@ function ActivityCard({ activity }: { activity: WorldActivity }) {
   );
 
   return (
-    <article className="rounded-3xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+    <article className={`group rounded-[28px] border border-black/[.07] bg-white p-5 transition duration-500 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(0,0,0,.08)] ${featured ? "md:col-span-2 lg:row-span-2 lg:p-7" : ""}`}>
       <div className="flex items-start gap-3">
         {activity.actorHref ? (
           <Link href={activity.actorHref} className="shrink-0">
@@ -251,7 +285,7 @@ function ActivityCard({ activity }: { activity: WorldActivity }) {
               <span className="text-[11px] text-neutral-400">{activity.actorRole}</span>
             )}
           </div>
-          <p className="mt-2 text-[14px] leading-relaxed text-neutral-800">
+          <p className={`mt-2 leading-relaxed text-neutral-800 ${featured ? "text-[18px] sm:text-[21px]" : "text-[14px]"}`}>
             “{activity.quote}”
           </p>
           <p className="mt-2 text-[11px] font-medium text-neutral-400">

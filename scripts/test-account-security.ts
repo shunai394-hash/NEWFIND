@@ -91,6 +91,42 @@ test("Apple outage: nothing is deleted and the user is told to retry", async () 
   assert.ok(!calls.includes("media"));
 });
 
+test("one successful Apple revocation does not hide another token's transient failure", async () => {
+  const calls: Calls = [];
+  const deps = deletionDeps({
+    linkedAppleUserIds: async () => ["apple-sub-1", "apple-sub-2"],
+    loadAppleTokens: async () => [
+      { appleUserId: "apple-sub-1", clientId: "app.newfind.social", refreshToken: "rt-one" },
+      { appleUserId: "apple-sub-2", clientId: "com.newfind.web", refreshToken: "rt-two" },
+    ],
+    revokeAppleToken: async ({ token }) => {
+      calls.push(`revoke:${token}`);
+      return token === "rt-one"
+        ? { ok: true }
+        : { ok: false, kind: "transient", code: "network" };
+    },
+  }, calls);
+  await expectDeletionError(deleteOwnAccount("u1", {}, deps), "apple_revocation_unavailable", 503);
+  assert.deepEqual(calls, ["revoke:rt-one", "revoke:rt-two"]);
+  assert.ok(!calls.includes("deleteUser"));
+});
+
+test("partial Apple revocation caused by server config is never reported as fully revoked", async () => {
+  const deps = deletionDeps({
+    linkedAppleUserIds: async () => ["apple-sub-1", "apple-sub-2"],
+    loadAppleTokens: async () => [
+      { appleUserId: "apple-sub-1", clientId: "app.newfind.social", refreshToken: "rt-one" },
+      { appleUserId: "apple-sub-2", clientId: "com.newfind.web", refreshToken: "rt-two" },
+    ],
+    revokeAppleToken: async ({ token }) => token === "rt-one"
+      ? { ok: true }
+      : { ok: false, kind: "config", code: "invalid_client" },
+  });
+  const result = await deleteOwnAccount("u1", {}, deps);
+  assert.equal(result.appleRevocation, "manual_required");
+  assert.match(result.warning ?? "", /Appleでサインイン/);
+});
+
 test("no stored token: re-authorization is required and nothing is deleted", async () => {
   const calls: Calls = [];
   await expectDeletionError(deleteOwnAccount("u1", {}, deletionDeps(noStoredToken, calls)), "apple_reauth_required", 409);

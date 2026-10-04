@@ -314,7 +314,19 @@ test("Apple linking only matches an exact email, never another search result", a
 
     globalThis.fetch = (async () =>
       new Response(
-        JSON.stringify({ users: [{ id: "other", email: "xa@example.com" }, { id: "me", email: "A@Example.com" }] }),
+        JSON.stringify({ users: [{ id: "unverified", email: "a@example.com", email_confirmed_at: null }] }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      )) as typeof fetch;
+    assert.equal(await lookupAuthUserByEmail("a@example.com"), null);
+
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          users: [
+            { id: "other", email: "xa@example.com", email_confirmed_at: "2025-01-01T00:00:00Z" },
+            { id: "me", email: "A@Example.com", email_confirmed_at: "2025-01-01T00:00:00Z" },
+          ],
+        }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       )) as typeof fetch;
     assert.equal((await lookupAuthUserByEmail("a@example.com"))?.id, "me");

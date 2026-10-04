@@ -4,6 +4,7 @@ export type IntegrationConfig = {
   tracerIngestUrl: string;
   timestampSkewSec: number;
   maxAttempts: number;
+  brandBridgeSecret: string;
 };
 
 export function getIntegrationConfig(): IntegrationConfig {
@@ -12,6 +13,7 @@ export function getIntegrationConfig(): IntegrationConfig {
     process.env.NEWFIND_TRACER_SHARED_SECRET?.trim() ||
     process.env.TRACER_WEBHOOK_SECRET?.trim() ||
     "";
+  const brandBridgeSecret = process.env.BRANDBRIDGE_INTEGRATION_HMAC_SECRET?.trim() || "";
   const integrationKey =
     process.env.INTEGRATION_KEY?.trim() ||
     process.env.NEWFIND_INTEGRATION_KEY?.trim() ||
@@ -28,6 +30,7 @@ export function getIntegrationConfig(): IntegrationConfig {
     tracerIngestUrl,
     timestampSkewSec: Number.isFinite(skew) && skew > 0 ? skew : 300,
     maxAttempts: Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 8,
+    brandBridgeSecret,
   };
 }
 
@@ -37,5 +40,6 @@ export function isOutboundConfigured() {
 }
 
 export function isInboundConfigured() {
-  return Boolean(getIntegrationConfig().sharedSecret);
+  const cfg = getIntegrationConfig();
+  return Boolean(cfg.sharedSecret || cfg.brandBridgeSecret);
 }

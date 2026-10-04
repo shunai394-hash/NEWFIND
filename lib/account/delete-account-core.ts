@@ -164,7 +164,8 @@ async function revokeAppleAuthorization(
     }
   }
 
-  if (revoked) return "revoked";
+  // One successful token must not hide a transient failure revoking another
+  // token/client. Do not delete until every attempted revocation has a stable result.
   if (transient) {
     throw new AccountDeletionError(
       "apple_revocation_unavailable",
@@ -172,9 +173,11 @@ async function revokeAppleAuthorization(
       "Appleとの連携解除に一時的に失敗したため、アカウントはまだ削除されていません。時間をおいてもう一度お試しください。",
     );
   }
-  // Apple TN3194: when the server cannot revoke, the deletion request must
-  // still be fulfilled, with the user told to revoke manually.
+  // If any token could not be revoked because of our own client configuration,
+  // do not report the whole Apple authorization as revoked, even if another
+  // token was revoked successfully.
   if (serverCannotRevoke || mode.adminOverride) return "manual_required";
+  if (revoked) return "revoked";
   throw new AccountDeletionError(
     "apple_reauth_required",
     409,

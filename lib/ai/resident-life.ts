@@ -254,7 +254,7 @@ function fallbackLifePost(
   return { type: "SKIP_POST", reason: "quality-first skip instead of template post" };
 }
 
-function fallbackLifeTweet(_persona: AiPersona): ResidentLifeDecision {
+function fallbackLifeTweet(): ResidentLifeDecision {
   return { type: "SKIP_POST", reason: "no template tweet on API fallback" };
 }
 
@@ -1247,12 +1247,12 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<Rec
     }
     return empty;
   } catch (error) {
-    console.error("loadRecentOwnPostKeys failed", personaSafeName(profileId), error);
+    console.error("loadRecentOwnPostKeys failed", personaSafeName(), error);
     return empty;
   }
 }
 
-function personaSafeName(_profileId: string) {
+function personaSafeName() {
   return "AI resident";
 }
 
@@ -2377,7 +2377,7 @@ ${playbook.workBias}
     mayTweet &&
     playbook.allowTrendTweet
   ) {
-    workDecision = fallbackLifeTweet(persona);
+    workDecision = fallbackLifeTweet();
   }
 
   if (workDecision.type === "POST") {

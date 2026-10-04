@@ -106,7 +106,8 @@ async function revokeAppleAuthorization(
 
   const recordFailure = (result: Exclude<AppleRevokeResult, { ok: true }>) => {
     if (result.kind === "transient") transient = true;
-    if (result.kind === "config") serverCannotRevoke = true;
+    // Apple requires account deletion to be fulfilled when no usable token is available.
+    if (result.kind === "config" || result.kind === "invalid_token") serverCannotRevoke = true;
   };
 
   const stored = (await deps.loadAppleTokens(userId)).filter((token) =>
@@ -122,6 +123,9 @@ async function revokeAppleAuthorization(
     else recordFailure(result);
   }
 
+  // TN3194: lack of a usable token/code must not prevent account deletion.
+  if (stored.length === 0 && !mode.appleAuthorizationCode) serverCannotRevoke = true;
+
   if (!revoked && mode.appleAuthorizationCode) {
     let grant: Awaited<ReturnType<DeleteAccountDeps["exchangeAppleCode"]>> | null = null;
     try {
@@ -129,37 +133,32 @@ async function revokeAppleAuthorization(
     } catch (error) {
       const kind = error instanceof AppleCodeExchangeError ? error.kind : "invalid_code";
       if (kind === "transient") transient = true;
-      else if (kind === "config") serverCannotRevoke = true;
       else {
-        throw new AccountDeletionError(
-          "apple_reauth_failed",
-          400,
-          "Appleでの確認に失敗したため、アカウントは削除されていません。もう一度お試しください。",
-        );
+        // An unusable authorization code does not block deletion. Do not claim
+        // revocation; return manual instructions as required by Apple's TN3194.
+        serverCannotRevoke = true;
       }
     }
     if (grant) {
       // The code must belong to this account's Apple ID, not someone else's.
       if (!appleIds.includes(grant.appleUserId)) {
-        throw new AccountDeletionError(
-          "apple_identity_mismatch",
-          403,
-          "このアカウントに連携しているApple IDで確認してください。アカウントは削除されていません。",
-        );
-      }
-      const token = grant.refreshToken ?? grant.accessToken;
-      if (token) {
-        const result = await deps.revokeAppleToken({
-          clientId: grant.clientId,
-          token,
-          tokenTypeHint: grant.refreshToken ? "refresh_token" : "access_token",
-        });
-        if (result.ok) revoked = true;
-        else if (result.kind === "transient") transient = true;
-        // A freshly issued token Apple will not revoke is a server-side problem.
-        else serverCannotRevoke = true;
-      } else {
+        // Never revoke using another Apple ID's token. The authenticated user
+        // may still delete their own account, with manual revocation instructions.
         serverCannotRevoke = true;
+      } else {
+        const token = grant.refreshToken ?? grant.accessToken;
+        if (token) {
+          const result = await deps.revokeAppleToken({
+            clientId: grant.clientId,
+            token,
+            tokenTypeHint: grant.refreshToken ? "refresh_token" : "access_token",
+          });
+          if (result.ok) revoked = true;
+          else if (result.kind === "transient") transient = true;
+          else serverCannotRevoke = true;
+        } else {
+          serverCannotRevoke = true;
+        }
       }
     }
   }
@@ -179,11 +178,9 @@ async function revokeAppleAuthorization(
   if (serverCannotRevoke) return "manual_required";
   if (revoked) return "revoked";
   if (mode.adminOverride) return "manual_required";
-  throw new AccountDeletionError(
-    "apple_reauth_required",
-    409,
-    "アカウントを削除する前に、Appleでの確認が必要です。",
-  );
+  // No token, an unusable token, or an unavailable re-authorization code:
+  // fulfil deletion and never represent the authorization as revoked.
+  return "manual_required";
 }
 
 async function performDeletion(

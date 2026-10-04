@@ -58,7 +58,6 @@ import type {
   Post,
   PostView,
   Profile,
-  Session,
   UpdatePostInput,
   UpdateProfileInput,
   VisualKind,

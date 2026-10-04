@@ -1,5 +1,5 @@
 import { assertPostContentAllowed } from "@/lib/moderation/content-filter";
-﻿import { fileToStoredUrl } from "@/lib/media";
+import { fileToStoredUrl } from "@/lib/media";
 import { rankForYouFeed, engagementScore } from "@/lib/feed-rank";
 import {
   normalizePostMedia,

@@ -12,10 +12,8 @@ import {
 import { canonicalizeSourceUrl } from "@/lib/ai/agent-os/hash";
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 import type { Intent, PersonaLens, ResidentChoice, Stance } from "@/lib/ai/self-model";
-import { shouldSearchNow } from "@/lib/ai/self-model";
 import {
   correspondentIdentityFromLens,
-  correspondentViewpoint,
   type CorrespondentIdentity,
 } from "@/lib/ai/correspondent-identity";
 

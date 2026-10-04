@@ -11,6 +11,8 @@ type AppleUserInput = {
 type AuthUserLite = {
   id: string;
   email?: string;
+  email_confirmed_at?: string | null;
+  confirmed_at?: string | null;
   user_metadata?: Record<string, unknown>;
 };
 
@@ -33,10 +35,14 @@ export async function lookupAuthUserByEmail(email: string): Promise<AuthUserLite
   const json = (await res.json()) as { users?: AuthUserLite[] };
   const users = json.users ?? [];
   const lowered = email.trim().toLowerCase();
-  // `filter` is a partial match. Only an exact email match may be linked:
-  // falling back to another result would sign this Apple ID into someone
-  // else's account.
-  return users.find((user) => user.email?.trim().toLowerCase() === lowered) ?? null;
+  // `filter` is a partial match. Only an exact, already-verified email may be
+  // linked: a typo/partial match or an unconfirmed account could attach Apple
+  // sign-in to an account created by someone else.
+  return users.find(
+    (user) =>
+      user.email?.trim().toLowerCase() === lowered &&
+      Boolean(user.email_confirmed_at || user.confirmed_at),
+  ) ?? null;
 }
 
 async function lookupByAppleId(appleUserId: string): Promise<string | null> {

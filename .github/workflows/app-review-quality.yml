@@ -26,6 +26,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Inventory dependency vulnerabilities (non-blocking)
+        # Report exact advisories before changing transitive dependencies; this
+        # step does not hide or downgrade any existing vulnerability.
+        run: |
+          npm audit --json > "$RUNNER_TEMP/audit-all.json" || true
+          npm audit --omit=dev --json > "$RUNNER_TEMP/audit-production.json" || true
+          node - "$RUNNER_TEMP/audit-all.json" "$RUNNER_TEMP/audit-production.json" <<'NODE'
+          const fs = require("node:fs");
+          for (const path of process.argv.slice(2)) {
+            let report;
+            try { report = JSON.parse(fs.readFileSync(path, "utf8")); }
+            catch { console.log(JSON.stringify({ report: path, parseError: true })); continue; }
+            console.log(JSON.stringify({
+              report: path.includes("production") ? "production-only" : "all-dependencies",
+              summary: report.metadata?.vulnerabilities ?? null,
+              advisories: Object.entries(report.vulnerabilities ?? {}).map(([name, item]) => ({
+                name,
+                severity: item.severity,
+                direct: item.isDirect,
+                range: item.range,
+                fixAvailable: item.fixAvailable,
+                via: (item.via ?? []).map((entry) => typeof entry === "string" ? entry : entry.title),
+              })),
+            }));
+          }
+          NODE
+
       - name: App icons are committed, up to date and App Store-valid
         # Fails if the PNGs differ from public/brand/app-icon.svg, have an alpha
         # channel, wrong sizes, missing slots or stale files.

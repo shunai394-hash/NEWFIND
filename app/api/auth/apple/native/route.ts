@@ -78,6 +78,7 @@ export async function POST(request: Request) {
       // Only the email inside Apple's signed identity token is trusted; the
       // request body is client-controlled and must never link accounts.
       email: identity.email || null,
+      emailVerified: identity.emailVerified,
       isPrivateEmail: identity.isPrivateEmail,
       displayName: displayName || null,
     });

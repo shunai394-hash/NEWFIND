@@ -21,6 +21,12 @@ type Tab = "products" | "search" | "posts";
 const PAGE_SIZE = 24;
 const DISCOVER_PRODUCTS_PER_CATEGORY = 12;
 
+const COUNTRY_SEARCH_TERMS: Record<string, string[]> = {
+  usa: ["usa", "united states", "u.s.", "america"],
+  uk: ["uk", "united kingdom", "great britain", "britain", "england"],
+  korea: ["korea", "south korea", "republic of korea"],
+};
+
 export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) {
   const { session } = useApp();
   const viewerId = session?.userId ?? null;
@@ -41,6 +47,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const [catalog, setCatalog] = useState<DiscoveryProduct[]>([]);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -63,14 +70,17 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
       .then((data) =>
         setCatalog(data.products.filter((item) => isUsableProductImage(item.productImageUrl))),
       )
-      .catch(() => setCatalog([]));
+      .catch(() => setCatalog([]))
+      .finally(() => setCatalogLoaded(true));
   }, []);
 
   const discoverProducts = useMemo(() => {
     const filtered = catalog.filter((item) => {
       if (countryFilter) {
         const productCountry = (item.country ?? "").trim().toLowerCase();
-        if (!productCountry || !productCountry.includes(countryFilter.toLowerCase())) return false;
+        const countryKey = countryFilter.trim().toLowerCase();
+        const terms = COUNTRY_SEARCH_TERMS[countryKey] ?? [countryKey];
+        if (!productCountry || !terms.some((term) => productCountry.includes(term))) return false;
       }
       if (trendFilter && !item.trendTags.includes(trendFilter as DiscoveryProduct["trendTags"][number])) {
         return false;
@@ -345,6 +355,14 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
                 ))}
               </div>
             </section>
+          ) : null}
+
+          {tab === "products" && catalogLoaded && shownProducts.length === 0 ? (
+            <p className="px-6 py-12 text-center text-sm leading-relaxed text-neutral-500">
+              条件に合う商品はまだ見つかっていません。
+              <br />
+              フィルターを変えるか、ほかの発見を見てみてください。
+            </p>
           ) : null}
 
           {(tab === "products" || (tab === "search" && query.trim())) && shownProducts.length > 0 ? (

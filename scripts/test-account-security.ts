@@ -127,17 +127,23 @@ test("partial Apple revocation caused by server config is never reported as full
   assert.match(result.warning ?? "", /Appleでサインイン/);
 });
 
-test("no stored token: re-authorization is required and nothing is deleted", async () => {
+test("no stored token: deletion is fulfilled with explicit manual-revocation warning", async () => {
   const calls: Calls = [];
-  await expectDeletionError(deleteOwnAccount("u1", {}, deletionDeps(noStoredToken, calls)), "apple_reauth_required", 409);
-  assert.deepEqual(calls, []);
+  const result = await deleteOwnAccount("u1", {}, deletionDeps(noStoredToken, calls));
+  assert.equal(result.ok, true);
+  assert.equal(result.appleRevocation, "manual_required");
+  assert.match(result.warning ?? "", /Appleでサインイン/);
+  assert.deepEqual(calls, ["collect", "media", "deleteUser"]);
 });
 
-test("stored token already invalid: re-authorization is required", async () => {
+test("stored token Apple cannot revoke: deletion succeeds with manual warning, never reports revoked", async () => {
   const deps = deletionDeps({
     revokeAppleToken: async () => ({ ok: false, kind: "invalid_token", code: "invalid_grant" }),
   });
-  await expectDeletionError(deleteOwnAccount("u1", {}, deps), "apple_reauth_required", 409);
+  const result = await deleteOwnAccount("u1", {}, deps);
+  assert.equal(result.ok, true);
+  assert.equal(result.appleRevocation, "manual_required");
+  assert.match(result.warning ?? "", /Appleでサインイン/);
 });
 
 test("re-authorization code: exchanged server-side, revoked, then deleted", async () => {
@@ -147,7 +153,7 @@ test("re-authorization code: exchanged server-side, revoked, then deleted", asyn
   assert.deepEqual(calls, ["exchange", "revoke:rt-fresh:refresh_token", "collect", "media", "deleteUser"]);
 });
 
-test("re-authorization with someone else's Apple ID is refused", async () => {
+test("a re-authorization code for another Apple ID is never revoked; deletion gives manual instructions", async () => {
   const calls: Calls = [];
   const deps = deletionDeps(
     {
@@ -161,23 +167,28 @@ test("re-authorization with someone else's Apple ID is refused", async () => {
     },
     calls,
   );
-  await expectDeletionError(deleteOwnAccount("u1", { appleAuthorizationCode: "c" }, deps), "apple_identity_mismatch", 403);
-  assert.deepEqual(calls, []);
+  const result = await deleteOwnAccount("u1", { appleAuthorizationCode: "c" }, deps);
+  assert.equal(result.appleRevocation, "manual_required");
+  assert.match(result.warning ?? "", /Appleでサインイン/);
+  assert.deepEqual(calls, ["exchange", "collect", "media", "deleteUser"]);
 });
 
-test("an invalid re-authorization code deletes nothing", async () => {
+test("an invalid re-authorization code does not block deletion and is never reported as revoked", async () => {
   const calls: Calls = [];
   const deps = deletionDeps(
     {
       ...noStoredToken,
       exchangeAppleCode: async () => {
+        calls.push("exchange");
         throw new AppleCodeExchangeError("invalid_code");
       },
     },
     calls,
   );
-  await expectDeletionError(deleteOwnAccount("u1", { appleAuthorizationCode: "bad" }, deps), "apple_reauth_failed", 400);
-  assert.deepEqual(calls, []);
+  const result = await deleteOwnAccount("u1", { appleAuthorizationCode: "bad" }, deps);
+  assert.equal(result.appleRevocation, "manual_required");
+  assert.match(result.warning ?? "", /Appleでサインイン/);
+  assert.deepEqual(calls, ["exchange", "collect", "media", "deleteUser"]);
 });
 
 test("Apple outage during re-authorization deletes nothing", async () => {

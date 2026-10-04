@@ -87,6 +87,7 @@ export async function POST(request: Request) {
     headers: request.headers,
     rawBody,
     eventId: envelope.event_id,
+    source: envelope.source,
   });
   if (!auth.ok) {
     await recordIntegrationFailure({

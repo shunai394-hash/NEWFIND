@@ -20,7 +20,7 @@ import {
   isLoginCancellation,
   loginErrorFromParams,
 } from "../lib/auth/login-errors";
-import { lookupAuthUserByEmail } from "../lib/apple/session";
+import { lookupAuthUserByEmail, trustedAppleEmail } from "../lib/apple/session";
 
 const ORIGIN = "https://newfind-self.vercel.app";
 const CALLBACK = "app.newfind.social://auth/callback";
@@ -272,6 +272,21 @@ test("login error messages", () => {
   assert.match(
     loginErrorFromParams(new URLSearchParams("error=apple_not_configured")),
     /Appleでログインは現在ご利用いただけません/,
+  );
+});
+
+test("Apple email linking only trusts the verified email claim", () => {
+  assert.equal(
+    trustedAppleEmail({ appleUserId: "apple-sub-123", email: "person@example.com", emailVerified: true }),
+    "person@example.com",
+  );
+  assert.equal(
+    trustedAppleEmail({ appleUserId: "apple-sub-123", email: "victim@example.com", emailVerified: false }),
+    "apple.applesub123@privaterelay.appleid.com",
+  );
+  assert.equal(
+    trustedAppleEmail({ appleUserId: "apple-sub-123", email: null, emailVerified: true }),
+    "apple.applesub123@privaterelay.appleid.com",
   );
 });
 

@@ -27,6 +27,8 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
   const [tab, setTab] = useState<Tab>(initialTab);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryId | "all">("all");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [trendFilter, setTrendFilter] = useState("");
   const [posts, setPosts] = useState<PostView[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +41,18 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const [catalog, setCatalog] = useState<DiscoveryProduct[]>([]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedCategory = params.get("category") ?? "";
+    const requestedCountry = params.get("country") ?? "";
+    const requestedTrend = params.get("trend") ?? "";
+    if (POST_CATEGORIES.includes(requestedCategory as CategoryId)) {
+      setCategory(requestedCategory as CategoryId);
+    }
+    if (requestedCountry) setCountryFilter(requestedCountry);
+    if (requestedTrend) setTrendFilter(requestedTrend);
+  }, []);
 
   useEffect(() => {
     postsRef.current = posts;
@@ -54,6 +68,13 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
 
   const discoverProducts = useMemo(() => {
     const filtered = catalog.filter((item) => {
+      if (countryFilter) {
+        const productCountry = (item.country ?? "").trim().toLowerCase();
+        if (!productCountry || !productCountry.includes(countryFilter.toLowerCase())) return false;
+      }
+      if (trendFilter && !item.trendTags.includes(trendFilter as DiscoveryProduct["trendTags"][number])) {
+        return false;
+      }
       if (category === "all") return true;
       if (category === "fashion") return item.category === "fashion" || item.trendTags.includes("teen");
       if (category === "beauty") return item.category === "beauty";
@@ -87,7 +108,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
         return true;
       })
       .slice(0, DISCOVER_PRODUCTS_PER_CATEGORY);
-  }, [category, catalog]);
+  }, [category, catalog, countryFilter, trendFilter]);
 
   const discoverProductIdentities = useMemo(
     () => new Set(discoverProducts.map((item) => productIdentityKey(item))),
@@ -257,6 +278,28 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
             placeholder="商品・アカウント・投稿を検索"
             className="w-full rounded-lg bg-neutral-100 px-3 py-2 text-sm outline-none"
           />
+        </div>
+      ) : null}
+
+      {tab === "products" && (countryFilter || trendFilter) ? (
+        <div className="flex items-center justify-between gap-3 bg-white px-3 pt-3 text-xs text-neutral-500">
+          <span>
+            {countryFilter ? `地域: ${countryFilter}` : ""}
+            {countryFilter && trendFilter ? " · " : ""}
+            {trendFilter ? `テーマ: ${trendFilter.replaceAll("_", " ")}` : ""}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setCountryFilter("");
+              setTrendFilter("");
+              setCategory("all");
+              window.history.replaceState({}, "", "/discover");
+            }}
+            className="shrink-0 font-semibold text-neutral-900 underline underline-offset-2"
+          >
+            フィルター解除
+          </button>
         </div>
       ) : null}
 

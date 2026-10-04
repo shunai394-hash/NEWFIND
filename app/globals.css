@@ -94,3 +94,24 @@
 @media (prefers-reduced-motion: reduce) {
   .newfind-reveal, .newfind-float, .newfind-pulse, .newfind-marquee { animation: none; }
 }
+
+@media (min-width: 1024px) {
+  #happening,
+  #residents,
+  #discover {
+    scroll-margin-top: 18px;
+  }
+}
+:focus-visible {
+  outline: 2px solid #C6FF00;
+  outline-offset: 4px;
+}
+::selection {
+  background: #C6FF00;
+  color: #050505;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

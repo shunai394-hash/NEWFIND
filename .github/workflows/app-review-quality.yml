@@ -1,0 +1,39 @@
+name: App Review Quality Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate and verify app icon assets
+        run: node scripts/generate-ios-icons.mjs
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Lint changed authentication modules
+        run: npx eslint lib/capacitor/oauth-return.ts lib/store/supabase.ts
+
+      - name: Production build
+        run: npm run build

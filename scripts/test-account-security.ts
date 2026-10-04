@@ -173,7 +173,7 @@ test("a re-authorization code for another Apple ID is never revoked; deletion gi
   const result = await deleteOwnAccount("u1", { appleAuthorizationCode: "c" }, deps);
   assert.equal(result.appleRevocation, "manual_required");
   assert.match(result.warning ?? "", /Appleでサインイン/);
-  assert.deepEqual(calls, ["exchange", "collect", "media", "deleteUser"]);
+  assert.deepEqual(calls, ["collect", "media", "deleteUser"]);
 });
 
 test("an invalid re-authorization code does not block deletion and is never reported as revoked", async () => {

@@ -176,8 +176,9 @@ async function revokeAppleAuthorization(
   // If any token could not be revoked because of our own client configuration,
   // do not report the whole Apple authorization as revoked, even if another
   // token was revoked successfully.
-  if (serverCannotRevoke || mode.adminOverride) return "manual_required";
+  if (serverCannotRevoke) return "manual_required";
   if (revoked) return "revoked";
+  if (mode.adminOverride) return "manual_required";
   throw new AccountDeletionError(
     "apple_reauth_required",
     409,

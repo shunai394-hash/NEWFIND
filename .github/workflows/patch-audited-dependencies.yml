@@ -1,0 +1,121 @@
+name: Patch audited dependencies
+
+on:
+  push:
+    branches: [fix/app-review-auth-and-icon]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      CAPACITOR_SERVER_URL: https://newfind-self.vercel.app
+      CAPACITOR_RELEASE: "1"
+    steps:
+      - name: Checkout review branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/app-review-auth-and-icon
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Update known vulnerable direct dependencies
+        run: |
+          npm install --save-exact next@16.3.8 eslint-config-next@16.3.8 sharp@0.35.4
+          npm audit fix || true
+
+      - name: Report remaining dependency advisories
+        run: |
+          npm audit --json > "$RUNNER_TEMP/audit-after.json" || true
+          node - "$RUNNER_TEMP/audit-after.json" <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          console.log(JSON.stringify({
+            summary: report.metadata?.vulnerabilities ?? null,
+            advisories: Object.entries(report.vulnerabilities ?? {}).map(([name, item]) => ({
+              name,
+              severity: item.severity,
+              direct: item.isDirect,
+              range: item.range,
+              fixAvailable: item.fixAvailable,
+              via: (item.via ?? []).map((entry) => typeof entry === "string" ? entry : entry.title),
+            })),
+          }));
+          NODE
+
+      - name: Verify app icons
+        run: npm run icons:check
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Lint app-review modules
+        run: |
+          npx eslint --max-warnings=0 \
+            lib/capacitor/oauth-return.ts \
+            lib/capacitor/oauth-return-core.ts \
+            lib/capacitor/oauth-browser.ts \
+            lib/auth/login-errors.ts \
+            lib/apple/client.ts \
+            app/api/auth/apple/native/route.ts \
+            components/auth-form.tsx \
+            components/brand-mark.tsx \
+            lib/account \
+            lib/apple/revoke.ts \
+            lib/apple/token-store.ts \
+            lib/auth/cron-auth.ts \
+            lib/ai/ai-act-handler.ts \
+            app/api/ai-act/route.ts \
+            app/api/account/route.ts \
+            app/api/integrations/outbox/drain/route.ts \
+            "app/api/admin/users/[id]/route.ts" \
+            lib/apple/verify.ts
+
+      - name: Authentication regression tests
+        run: npm run test:auth
+
+      - name: Account deletion and secret-handling tests
+        run: npm run test:security
+
+      - name: Integration contract tests
+        run: npx tsx scripts/test-tracer-integration.ts
+
+      - name: Production build
+        run: npm run build
+
+      - name: Compile iOS simulator app
+        run: |
+          npx cap sync ios
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Commit tested dependency updates
+        if: success()
+        run: |
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "No dependency changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "fix(deps): patch audited Next.js vulnerabilities"
+          git push origin HEAD:fix/app-review-auth-and-icon

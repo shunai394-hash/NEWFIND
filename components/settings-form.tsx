@@ -198,7 +198,13 @@ export function SettingsForm() {
     setDeleteError("");
     try {
       const result = await getStore().deleteAccount();
-      await refresh();
+      // The server has already deleted the account. A stale local session or a
+      // failed profile refresh must not turn that success into a false error.
+      try {
+        await refresh();
+      } catch {
+        // Continue to the signed-out screen; deletion is already complete.
+      }
       if (result.warning) {
         window.alert(result.warning);
       }
@@ -368,7 +374,7 @@ export function SettingsForm() {
           >
             <p className="text-sm font-semibold">アカウントを削除しますか？</p>
             <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-              削除すると、プロフィール、投稿、コメント、いいね、フォローなどのデータは元に戻せません。他の人のアカウントは削除されません。
+              削除すると、プロフィール、投稿、コメント、いいね、フォローなどのデータは元に戻せません。他の人のアカウントは削除されません。Appleでサインインしている場合は、Appleとの連携も解除します（Appleでの確認を求められることがあります）。
             </p>
             {deleteError ? <p className="mt-3 text-sm text-red-600">{deleteError}</p> : null}
             <div className="mt-4 grid grid-cols-2 gap-2">

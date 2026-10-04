@@ -14,7 +14,10 @@ import type { EngineRunType, EngineTrigger } from "@/lib/ai/control-tower/types"
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 import { listAssignedDiscoveryResidentIds } from "@/lib/ai/discovery-handoff";
 
-// Keep the daily cron bounded: resident life is intentionally sequential because\n// each turn can perform several AI/network operations. Six turns per run\n// preserves rotation while leaving enough headroom for the 300s Vercel budget.\nconst DEFAULT_ACT_LIMIT = 6;
+// Keep the daily cron bounded: resident life is intentionally sequential because
+// each turn can perform several AI/network operations. Six turns per run
+// preserves rotation while leaving enough headroom for the 300s Vercel budget.
+const DEFAULT_ACT_LIMIT = 6;
 
 export type AiEngineMode = "ai_engine" | "world_scout" | "product_hunter";
 

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasBearerSecret } from "@/lib/auth/cron-auth";
 import { drainOutbox, requeueOutboxEvent } from "@/lib/integration";
 
 export const runtime = "nodejs";
@@ -6,16 +7,11 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 function authorized(request: Request) {
-  const cronSecret = process.env.CRON_SECRET?.trim();
-  const authorization = request.headers.get("authorization");
-  if (cronSecret && authorization === `Bearer ${cronSecret}`) return true;
   const integrationSecret =
     process.env.INTEGRATION_HMAC_SECRET?.trim() ||
     process.env.NEWFIND_TRACER_SHARED_SECRET?.trim() ||
     "";
-  const bearer = authorization?.replace(/^Bearer\s+/i, "").trim();
-  if (integrationSecret && bearer === integrationSecret) return true;
-  return false;
+  return hasBearerSecret(request, [process.env.CRON_SECRET, integrationSecret]);
 }
 
 async function run(request: Request) {

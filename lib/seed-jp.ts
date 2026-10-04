@@ -292,16 +292,6 @@ const LIFE_LINKS = [
   { url: "https://www.ikea.com/jp/ja/" },
 ];
 
-const TRAVEL_LINKS = [
-  { url: "https://www.jalan.net/" },
-  { url: "https://www.jreast.co.jp/" },
-];
-
-const TECH_LINKS = [
-  { url: "https://www.apple.com/jp/" },
-  { url: "https://www.sony.jp/" },
-];
-
 const HOME_LINKS = [
   { url: "https://www.muji.com/jp/" },
   { url: "https://www.nitori-net.jp/" },
@@ -465,28 +455,12 @@ const LIFE_THEMES = [
   "大学生活",
 ];
 
-const TRAVEL_THEMES = [
-  "旅行",
-  "週末トリップ",
-  "東京の景色",
-];
-
-const TECH_THEMES = [
-  "ガジェット",
-  "イヤホン",
-  "スマホまわり",
-];
-
 const HOME_THEMES = [
   "部屋づくり",
   "デスク周り",
   "収納",
 ];
 
-const OTHER_THEMES = [
-  "気になったもの",
-  "今日のひとこと",
-];
 function takeUniqueImage(
   used: Set<string>,
   pool: readonly JpImageAsset[],

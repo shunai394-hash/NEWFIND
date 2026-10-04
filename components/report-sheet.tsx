@@ -13,8 +13,6 @@ import {
 export function ReportSheet({
   postId,
   targetUserId,
-  targetUsername,
-  isAiTarget,
   onClose,
   onBlocked,
 }: {

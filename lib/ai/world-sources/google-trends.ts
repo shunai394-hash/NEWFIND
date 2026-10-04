@@ -5,7 +5,6 @@
 
 import type {
   WorldSourceCollector,
-  WorldSourceCollectorContext,
   WorldSourceItem,
 } from "./types";
 

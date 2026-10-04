@@ -14,7 +14,10 @@ import type { EngineRunType, EngineTrigger } from "@/lib/ai/control-tower/types"
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 import { listAssignedDiscoveryResidentIds } from "@/lib/ai/discovery-handoff";
 
-// Keep the daily cron bounded: resident life is intentionally sequential because\n// each turn can perform several AI/network operations. Six turns per run\n// preserves rotation while leaving enough headroom for the 300s Vercel budget.\nconst DEFAULT_ACT_LIMIT = 6;
+// Keep the daily cron bounded: resident life is intentionally sequential because
+// each turn can perform several AI/network operations. Six turns per run
+// preserves rotation while leaving enough headroom for the 300s Vercel budget.
+const DEFAULT_ACT_LIMIT = 6;
 
 export type AiEngineMode = "ai_engine" | "world_scout" | "product_hunter";
 
@@ -32,35 +35,6 @@ function dueStamp(persona: AiPersona): number {
 function isDue(persona: AiPersona, now = Date.now()): boolean {
   const parsed = Date.parse(persona.next_action_at || "");
   return !Number.isFinite(parsed) || parsed <= now;
-}
-
-function pickByRole(personas: AiPersona[], limit: number): AiPersona[] {
-  const byRole = new Map<string, AiPersona[]>();
-  for (const persona of personas) {
-    const role = persona.resident_role || "general_user";
-    const list = byRole.get(role) ?? [];
-    list.push(persona);
-    byRole.set(role, list);
-  }
-  for (const list of byRole.values()) {
-    list.sort((a, b) => dueStamp(a) - dueStamp(b));
-  }
-
-  const picked: AiPersona[] = [];
-  const roles = [...byRole.keys()];
-  while (picked.length < limit) {
-    let added = false;
-    for (const role of roles) {
-      if (picked.length >= limit) break;
-      const next = byRole.get(role)?.shift();
-      if (next) {
-        picked.push(next);
-        added = true;
-      }
-    }
-    if (!added) break;
-  }
-  return picked;
 }
 
 function pickResidentsToAct(

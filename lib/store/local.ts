@@ -27,7 +27,6 @@ import type { Store } from "@/lib/store/types";
 import type {
   CategoryId,
   Comment,
-  CommentView,
   CreatePostInput,
   FollowListEntry,
   Post,

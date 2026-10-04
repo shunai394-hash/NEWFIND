@@ -10,6 +10,7 @@
         "test:ai-precision": "tsx scripts/test-ai-precision.ts",
         "test:ai-mind": "tsx scripts/test-ai-mind.ts",
         "test:ai-correspondent": "tsx scripts/test-ai-correspondent.ts",
+        "test:content-moderation": "tsx scripts/test-content-moderation.ts",
         "test:today-exploration": "tsx scripts/test-today-exploration.ts",
         "test:marketplace": "tsx scripts/test-marketplace-pipeline.ts",
         "test:discovery-quality": "tsx scripts/test-discovery-quality.ts",

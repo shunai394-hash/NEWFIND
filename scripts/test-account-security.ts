@@ -291,7 +291,7 @@ function selfHandler(deps: DeleteAccountDeps, auth: () => Promise<{ userId: stri
 
 const signedIn = async () => ({ userId: "u1" });
 
-test("self-delete: a client-sent skip flag cannot bypass Apple revocation", async () => {
+test("self-delete: client flags never claim Apple was revoked or select another user", async () => {
   for (const body of [
     { allowWithoutAppleRevocation: true },
     { allowWithoutAppleRevocation: "true", adminOverride: true, userId: "victim" },
@@ -302,10 +302,12 @@ test("self-delete: a client-sent skip flag cannot bypass Apple revocation", asyn
     const calls: Calls = [];
     const { handle, received } = selfHandler(deletionDeps(noStoredToken, calls), signedIn);
     const res = await handle(deleteRequest(body));
-    assert.equal(res.status, 409, JSON.stringify(body));
-    assert.equal(((await res.json()) as { code: string }).code, "apple_reauth_required");
+    assert.equal(res.status, 200, JSON.stringify(body));
+    const result = (await res.json()) as { appleRevocation: string; warning?: string };
+    assert.equal(result.appleRevocation, "manual_required");
+    assert.match(result.warning ?? "", /Appleでサインイン/);
     assert.deepEqual(received, [{ userId: "u1", options: { appleAuthorizationCode: null } }]);
-    assert.ok(!calls.includes("deleteUser"));
+    assert.deepEqual(calls, ["collect", "media", "deleteUser"]);
   }
 });
 

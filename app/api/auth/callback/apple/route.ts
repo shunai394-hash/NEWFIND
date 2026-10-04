@@ -129,6 +129,8 @@ async function completeAppleLogin(request: Request) {
       email: identity.email,
       isPrivateEmail: identity.isPrivateEmail,
       displayName: displayNameFromAppleUser(form.userJson),
+      refreshToken: tokens.refresh_token ?? null,
+      appleClientId: APPLE_SERVICES_ID,
     });
     const tokenHash = await issueAppleLoginTicket(user.email);
     const next = safeNextPath(state.next);

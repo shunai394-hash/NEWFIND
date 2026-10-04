@@ -6,7 +6,6 @@ export const dynamic = "force-dynamic";
 
 type DeleteBody = {
   appleAuthorizationCode?: unknown;
-  allowWithoutAppleRevocation?: unknown;
 };
 
 export async function DELETE(request: Request) {
@@ -31,7 +30,6 @@ export async function DELETE(request: Request) {
   try {
     const result = await deleteOwnedAccount(auth.userId, {
       appleAuthorizationCode,
-      allowWithoutAppleRevocation: body.allowWithoutAppleRevocation === true,
     });
     return NextResponse.json(result);
   } catch (error) {

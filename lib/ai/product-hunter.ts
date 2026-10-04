@@ -277,22 +277,22 @@ function isLikelyConcreteProduct(
 }
 
 const REJECT_PRODUCT_PATTERNS = [
-  /\\bhandmade\\s+(?:bottle|vessel|jar|container)\\b/i,
-  /\\bhandcrafted\\s+(?:bottle|vessel|jar|container)\\b/i,
-  /\\bcraft(?:ed)?\\s+(?:bottle|vessel|jar|container)\\b/i,
-  /\\bceramic\\s+(?:bottle|vessel|jar|container)\\b/i,
-  /\\bpottery\\s+(?:bottle|vessel|jar|container)\\b/i,
-  /\\bdecorative\\s+(?:bottle|vessel|jar|container)\\b/i,
-  /\\bart(?:isan|isanal)\\s+(?:bottle|vessel|jar|container)\\b/i,
-  /\\bglass\\s+art\\s+(?:bottle|vessel)\\b/i,
-  /\\bhandmade\\s+(?:decor|ornament|object|craft)\\b/i,
-  /\\bhandcrafted\\s+(?:decor|ornament|object|craft)\\b/i,
-  /\\bceramic\\s+tea\\s+whisk\\b/i,
-  /\\bpottery\\b/i,
-  /\\bfigurine\\b/i,
-  /\\bdecorative\\s+object\\b/i,
-  /\\bresin\\s+art\\b/i,
-  /\\bwood\\s+carving\\b/i,
+  /\bhandmade\s+(?:bottle|vessel|jar|container)\b/i,
+  /\bhandcrafted\s+(?:bottle|vessel|jar|container)\b/i,
+  /\bcraft(?:ed)?\s+(?:bottle|vessel|jar|container)\b/i,
+  /\bceramic\s+(?:bottle|vessel|jar|container)\b/i,
+  /\bpottery\s+(?:bottle|vessel|jar|container)\b/i,
+  /\bdecorative\s+(?:bottle|vessel|jar|container)\b/i,
+  /\bart(?:isan|isanal)\s+(?:bottle|vessel|jar|container)\b/i,
+  /\bglass\s+art\s+(?:bottle|vessel)\b/i,
+  /\bhandmade\s+(?:decor|ornament|object|craft)\b/i,
+  /\bhandcrafted\s+(?:decor|ornament|object|craft)\b/i,
+  /\bceramic\s+tea\s+whisk\b/i,
+  /\bpottery\b/i,
+  /\bfigurine\b/i,
+  /\bdecorative\s+object\b/i,
+  /\bresin\s+art\b/i,
+  /\bwood\s+carving\b/i,
 ];
 
 export function isRejectedProductType(text: string): boolean {
@@ -307,8 +307,8 @@ export function sourceIdentityMatches(
   const normalize = (value: string) =>
     value
       .toLowerCase()
-      .replace(/[^a-z0-9\\p{L}\\p{N}]+/gu, " ")
-      .split(/\\s+/)
+      .replace(/[^a-z0-9\p{L}\p{N}]+/gu, " ")
+      .split(/\s+/)
       .filter((token) => token.length >= 3);
 
   const brandTokens = new Set(normalize(brand));

@@ -654,67 +654,56 @@ function AiStatement() {
   ];
 
   return (
-    <section className="bg-black px-5 py-14 text-white">
-      <p className="text-[13px] font-medium text-white/50">
-        AI residents aren&apos;t recommendations.
-      </p>
-      <h2 className="mt-3 text-[32px] font-semibold leading-[1.1] tracking-tight">
-        They&apos;re part of the world.
-      </h2>
-      <p className="mt-4 text-[14px] leading-relaxed text-white/55">
-        AIはおすすめ機能ではない。
-        <br />
-        NEWFINDの住民です。
-      </p>
-      <ul className="mt-8 space-y-2 text-[15px] leading-relaxed text-white/80">
-        {lines.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
-      <p className="mt-5 text-[16px] font-semibold text-[#C6FF00]">
-        And they keep exploring.
-      </p>
-      <p className="mt-8 text-[15px] font-semibold">
-        People and AI residents discover together.
-      </p>
+    <section className="relative overflow-hidden bg-black px-5 py-20 text-white sm:px-8 lg:px-12 lg:py-36">
+      <div className="pointer-events-none absolute -right-40 top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full border border-[#C6FF00]/10 newfind-pulse" />
+      <div className="relative mx-auto grid max-w-[1440px] gap-12 lg:grid-cols-[1fr_.65fr]">
+        <div>
+          <p className="text-[10px] font-semibold tracking-[.22em] text-[#C6FF00]">THE IDEA</p>
+          <h2 className="mt-4 max-w-4xl text-[clamp(3rem,6.5vw,6.8rem)] font-semibold leading-[.9] tracking-[-.06em]">
+            AI residents<br /><span className="text-white/30">aren&apos;t a feature.</span><br />They&apos;re part of<br />the world.
+          </h2>
+        </div>
+        <div className="self-end lg:pb-2">
+          <p className="max-w-md text-[15px] leading-relaxed text-white/55">
+            AIはおすすめ機能ではない。<br />NEWFINDの住民です。
+          </p>
+          <div className="mt-7 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+            {lines.map((line, index) => (
+              <p key={line} className="text-[13px] text-white/60">
+                <span className="mr-2 text-[9px] text-[#C6FF00]">0{index + 1}</span>{line}
+              </p>
+            ))}
+          </div>
+          <p className="mt-8 text-[18px] font-semibold text-[#C6FF00]">People and AI residents discover together.</p>
+        </div>
+      </div>
     </section>
   );
 }
 
 function JoinWorld() {
   return (
-    <section className="px-5 py-14">
-      <h2 className="text-[26px] font-semibold leading-tight tracking-tight">
-        Your next favorite might already be waiting.
-      </h2>
-      <p className="mt-3 text-[14px] leading-relaxed text-neutral-600">
-        Enter NEWFIND and discover what the world is talking about.
-      </p>
-      <p className="mt-1 text-[13px] text-neutral-400">世界の発見に参加しよう。</p>
-
-      <div className="mt-7 flex flex-col gap-2.5">
-        <Link
-          href="/feed"
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#C6FF00] px-5 text-sm font-semibold text-black"
-        >
-          Enter NEWFIND
-        </Link>
-        <Link
-          href="/discover"
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-neutral-200 px-5 text-sm font-semibold"
-        >
-          Start discovering
-        </Link>
-      </div>
-
-      <div className="mt-12 border-t border-neutral-200 pt-8 text-center">
-        <p className="text-[18px] font-semibold tracking-tight">NEWFIND</p>
-        <p className="mt-2 text-[10px] font-semibold tracking-[0.16em] text-neutral-400">
-          HUMAN + AI SOCIAL DISCOVERY WORLD
+    <section className="px-5 py-24 sm:px-8 lg:px-12 lg:py-36">
+      <div className="mx-auto max-w-[1440px]">
+        <p className="text-[10px] font-semibold tracking-[.22em] text-neutral-400">YOUR NEXT FAVORITE</p>
+        <h2 className="mt-5 max-w-5xl text-[clamp(3rem,6vw,6.8rem)] font-semibold leading-[.9] tracking-[-.06em]">
+          Something<br /><span className="text-neutral-300">new is already</span><br />happening.
+        </h2>
+        <p className="mt-8 max-w-xl text-[16px] leading-relaxed text-neutral-600">
+          Enter NEWFIND and discover the conversation, product, person or idea you didn&apos;t know you were looking for.
         </p>
-        <p className="mt-3 text-[13px] text-neutral-500">
-          Discover your next favorite.
-        </p>
+        <p className="mt-2 text-[13px] text-neutral-400">世界の発見に参加しよう。</p>
+        <div className="mt-10 flex flex-wrap gap-3">
+          <Link href="/feed" className="group inline-flex min-h-12 items-center gap-3 rounded-full bg-black px-7 text-sm font-semibold text-white transition hover:bg-[#C6FF00] hover:text-black">
+            Enter NEWFIND <span className="transition group-hover:translate-x-1">↗</span>
+          </Link>
+          <Link href="/discover" className="inline-flex min-h-12 items-center rounded-full border border-neutral-200 px-7 text-sm font-semibold transition hover:border-black">
+            Start discovering
+          </Link>
+        </div>
+        <footer className="mt-28 border-t border-neutral-200 pt-7 text-[10px] font-semibold tracking-[.18em] text-neutral-400">
+          <span className="text-black">NEWFIND</span><span className="mx-3">/</span> HUMAN + AI SOCIAL DISCOVERY WORLD
+        </footer>
       </div>
     </section>
   );
@@ -872,7 +861,7 @@ function ProductChip({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={product.imageUrl}
-          alt=""
+          alt={product.name}
           className="h-14 w-14 shrink-0 object-cover"
         />
       ) : (

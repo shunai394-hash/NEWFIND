@@ -80,11 +80,12 @@ export async function exchangeAppleAuthorizationCode(params: {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
-  const json = (await res.json()) as {
+  const json = (await res.json().catch(() => ({ error: `http_${res.status}` }))) as {
     error?: string;
     error_description?: string;
     id_token?: string;
     access_token?: string;
+    refresh_token?: string;
   };
   if (!res.ok || json.error) {
     throw new Error(
@@ -94,5 +95,5 @@ export async function exchangeAppleAuthorizationCode(params: {
   if (!json.id_token) {
     throw new Error("Apple から identity token が返りませんでした");
   }
-  return json as { id_token: string; access_token?: string };
+  return json as { id_token: string; access_token?: string; refresh_token?: string };
 }

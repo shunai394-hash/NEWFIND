@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { APPLE_BUNDLE_ID } from "@/lib/apple/config";
 import { findOrCreateAppleUser, issueAppleLoginTicket } from "@/lib/apple/session";
+import { saveAppleRefreshToken } from "@/lib/apple/token-store";
 import {
   exchangeAppleAuthorizationCode,
   verifyAppleIdentityToken,
@@ -40,21 +41,32 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (body.authorizationCode) {
-      await exchangeAppleAuthorizationCode({
-        code: body.authorizationCode,
-        clientId: APPLE_BUNDLE_ID,
-        redirectUri: null,
-      }).catch(() => {
-        // Native auth codes are still validated via identity token below.
-      });
-    }
-
     const identity = await verifyAppleIdentityToken({
       idToken: body.identityToken,
       audience: [APPLE_BUNDLE_ID],
       nonce: body.rawNonce,
     });
+
+    // Exchange the authorization code for a refresh token so the account can
+    // later revoke its Sign in with Apple authorization (Guideline 5.1.1(v)).
+    // Non-fatal: sign-in still works; deletion then re-authorizes instead.
+    let refreshToken: string | null = null;
+    if (body.authorizationCode) {
+      try {
+        const tokens = await exchangeAppleAuthorizationCode({
+          code: body.authorizationCode,
+          clientId: APPLE_BUNDLE_ID,
+          redirectUri: null,
+        });
+        const exchanged = await verifyAppleIdentityToken({
+          idToken: tokens.id_token,
+          audience: [APPLE_BUNDLE_ID],
+        });
+        if (exchanged.sub === identity.sub) refreshToken = tokens.refresh_token ?? null;
+      } catch {
+        console.warn("[apple] native authorization code exchange failed");
+      }
+    }
 
     const displayName = [body.familyName, body.givenName]
       .filter(Boolean)
@@ -68,6 +80,12 @@ export async function POST(request: Request) {
       email: identity.email || null,
       isPrivateEmail: identity.isPrivateEmail,
       displayName: displayName || null,
+    });
+    await saveAppleRefreshToken({
+      userId: user.userId,
+      appleUserId: identity.sub,
+      clientId: APPLE_BUNDLE_ID,
+      refreshToken,
     });
     const tokenHash = await issueAppleLoginTicket(user.email);
     return NextResponse.json({ tokenHash, created: user.created });

@@ -132,3 +132,19 @@ export async function startAppleSignIn(next = "/") {
 
   window.location.assign(start.toString());
 }
+
+/** Native Sign in with Apple re-authorization, used before deleting the account. */
+export async function reauthorizeAppleForDeletion(): Promise<string> {
+  try {
+    const result = await NativeAppleSignIn.authorize({ state: randomNonce() });
+    if (!result.authorizationCode) throw new AppleSignInError("Apple authorization code missing");
+    return result.authorizationCode;
+  } catch (err) {
+    if (err instanceof AppleSignInError) throw err;
+    const code =
+      err && typeof err === "object" && "code" in err && typeof err.code === "string"
+        ? err.code
+        : null;
+    throw new AppleSignInError(err instanceof Error ? err.message : String(err), code);
+  }
+}

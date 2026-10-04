@@ -53,8 +53,13 @@ export async function DELETE(
     if (id === auth.userId) {
       return NextResponse.json({ error: "cannot delete self" }, { status: 400 });
     }
-    const result = await deleteOwnedAccount(id);
-    return NextResponse.json({ ok: true, warning: result.warning ?? null });
+    // An admin cannot re-authorize as the user: revoke what we can, then delete.
+    const result = await deleteOwnedAccount(id, { allowWithoutAppleRevocation: true });
+    return NextResponse.json({
+      ok: true,
+      appleRevocation: result.appleRevocation,
+      warning: result.warning ?? null,
+    });
   } catch (error) {
     const { status, message } = authErrorResponse(error);
     return NextResponse.json({ error: message }, { status });

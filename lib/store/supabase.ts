@@ -681,22 +681,35 @@ export const supabaseStore: Store = {
 
   async deleteAccount() {
     const { authHeaders } = await import("@/lib/auth/client-headers");
-    const response = await fetch("/api/account", {
-      method: "DELETE",
-      headers: await authHeaders(),
+    const { requestAccountDeletion } = await import("@/lib/account/client-delete");
+    const { isLoginCancellation } = await import("@/lib/auth/login-errors");
+    const { AppleSignInError, reauthorizeAppleForDeletion } = await import("@/lib/apple/client");
+    const { isIosCapacitor } = await import("@/lib/capacitor/platform");
+    const headers = await authHeaders();
+    const { warning } = await requestAccountDeletion({
+      send: async (payload) => {
+        const response = await fetch("/api/account", {
+          method: "DELETE",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+        return { status: response.status, body };
+      },
+      canReauthorizeWithApple: isIosCapacitor(),
+      reauthorizeWithApple: reauthorizeAppleForDeletion,
+      isCancellation: (error) =>
+        isLoginCancellation(
+          error instanceof AppleSignInError ? error.code : null,
+          error instanceof Error ? error.message : null,
+        ),
     });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(
-        typeof body.error === "string" ? body.error : "アカウントの削除に失敗しました",
-      );
-    }
     try {
       await this.signOut();
     } catch {
       // Auth user is already gone; clear local session best-effort.
     }
-    return { warning: typeof body.warning === "string" ? body.warning : null };
+    return { warning };
   },
 
   async getProfile(id) {

@@ -368,7 +368,7 @@ export function SettingsForm() {
           >
             <p className="text-sm font-semibold">アカウントを削除しますか？</p>
             <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-              削除すると、プロフィール、投稿、コメント、いいね、フォローなどのデータは元に戻せません。他の人のアカウントは削除されません。
+              削除すると、プロフィール、投稿、コメント、いいね、フォローなどのデータは元に戻せません。他の人のアカウントは削除されません。Appleでサインインしている場合は、Appleとの連携も解除します（Appleでの確認を求められることがあります）。
             </p>
             {deleteError ? <p className="mt-3 text-sm text-red-600">{deleteError}</p> : null}
             <div className="mt-4 grid grid-cols-2 gap-2">

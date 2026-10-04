@@ -149,8 +149,10 @@ export function AuthForm() {
     if (!beginProvider()) return;
     setGoogleBusy(true);
     try {
-      await getStore().signInOAuth("google", next);
+      // Register before opening the native browser sheet so a fast cancel
+      // cannot emit browserFinished before we are listening.
       await watchBrowserSheet();
+      await getStore().signInOAuth("google", next);
     } catch (err) {
       finishProvider();
       setError(
@@ -163,9 +165,11 @@ export function AuthForm() {
     if (!beginProvider()) return;
     setAppleBusy(true);
     try {
-      await startAppleSignIn(next);
-      // Native Sign in with Apple navigates on success; the web fallback opens a sheet.
+      // Register before starting Apple auth: native plugin cancellation resets
+      // in catch; if the plugin falls back to a browser sheet, its close event
+      // is already observed.
       await watchBrowserSheet();
+      await startAppleSignIn(next);
     } catch (err) {
       finishProvider();
       const code = err instanceof AppleSignInError ? err.code : null;

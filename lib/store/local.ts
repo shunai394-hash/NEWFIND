@@ -1,3 +1,4 @@
+import { assertPostContentAllowed } from "@/lib/moderation/content-filter";
 ﻿import { fileToStoredUrl } from "@/lib/media";
 import { rankForYouFeed, engagementScore } from "@/lib/feed-rank";
 import {
@@ -390,6 +391,7 @@ export const localStore: Store = {
   },
 
   async createPost(authorId, input: CreatePostInput) {
+    assertPostContentAllowed(input.caption, input.productLabel);
     return mutate((state) => {
       const caption = requirePostCaption(input.caption);
       const media = normalizePostMedia({
@@ -423,6 +425,7 @@ export const localStore: Store = {
   },
 
   async updatePost(postId, userId, patch: UpdatePostInput) {
+    assertPostContentAllowed(patch.caption, patch.productLabel);
     return mutate((state) => {
       const post = state.posts.find((item) => item.id === postId);
       if (!post) throw new Error("謚慕ｨｿ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ");

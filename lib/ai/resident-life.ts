@@ -1121,7 +1121,7 @@ function subjectVisualArchetypes(subject: {
     ["bottle", /\b(?:bottle|flacon|vial|ampoule|perfume|parfum|fragrance)\b/],
     ["jar", /\b(?:jar|pot|balm|cream|ointment)\b/],
     ["vessel", /\b(?:vessel|ceramic|pottery|potter|stoneware|tableware|container)\b/],
-    ["craft_object", /\b(?:craft|crafted|craftsmanship|ceramic|pottery|potter|vessel|artisan|handmade|maker)\b/],
+    ["craft_object", /\\b(?:craft|crafted|craftsmanship|ceramic|pottery|potter|vessel|artisan|handmade|hand-blown|handblown|glassblowing|vase)\\b/],
     ["lip", /\b(?:lipstick|lip gloss|lip balm|lip tint|lip liner)\b/],
     ["eye", /\b(?:mascara|eyeliner|eye shadow|eyeshadow)\b/],
     ["shoe", /\b(?:shoe|sneaker|trainer|loafer|boot|heel)\b/],
@@ -1359,14 +1359,6 @@ function dropCommunityRepeatedSubjects(
       return false;
     }
 
-    // Craft/vessel objects were repeatedly leaking across unrelated residents.
-    // Keep the feed diverse without suppressing ordinary fashion/beauty objects.
-    if (
-      subjectArchetypes.includes("craft_object") &&
-      (recentCommunity.visualArchetypes.get("craft_object") ?? 0) >= 2
-    ) {
-      return false;
-    }
 
     // Brand concentration is softer than URL/domain duplication. Only apply
     // it when the subject has an explicit brand and that brand appears in

@@ -33,3 +33,5 @@ jobs:
         run: npm run test:ai-precision
       - name: AI correspondent
         run: npm run test:ai-correspondent
+      - name: Production build
+        run: npm run build

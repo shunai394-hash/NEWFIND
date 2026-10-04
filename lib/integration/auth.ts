@@ -71,9 +71,13 @@ export function verifyIntegrationRequest(input: {
   headers: Headers;
   rawBody: string;
   eventId: string;
+  source?: string;
 }): AuthResult {
   const cfg = getIntegrationConfig();
-  if (!cfg.sharedSecret) {
+  const verificationSecret = input.source === "brandbridge"
+    ? cfg.brandBridgeSecret
+    : cfg.sharedSecret;
+  if (!verificationSecret) {
     return { ok: false, status: 503, error: "integration secret not configured" };
   }
 
@@ -103,7 +107,7 @@ export function verifyIntegrationRequest(input: {
       return { ok: false, status: 401, error: "integration id mismatch" };
     }
     const expected = signIntegrationBody({
-      secret: cfg.sharedSecret,
+      secret: verificationSecret,
       timestamp: ts,
       eventId: input.eventId,
       rawBody: input.rawBody,
@@ -119,7 +123,7 @@ export function verifyIntegrationRequest(input: {
     input.headers.get("x-newfind-secret")?.trim() ||
     input.headers.get("x-tracer-secret")?.trim() ||
     "";
-  if (bearer && safeEqualString(bearer, cfg.sharedSecret)) {
+  if (bearer && safeEqualString(bearer, verificationSecret)) {
     return { ok: true, mode: "bearer" };
   }
 

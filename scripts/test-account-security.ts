@@ -443,7 +443,7 @@ test("client: cancelling Apple re-authorization deletes nothing", async () => {
 
 test("client: the web never sends a revocation bypass; it asks the user to re-sign in", async () => {
   const c = client([REAUTH], { ios: false });
-  await assert.rejects(c.run(), /再度ログイン/);
+  await assert.rejects(c.run(), /iOSアプリでAppleの確認/);
   assert.deepEqual(c.sent, [{}]);
 });
 

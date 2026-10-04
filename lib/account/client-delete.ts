@@ -29,7 +29,7 @@ export async function requestAccountDeletion(deps: ClientDeleteDeps): Promise<{ 
       // The web cannot run native re-authorization. Signing in with Apple again
       // stores a fresh token on the server, after which deletion can revoke it.
       throw new Error(
-        "アカウントを削除する前にAppleでの確認が必要です。いったんログアウトし、「Appleでサインイン」で再度ログインしてから削除してください。アカウントは削除されていません。",
+        "Appleとの連携を安全に解除するため、iOSアプリでAppleの確認を行ってからアカウントを削除してください（Webの場合は、いったんログアウトして「Appleでサインイン」で再度ログインしてから削除できます）。アカウントは削除されていません。",
       );
     }
     let code: string;

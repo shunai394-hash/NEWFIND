@@ -146,14 +146,24 @@ test("an exchange failure while already signed in continues instead of erroring"
   assert.deepEqual(h.navigations, ["/feed"]);
 });
 
-test("a thrown error never leaves the screen loading", async () => {
+test("a thrown exchange error is persisted so the one-time code is not replayed after reload", async () => {
+  const sessionStore = memoryStorage();
+  let attempts = 0;
   const h = harness({
+    sessionStore,
     exchangeCodeForSession: async () => {
+      attempts += 1;
       throw new Error("Load failed");
     },
   });
   await createOAuthReturnHandler(h.deps)(`${CALLBACK}?code=boom`);
   assert.match(h.navigations[0], /^\/login\?error=oauth/);
+
+  const afterReload = harness({ sessionStore });
+  await createOAuthReturnHandler(afterReload.deps)(`${CALLBACK}?code=boom`);
+  assert.equal(attempts, 1);
+  assert.deepEqual(afterReload.exchanges, []);
+  assert.deepEqual(afterReload.navigations, []);
 });
 
 test("a callback without a code shows an error", async () => {

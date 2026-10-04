@@ -187,10 +187,13 @@ export function createOAuthReturnHandler(deps: OAuthReturnDeps) {
       }
 
       const next = resolveNext(url);
+      // Persist the one-time code claim before awaiting the network. If the
+      // exchange throws after Apple/Supabase consumed the code, a WebView reload
+      // must not submit that same credential a second time.
+      markProcessed(id);
       const { error } = tokenHash
         ? await deps.verifyMagicLink(tokenHash)
         : await deps.exchangeCodeForSession(credential);
-      markProcessed(id);
 
       if (error) {
         // A replayed or already-exchanged code fails, but the user may already

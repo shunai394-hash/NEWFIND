@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { deleteOwnedAccount } from "@/lib/account/delete-user";
+import { createAdminDeleteHandler } from "@/lib/account/delete-handlers";
+import { deleteAccountByAdmin } from "@/lib/account/delete-user";
 import { authErrorResponse, requireAdmin } from "@/lib/auth/request-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -43,25 +44,16 @@ export async function PATCH(
   }
 }
 
+// An admin cannot re-authorize as the user: revoke what we can, then delete.
+const handleAdminDelete = createAdminDeleteHandler({
+  requireAdmin,
+  deleteAccountAsAdmin: deleteAccountByAdmin,
+});
+
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const auth = await requireAdmin(request);
-    const { id } = await params;
-    if (id === auth.userId) {
-      return NextResponse.json({ error: "cannot delete self" }, { status: 400 });
-    }
-    // An admin cannot re-authorize as the user: revoke what we can, then delete.
-    const result = await deleteOwnedAccount(id, { allowWithoutAppleRevocation: true });
-    return NextResponse.json({
-      ok: true,
-      appleRevocation: result.appleRevocation,
-      warning: result.warning ?? null,
-    });
-  } catch (error) {
-    const { status, message } = authErrorResponse(error);
-    return NextResponse.json({ error: message }, { status });
-  }
+  const { id } = await params;
+  return handleAdminDelete(request, id);
 }

@@ -7,18 +7,22 @@ import type { AppleRevokeResult } from "@/lib/apple/revoke";
  *      A transient Apple failure stops here: nothing has been deleted yet.
  *   2. Remove the user's media from storage (failures become a warning).
  *   3. Delete the auth user; profiles, tokens and other rows cascade.
- * When no usable Apple token exists, the native app re-authorizes first;
- * otherwise the account is still deleted (as Apple requires) and the user is
- * told to remove NEWFIND under Settings → Sign in with Apple.
+ *
+ * Whether deletion may proceed without an automatic revocation is decided
+ * only from conditions the server verified itself, never from the request:
+ *   - self-delete: only when the server cannot revoke because of its own
+ *     configuration (no Apple signing key, client rejected by Apple). The
+ *     result then reports `manual_required`, never `revoked`.
+ *   - admin delete (separate, admin-authorized entry point): the admin cannot
+ *     re-authorize as the user, so it revokes what it can and reports the rest.
+ * Otherwise a self-delete without a usable token requires re-authorization.
  */
 
 export type AppleRevocationStatus = "not_linked" | "revoked" | "manual_required";
 
-export type DeleteAccountOptions = {
+export type SelfDeleteOptions = {
   /** Fresh authorization code from a native Sign in with Apple re-authorization. */
   appleAuthorizationCode?: string | null;
-  /** Delete even when Apple cannot be revoked automatically (web, admin, re-auth impossible). */
-  allowWithoutAppleRevocation?: boolean;
 };
 
 export type DeleteAccountResult = {
@@ -46,12 +50,25 @@ export class AccountDeletionError extends Error {
   }
 }
 
+/** Why an authorization code could not be exchanged with Apple. */
+export class AppleCodeExchangeError extends Error {
+  readonly kind: "invalid_code" | "transient" | "config";
+  constructor(kind: "invalid_code" | "transient" | "config") {
+    super(`apple code exchange failed: ${kind}`);
+    this.name = "AppleCodeExchangeError";
+    this.kind = kind;
+  }
+}
+
 export type AppleTokenGrant = { appleUserId: string; clientId: string; refreshToken: string };
 
 export type DeleteAccountDeps = {
   linkedAppleUserIds: (userId: string) => Promise<string[]>;
   loadAppleTokens: (userId: string) => Promise<AppleTokenGrant[]>;
-  /** Exchange a re-authorization code server-to-server; the identity is verified by Apple's response. */
+  /**
+   * Exchange a re-authorization code server-to-server; the Apple identity is
+   * taken from Apple's verified response. Throws AppleCodeExchangeError.
+   */
   exchangeAppleCode: (code: string) => Promise<{
     appleUserId: string;
     clientId: string;
@@ -72,9 +89,11 @@ export type DeleteAccountDeps = {
 export const MANUAL_APPLE_REVOCATION_MESSAGE =
   "Appleとの連携は自動で解除できませんでした。iPhoneの「設定」→ 自分の名前 →「サインインとセキュリティ」→「Appleでサインイン」から NEWFIND を選び、「Appleでサインインの使用を停止」を選んでください。";
 
+type Mode = { adminOverride: boolean; appleAuthorizationCode: string | null };
+
 async function revokeAppleAuthorization(
   userId: string,
-  options: DeleteAccountOptions,
+  mode: Mode,
   deps: DeleteAccountDeps,
 ): Promise<AppleRevocationStatus> {
   const appleIds = await deps.linkedAppleUserIds(userId);
@@ -82,6 +101,13 @@ async function revokeAppleAuthorization(
 
   let revoked = false;
   let transient = false;
+  // Set only by server-side facts: our Apple client cannot revoke at all.
+  let serverCannotRevoke = false;
+
+  const recordFailure = (result: Exclude<AppleRevokeResult, { ok: true }>) => {
+    if (result.kind === "transient") transient = true;
+    if (result.kind === "config") serverCannotRevoke = true;
+  };
 
   const stored = (await deps.loadAppleTokens(userId)).filter((token) =>
     appleIds.includes(token.appleUserId),
@@ -93,37 +119,48 @@ async function revokeAppleAuthorization(
       tokenTypeHint: "refresh_token",
     });
     if (result.ok) revoked = true;
-    else if (result.kind === "transient") transient = true;
+    else recordFailure(result);
   }
 
-  if (!revoked && options.appleAuthorizationCode) {
-    let grant: Awaited<ReturnType<DeleteAccountDeps["exchangeAppleCode"]>>;
+  if (!revoked && mode.appleAuthorizationCode) {
+    let grant: Awaited<ReturnType<DeleteAccountDeps["exchangeAppleCode"]>> | null = null;
     try {
-      grant = await deps.exchangeAppleCode(options.appleAuthorizationCode);
-    } catch {
-      throw new AccountDeletionError(
-        "apple_reauth_failed",
-        400,
-        "Appleでの確認に失敗しました。もう一度お試しください。",
-      );
+      grant = await deps.exchangeAppleCode(mode.appleAuthorizationCode);
+    } catch (error) {
+      const kind = error instanceof AppleCodeExchangeError ? error.kind : "invalid_code";
+      if (kind === "transient") transient = true;
+      else if (kind === "config") serverCannotRevoke = true;
+      else {
+        throw new AccountDeletionError(
+          "apple_reauth_failed",
+          400,
+          "Appleでの確認に失敗したため、アカウントは削除されていません。もう一度お試しください。",
+        );
+      }
     }
-    // The code must belong to this account's Apple ID, not someone else's.
-    if (!appleIds.includes(grant.appleUserId)) {
-      throw new AccountDeletionError(
-        "apple_identity_mismatch",
-        403,
-        "このアカウントに連携しているApple IDで確認してください。",
-      );
-    }
-    const token = grant.refreshToken ?? grant.accessToken;
-    if (token) {
-      const result = await deps.revokeAppleToken({
-        clientId: grant.clientId,
-        token,
-        tokenTypeHint: grant.refreshToken ? "refresh_token" : "access_token",
-      });
-      if (result.ok) revoked = true;
-      else if (result.kind === "transient") transient = true;
+    if (grant) {
+      // The code must belong to this account's Apple ID, not someone else's.
+      if (!appleIds.includes(grant.appleUserId)) {
+        throw new AccountDeletionError(
+          "apple_identity_mismatch",
+          403,
+          "このアカウントに連携しているApple IDで確認してください。アカウントは削除されていません。",
+        );
+      }
+      const token = grant.refreshToken ?? grant.accessToken;
+      if (token) {
+        const result = await deps.revokeAppleToken({
+          clientId: grant.clientId,
+          token,
+          tokenTypeHint: grant.refreshToken ? "refresh_token" : "access_token",
+        });
+        if (result.ok) revoked = true;
+        else if (result.kind === "transient") transient = true;
+        // A freshly issued token Apple will not revoke is a server-side problem.
+        else serverCannotRevoke = true;
+      } else {
+        serverCannotRevoke = true;
+      }
     }
   }
 
@@ -135,25 +172,25 @@ async function revokeAppleAuthorization(
       "Appleとの連携解除に一時的に失敗したため、アカウントはまだ削除されていません。時間をおいてもう一度お試しください。",
     );
   }
-  if (!options.allowWithoutAppleRevocation && !options.appleAuthorizationCode) {
-    throw new AccountDeletionError(
-      "apple_reauth_required",
-      409,
-      "アカウントを削除する前に、Appleでの確認が必要です。",
-    );
-  }
-  return "manual_required";
+  // Apple TN3194: when the server cannot revoke, the deletion request must
+  // still be fulfilled, with the user told to revoke manually.
+  if (serverCannotRevoke || mode.adminOverride) return "manual_required";
+  throw new AccountDeletionError(
+    "apple_reauth_required",
+    409,
+    "アカウントを削除する前に、Appleでの確認が必要です。",
+  );
 }
 
-export async function deleteAccount(
+async function performDeletion(
   userId: string,
-  options: DeleteAccountOptions,
+  mode: Mode,
   deps: DeleteAccountDeps,
 ): Promise<DeleteAccountResult> {
   const id = userId.trim();
   if (!id) throw new AccountDeletionError("delete_failed", 400, "invalid user");
 
-  const appleRevocation = await revokeAppleAuthorization(id, options, deps);
+  const appleRevocation = await revokeAppleAuthorization(id, mode, deps);
 
   const warnings: string[] = [];
   try {
@@ -181,4 +218,25 @@ export async function deleteAccount(
     ...(outcome === "not_found" ? { alreadyDeleted: true } : {}),
     ...(warnings.length > 0 ? { warning: warnings.join("\n") } : {}),
   };
+}
+
+/** A signed-in user deleting their own account. Takes no client-controlled policy flags. */
+export function deleteOwnAccount(
+  userId: string,
+  options: SelfDeleteOptions,
+  deps: DeleteAccountDeps,
+): Promise<DeleteAccountResult> {
+  return performDeletion(
+    userId,
+    { adminOverride: false, appleAuthorizationCode: options.appleAuthorizationCode ?? null },
+    deps,
+  );
+}
+
+/** Admin-only deletion of another account. Callers must have verified admin rights. */
+export function deleteAccountAsAdmin(
+  userId: string,
+  deps: DeleteAccountDeps,
+): Promise<DeleteAccountResult> {
+  return performDeletion(userId, { adminOverride: true, appleAuthorizationCode: null }, deps);
 }

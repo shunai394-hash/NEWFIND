@@ -4,12 +4,18 @@ import { APPLE_BUNDLE_ID } from "@/lib/apple/config";
 import { createAppleClientSecret } from "@/lib/apple/client-secret";
 import { revokeAppleToken } from "@/lib/apple/revoke";
 import { loadAppleRefreshTokens } from "@/lib/apple/token-store";
-import { exchangeAppleAuthorizationCode, verifyAppleIdentityToken } from "@/lib/apple/verify";
 import {
-  deleteAccount,
+  AppleTokenEndpointError,
+  exchangeAppleAuthorizationCode,
+  verifyAppleIdentityToken,
+} from "@/lib/apple/verify";
+import {
+  AppleCodeExchangeError,
+  deleteAccountAsAdmin,
+  deleteOwnAccount,
   type DeleteAccountDeps,
-  type DeleteAccountOptions,
   type DeleteAccountResult,
+  type SelfDeleteOptions,
 } from "@/lib/account/delete-account-core";
 
 export { AccountDeletionError } from "@/lib/account/delete-account-core";
@@ -85,15 +91,37 @@ const deps: DeleteAccountDeps = {
   loadAppleTokens: loadAppleRefreshTokens,
   exchangeAppleCode: async (code) => {
     // Re-authorization only happens in the iOS app, so the client is the bundle id.
-    const tokens = await exchangeAppleAuthorizationCode({
-      code,
-      clientId: APPLE_BUNDLE_ID,
-      redirectUri: null,
-    });
-    const identity = await verifyAppleIdentityToken({
-      idToken: tokens.id_token,
-      audience: [APPLE_BUNDLE_ID],
-    });
+    let tokens: Awaited<ReturnType<typeof exchangeAppleAuthorizationCode>>;
+    try {
+      await createAppleClientSecret(APPLE_BUNDLE_ID);
+    } catch {
+      throw new AppleCodeExchangeError("config");
+    }
+    try {
+      tokens = await exchangeAppleAuthorizationCode({
+        code,
+        clientId: APPLE_BUNDLE_ID,
+        redirectUri: null,
+      });
+    } catch (error) {
+      if (error instanceof AppleTokenEndpointError) {
+        if (error.status === 429 || error.status >= 500) throw new AppleCodeExchangeError("transient");
+        if (error.oauthError === "invalid_client" || error.oauthError === "unauthorized_client") {
+          throw new AppleCodeExchangeError("config");
+        }
+        throw new AppleCodeExchangeError("invalid_code");
+      }
+      throw new AppleCodeExchangeError("transient");
+    }
+    let identity: Awaited<ReturnType<typeof verifyAppleIdentityToken>>;
+    try {
+      identity = await verifyAppleIdentityToken({
+        idToken: tokens.id_token,
+        audience: [APPLE_BUNDLE_ID],
+      });
+    } catch {
+      throw new AppleCodeExchangeError("invalid_code");
+    }
     return {
       appleUserId: identity.sub,
       clientId: APPLE_BUNDLE_ID,
@@ -118,14 +146,15 @@ const deps: DeleteAccountDeps = {
   },
 };
 
-/**
- * Deletes one user owned by `userId`.
- * Callers must already have verified the actor is that user (self-delete)
- * or an admin deleting someone else.
- */
-export async function deleteOwnedAccount(
+/** A signed-in user deleting their own account (userId from the verified session). */
+export function deleteOwnedAccount(
   userId: string,
-  options: DeleteAccountOptions = {},
+  options: SelfDeleteOptions = {},
 ): Promise<DeleteAccountResult> {
-  return deleteAccount(userId, options, deps);
+  return deleteOwnAccount(userId, options, deps);
+}
+
+/** Admin deletion of another user. Only call after requireAdmin. */
+export function deleteAccountByAdmin(userId: string): Promise<DeleteAccountResult> {
+  return deleteAccountAsAdmin(userId, deps);
 }

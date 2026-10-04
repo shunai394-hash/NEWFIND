@@ -10,10 +10,13 @@ import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 import {
   AccountDeletionError,
-  deleteAccount,
+  AppleCodeExchangeError,
+  deleteAccountAsAdmin,
+  deleteOwnAccount,
   MANUAL_APPLE_REVOCATION_MESSAGE,
   type DeleteAccountDeps,
 } from "../lib/account/delete-account-core";
+import { createAdminDeleteHandler, createSelfDeleteHandler } from "../lib/account/delete-handlers";
 import { requestAccountDeletion, type DeleteResponse } from "../lib/account/client-delete";
 import { revokeAppleToken, type AppleRevokeDeps } from "../lib/apple/revoke";
 import { decryptAppleToken, encryptAppleToken } from "../lib/apple/token-store";
@@ -51,6 +54,8 @@ function deletionDeps(overrides: Partial<DeleteAccountDeps> = {}, calls: Calls =
   };
 }
 
+const noStoredToken = { loadAppleTokens: async () => [] };
+
 async function expectDeletionError(promise: Promise<unknown>, code: string, status: number) {
   await assert.rejects(promise, (error: unknown) => {
     assert.ok(error instanceof AccountDeletionError);
@@ -62,14 +67,14 @@ async function expectDeletionError(promise: Promise<unknown>, code: string, stat
 
 test("account without Apple: deleted, no Apple call", async () => {
   const calls: Calls = [];
-  const result = await deleteAccount("u1", {}, deletionDeps({ linkedAppleUserIds: async () => [] }, calls));
+  const result = await deleteOwnAccount("u1", {}, deletionDeps({ linkedAppleUserIds: async () => [] }, calls));
   assert.deepEqual(result, { ok: true, appleRevocation: "not_linked" });
   assert.deepEqual(calls, ["collect", "media", "deleteUser"]);
 });
 
 test("stored Apple token is revoked before anything is deleted", async () => {
   const calls: Calls = [];
-  const result = await deleteAccount("u1", {}, deletionDeps({}, calls));
+  const result = await deleteOwnAccount("u1", {}, deletionDeps({}, calls));
   assert.equal(result.appleRevocation, "revoked");
   assert.equal(result.warning, undefined);
   assert.deepEqual(calls, ["revoke:rt-stored:refresh_token", "collect", "media", "deleteUser"]);
@@ -81,22 +86,27 @@ test("Apple outage: nothing is deleted and the user is told to retry", async () 
     { revokeAppleToken: async () => ({ ok: false, kind: "transient", code: "network" }) },
     calls,
   );
-  await expectDeletionError(deleteAccount("u1", {}, deps), "apple_revocation_unavailable", 503);
+  await expectDeletionError(deleteOwnAccount("u1", {}, deps), "apple_revocation_unavailable", 503);
   assert.ok(!calls.includes("deleteUser"));
   assert.ok(!calls.includes("media"));
 });
 
-test("no stored token: native re-authorization is required first", async () => {
+test("no stored token: re-authorization is required and nothing is deleted", async () => {
   const calls: Calls = [];
-  const deps = deletionDeps({ loadAppleTokens: async () => [] }, calls);
-  await expectDeletionError(deleteAccount("u1", {}, deps), "apple_reauth_required", 409);
+  await expectDeletionError(deleteOwnAccount("u1", {}, deletionDeps(noStoredToken, calls)), "apple_reauth_required", 409);
   assert.deepEqual(calls, []);
+});
+
+test("stored token already invalid: re-authorization is required", async () => {
+  const deps = deletionDeps({
+    revokeAppleToken: async () => ({ ok: false, kind: "invalid_token", code: "invalid_grant" }),
+  });
+  await expectDeletionError(deleteOwnAccount("u1", {}, deps), "apple_reauth_required", 409);
 });
 
 test("re-authorization code: exchanged server-side, revoked, then deleted", async () => {
   const calls: Calls = [];
-  const deps = deletionDeps({ loadAppleTokens: async () => [] }, calls);
-  const result = await deleteAccount("u1", { appleAuthorizationCode: "code-1" }, deps);
+  const result = await deleteOwnAccount("u1", { appleAuthorizationCode: "code-1" }, deletionDeps(noStoredToken, calls));
   assert.equal(result.appleRevocation, "revoked");
   assert.deepEqual(calls, ["exchange", "revoke:rt-fresh:refresh_token", "collect", "media", "deleteUser"]);
 });
@@ -105,7 +115,7 @@ test("re-authorization with someone else's Apple ID is refused", async () => {
   const calls: Calls = [];
   const deps = deletionDeps(
     {
-      loadAppleTokens: async () => [],
+      ...noStoredToken,
       exchangeAppleCode: async () => ({
         appleUserId: "attacker-sub",
         clientId: "app.newfind.social",
@@ -115,48 +125,65 @@ test("re-authorization with someone else's Apple ID is refused", async () => {
     },
     calls,
   );
-  await expectDeletionError(deleteAccount("u1", { appleAuthorizationCode: "c" }, deps), "apple_identity_mismatch", 403);
+  await expectDeletionError(deleteOwnAccount("u1", { appleAuthorizationCode: "c" }, deps), "apple_identity_mismatch", 403);
   assert.deepEqual(calls, []);
 });
 
-test("an invalid re-authorization code reports an error and deletes nothing", async () => {
+test("an invalid re-authorization code deletes nothing", async () => {
   const calls: Calls = [];
   const deps = deletionDeps(
     {
-      loadAppleTokens: async () => [],
+      ...noStoredToken,
       exchangeAppleCode: async () => {
-        throw new Error("invalid_grant");
+        throw new AppleCodeExchangeError("invalid_code");
       },
     },
     calls,
   );
-  await expectDeletionError(deleteAccount("u1", { appleAuthorizationCode: "bad" }, deps), "apple_reauth_failed", 400);
+  await expectDeletionError(deleteOwnAccount("u1", { appleAuthorizationCode: "bad" }, deps), "apple_reauth_failed", 400);
   assert.deepEqual(calls, []);
 });
 
-test("stored token already invalid: re-authorization is still required", async () => {
+test("Apple outage during re-authorization deletes nothing", async () => {
   const deps = deletionDeps({
-    revokeAppleToken: async () => ({ ok: false, kind: "invalid_token", code: "invalid_grant" }),
+    ...noStoredToken,
+    exchangeAppleCode: async () => {
+      throw new AppleCodeExchangeError("transient");
+    },
   });
-  await expectDeletionError(deleteAccount("u1", {}, deps), "apple_reauth_required", 409);
+  await expectDeletionError(deleteOwnAccount("u1", { appleAuthorizationCode: "c" }, deps), "apple_revocation_unavailable", 503);
 });
 
-test("when revocation is impossible, the account is still deleted with manual instructions (TN3194)", async () => {
+test("server cannot revoke (its own Apple config): deleted, reported as manual — never as revoked", async () => {
+  for (const deps of [
+    deletionDeps({ revokeAppleToken: async () => ({ ok: false, kind: "config", code: "invalid_client" }) }),
+    deletionDeps({
+      ...noStoredToken,
+      exchangeAppleCode: async () => {
+        throw new AppleCodeExchangeError("config");
+      },
+    }),
+  ]) {
+    const result = await deleteOwnAccount("u1", { appleAuthorizationCode: "c" }, deps);
+    assert.equal(result.appleRevocation, "manual_required");
+    assert.equal(result.warning, MANUAL_APPLE_REVOCATION_MESSAGE);
+  }
+});
+
+test("admin deletion revokes what it can, then deletes with manual instructions", async () => {
   const calls: Calls = [];
-  const deps = deletionDeps(
-    { revokeAppleToken: async () => ({ ok: false, kind: "config", code: "invalid_client" }) },
-    calls,
-  );
-  const result = await deleteAccount("u1", { allowWithoutAppleRevocation: true }, deps);
+  const result = await deleteAccountAsAdmin("u1", deletionDeps(noStoredToken, calls));
   assert.equal(result.appleRevocation, "manual_required");
   assert.match(result.warning ?? "", /Appleでサインイン/);
-  assert.equal(result.warning, MANUAL_APPLE_REVOCATION_MESSAGE);
-  assert.ok(calls.includes("deleteUser"));
+  assert.deepEqual(calls, ["collect", "media", "deleteUser"]);
+  const revokedCalls: Calls = [];
+  assert.equal((await deleteAccountAsAdmin("u2", deletionDeps({}, revokedCalls))).appleRevocation, "revoked");
+  assert.equal(revokedCalls[0], "revoke:rt-stored:refresh_token");
 });
 
 test("already deleted user: reported as success, not as an error", async () => {
   const deps = deletionDeps({ linkedAppleUserIds: async () => [], deleteAuthUser: async () => "not_found" });
-  const result = await deleteAccount("u1", {}, deps);
+  const result = await deleteOwnAccount("u1", {}, deps);
   assert.equal(result.ok, true);
   assert.equal(result.alreadyDeleted, true);
 });
@@ -170,7 +197,7 @@ test("double execution: both requests end in a consistent success", async () => 
       return "deleted";
     },
   });
-  const [a, b] = await Promise.all([deleteAccount("u1", {}, deps), deleteAccount("u1", {}, deps)]);
+  const [a, b] = await Promise.all([deleteOwnAccount("u1", {}, deps), deleteOwnAccount("u1", {}, deps)]);
   assert.equal(a.ok && b.ok, true);
   assert.equal([a, b].filter((r) => r.alreadyDeleted).length, 1);
 });
@@ -181,7 +208,7 @@ test("auth delete failure is never reported as success", async () => {
       throw new Error("db down");
     },
   });
-  await expectDeletionError(deleteAccount("u1", {}, deps), "delete_failed", 500);
+  await expectDeletionError(deleteOwnAccount("u1", {}, deps), "delete_failed", 500);
 });
 
 test("media cleanup failure still deletes the account, with a warning", async () => {
@@ -190,8 +217,101 @@ test("media cleanup failure still deletes the account, with a warning", async ()
       throw new Error("storage down");
     },
   });
-  const result = await deleteAccount("u1", {}, deps);
+  const result = await deleteOwnAccount("u1", {}, deps);
   assert.match(result.warning ?? "", /画像ファイル/);
+});
+
+// ---------------------------------------------------------------- deletion HTTP handlers
+
+const deleteRequest = (body?: unknown) =>
+  new Request("https://newfind.example/api/account", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+function selfHandler(deps: DeleteAccountDeps, auth: () => Promise<{ userId: string | null }>) {
+  const received: unknown[] = [];
+  const handle = createSelfDeleteHandler({
+    requireUser: auth,
+    deleteOwnAccount: (userId, options) => {
+      received.push({ userId, options });
+      return deleteOwnAccount(userId, options, deps);
+    },
+  });
+  return { handle, received };
+}
+
+const signedIn = async () => ({ userId: "u1" });
+
+test("self-delete: a client-sent skip flag cannot bypass Apple revocation", async () => {
+  for (const body of [
+    { allowWithoutAppleRevocation: true },
+    { allowWithoutAppleRevocation: "true", adminOverride: true, userId: "victim" },
+    { allowWithoutAppleRevocation: false },
+    {},
+    undefined,
+  ]) {
+    const calls: Calls = [];
+    const { handle, received } = selfHandler(deletionDeps(noStoredToken, calls), signedIn);
+    const res = await handle(deleteRequest(body));
+    assert.equal(res.status, 409, JSON.stringify(body));
+    assert.equal(((await res.json()) as { code: string }).code, "apple_reauth_required");
+    assert.deepEqual(received, [{ userId: "u1", options: { appleAuthorizationCode: null } }]);
+    assert.ok(!calls.includes("deleteUser"));
+  }
+});
+
+test("self-delete: only a verified re-authorization code is taken from the body", async () => {
+  const calls: Calls = [];
+  const { handle, received } = selfHandler(deletionDeps(noStoredToken, calls), signedIn);
+  const res = await handle(deleteRequest({ appleAuthorizationCode: "code-1", allowWithoutAppleRevocation: true }));
+  assert.equal(res.status, 200);
+  assert.equal(((await res.json()) as { appleRevocation: string }).appleRevocation, "revoked");
+  assert.deepEqual(received, [{ userId: "u1", options: { appleAuthorizationCode: "code-1" } }]);
+});
+
+test("self-delete: unauthenticated requests delete nothing", async () => {
+  const { handle, received } = selfHandler(deletionDeps(), async () => {
+    throw Object.assign(new Error("unauthorized"), { status: 401 });
+  });
+  assert.equal((await handle(deleteRequest({}))).status, 401);
+  const anonymous = selfHandler(deletionDeps(), async () => ({ userId: null }));
+  assert.equal((await anonymous.handle(deleteRequest({}))).status, 401);
+  assert.equal(received.length + anonymous.received.length, 0);
+});
+
+function adminHandler(auth: () => Promise<{ userId: string | null }>) {
+  const deleted: string[] = [];
+  const handle = createAdminDeleteHandler({
+    requireAdmin: auth,
+    deleteAccountAsAdmin: async (userId) => {
+      deleted.push(userId);
+      return { ok: true, appleRevocation: "manual_required", warning: MANUAL_APPLE_REVOCATION_MESSAGE };
+    },
+  });
+  return { handle, deleted };
+}
+
+test("admin delete: non-admins and anonymous callers are refused", async () => {
+  const forbidden = adminHandler(async () => {
+    throw Object.assign(new Error("forbidden"), { status: 403 });
+  });
+  assert.equal((await forbidden.handle(deleteRequest(), "victim")).status, 403);
+  const anonymous = adminHandler(async () => {
+    throw Object.assign(new Error("unauthorized"), { status: 401 });
+  });
+  assert.equal((await anonymous.handle(deleteRequest(), "victim")).status, 401);
+  assert.equal(forbidden.deleted.length + anonymous.deleted.length, 0);
+});
+
+test("admin delete: an admin deletes another user, not themselves", async () => {
+  const admin = adminHandler(async () => ({ userId: "admin-1" }));
+  const res = await admin.handle(deleteRequest(), "user-9");
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: true, appleRevocation: "manual_required", warning: MANUAL_APPLE_REVOCATION_MESSAGE });
+  assert.equal((await admin.handle(deleteRequest(), "admin-1")).status, 400);
+  assert.deepEqual(admin.deleted, ["user-9"]);
 });
 
 // ---------------------------------------------------------------- Apple revoke
@@ -321,16 +441,27 @@ test("client: cancelling Apple re-authorization deletes nothing", async () => {
   assert.equal(c.sent.length, 1);
 });
 
-test("client: web deletes and shows manual Apple instructions", async () => {
-  const c = client([REAUTH, { status: 200, body: { ok: true, warning: MANUAL_APPLE_REVOCATION_MESSAGE } }], { ios: false });
-  assert.deepEqual(await c.run(), { warning: MANUAL_APPLE_REVOCATION_MESSAGE });
-  assert.deepEqual(c.sent[1], { allowWithoutAppleRevocation: true });
+test("client: the web never sends a revocation bypass; it asks the user to re-sign in", async () => {
+  const c = client([REAUTH], { ios: false });
+  await assert.rejects(c.run(), /再度ログイン/);
+  assert.deepEqual(c.sent, [{}]);
 });
 
-test("client: a failed re-authorization falls back to deletion with instructions", async () => {
-  const c = client([REAUTH, { status: 400, body: { code: "apple_reauth_failed" } }, OK], { ios: true });
-  await c.run();
-  assert.deepEqual(c.sent[2], { allowWithoutAppleRevocation: true });
+test("client: a failed Apple re-authorization deletes nothing and sends no bypass", async () => {
+  const c = client([REAUTH], {
+    ios: true,
+    reauth: async () => {
+      throw new Error("AuthorizationError error 1000");
+    },
+  });
+  await assert.rejects(c.run(), /削除されていません/);
+  assert.deepEqual(c.sent, [{}]);
+});
+
+test("client: no request body ever carries allowWithoutAppleRevocation", async () => {
+  const c = client([REAUTH, { status: 400, body: { code: "apple_reauth_failed", error: "失敗" } }], { ios: true });
+  await assert.rejects(c.run(), /失敗/);
+  assert.ok(c.sent.every((body) => !("allowWithoutAppleRevocation" in body)));
 });
 
 test("client: server errors surface and are not reported as success", async () => {

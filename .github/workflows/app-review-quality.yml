@@ -53,6 +53,8 @@ jobs:
           app/api/ai-act/route.ts
           app/api/account/route.ts
           app/api/integrations/outbox/drain/route.ts
+          "app/api/admin/users/[id]/route.ts"
+          lib/apple/verify.ts
 
       - name: Authentication regression tests
         run: npm run test:auth

@@ -198,7 +198,13 @@ export function SettingsForm() {
     setDeleteError("");
     try {
       const result = await getStore().deleteAccount();
-      await refresh();
+      // The server has already deleted the account. A stale local session or a
+      // failed profile refresh must not turn that success into a false error.
+      try {
+        await refresh();
+      } catch {
+        // Continue to the signed-out screen; deletion is already complete.
+      }
       if (result.warning) {
         window.alert(result.warning);
       }

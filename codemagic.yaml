@@ -19,6 +19,9 @@
       - name: Install dependencies
         script: npm ci
 
+      - name: Generate and verify final app icons
+        script: node scripts/generate-ios-icons.mjs
+
       - name: Check iOS signing files
         script: |
           echo "=== PROVISIONING PROFILES ==="

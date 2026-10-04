@@ -41,6 +41,24 @@ function main() {
     "craft/decorative object must fail",
   );
 
+  for (const name of [
+    "Craft bottle",
+    "Handcrafted glass bottle",
+    "Decorative bottle",
+    "Artisanal glass bottles",
+    "Craft vessels",
+  ]) {
+    assert(
+      !isHomepageProductEligible({ ...verified, name }),
+      `repetitive craft/vessel product must fail: ${name}`,
+    );
+  }
+
+  assert(
+    isHomepageProductEligible({ ...verified, name: "Minimalist travel bottle" }),
+    "legitimate functional bottle must remain eligible",
+  );
+
   console.log("Homepage quality gate tests passed");
 }
 

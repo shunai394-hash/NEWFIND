@@ -272,8 +272,9 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
           <button
             key={id}
             type="button"
+            aria-pressed={tab === id}
             onClick={() => setTab(id)}
-            className={`py-3 ${tab === id ? "border-b-2 border-neutral-900" : "text-neutral-400"}`}
+            className={`py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black ${tab === id ? "border-b-2 border-neutral-900" : "text-neutral-400"}`}
           >
             {label}
           </button>

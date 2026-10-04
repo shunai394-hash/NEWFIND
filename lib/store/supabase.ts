@@ -9,6 +9,7 @@ import {
   NATIVE_OAUTH_CALLBACK, isCapacitorNative,
 } from "@/lib/capacitor/platform";
 import { openNativeOAuthUrl } from "@/lib/capacitor/oauth-browser";
+import { startNativeOAuthReturnListener } from "@/lib/capacitor/oauth-return";
 import { createClient } from "@/lib/supabase/client";
 import { listDiscoveryProductsByIdsFromDb } from "@/lib/discovery/db";
 import type { Store } from "@/lib/store/types";
@@ -625,10 +626,13 @@ export const supabaseStore: Store = {
   },
 
   async signInOAuth(provider, next = "/") {
+    const native = isCapacitorNative();
+    // Do not start the external OAuth browser until the app-return listener is ready.
+    if (native) await startNativeOAuthReturnListener();
     const supabase = createClient();
     // Capacitor: open the OAuth page inside Safari View Controller via @capacitor/browser,
     // then return to the app through the custom URL scheme.
-    const redirectTo = isCapacitorNative()
+    const redirectTo = native
       ? new URL(NATIVE_OAUTH_CALLBACK)
       : new URL("/auth/callback", window.location.origin);
 
@@ -640,11 +644,11 @@ export const supabaseStore: Store = {
       provider,
       options: {
         redirectTo: redirectTo.toString(),
-        ...(isCapacitorNative() ? { skipBrowserRedirect: true } : {}),
+        ...(native ? { skipBrowserRedirect: true } : {}),
       },
     });
 
-    if (!error && isCapacitorNative() && data?.url) {
+    if (!error && native && data?.url) {
       await openNativeOAuthUrl(data.url);
       return;
     }

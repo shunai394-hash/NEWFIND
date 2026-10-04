@@ -67,3 +67,36 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  ios-native-compile:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync Capacitor iOS project
+        env:
+          CAPACITOR_SERVER_URL: https://newfind-self.vercel.app
+          CAPACITOR_RELEASE: "1"
+        run: npx cap sync ios
+
+      - name: Compile native iOS app without signing
+        run: >
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Debug
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO
+          build

@@ -586,6 +586,12 @@ export function isHomepageProductEligible(
     /\bdecorative\s+object\b/,
     /\bresin\s+art\b/,
     /\bwood\s+carving\b/,
+    /\bcraft(?:ed)?\s+(?:glass\s+)?bottles?\b/,
+    /\bhandcrafted\s+(?:glass\s+)?bottles?\b/,
+    /\bhandmade\s+(?:glass\s+)?bottles?\b/,
+    /\bdecorative\s+(?:glass\s+)?bottles?\b/,
+    /\bartisan(?:al)?\s+(?:glass\s+)?bottles?\b/,
+    /\bcraft\s+vessels?\b/,
   ];
   return !rejectPatterns.some((pattern) => pattern.test(text));
 }

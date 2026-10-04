@@ -158,12 +158,15 @@ test("a re-authorization code for another Apple ID is never revoked; deletion gi
   const deps = deletionDeps(
     {
       ...noStoredToken,
-      exchangeAppleCode: async () => ({
-        appleUserId: "attacker-sub",
-        clientId: "app.newfind.social",
-        refreshToken: "rt-x",
-        accessToken: null,
-      }),
+      exchangeAppleCode: async () => {
+        calls.push("exchange");
+        return {
+          appleUserId: "attacker-sub",
+          clientId: "app.newfind.social",
+          refreshToken: "rt-x",
+          accessToken: null,
+        };
+      },
     },
     calls,
   );

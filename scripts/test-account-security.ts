@@ -321,16 +321,21 @@ test("client: cancelling Apple re-authorization deletes nothing", async () => {
   assert.equal(c.sent.length, 1);
 });
 
-test("client: web deletes and shows manual Apple instructions", async () => {
-  const c = client([REAUTH, { status: 200, body: { ok: true, warning: MANUAL_APPLE_REVOCATION_MESSAGE } }], { ios: false });
-  assert.deepEqual(await c.run(), { warning: MANUAL_APPLE_REVOCATION_MESSAGE });
-  assert.deepEqual(c.sent[1], { allowWithoutAppleRevocation: true });
+test("client: web cannot bypass Apple re-authorization", async () => {
+  const c = client([REAUTH], { ios: false });
+  await assert.rejects(c.run(), /iOSアプリでAppleの確認/);
+  assert.deepEqual(c.sent, [{}]);
 });
 
-test("client: a failed re-authorization falls back to deletion with instructions", async () => {
-  const c = client([REAUTH, { status: 400, body: { code: "apple_reauth_failed" } }, OK], { ios: true });
-  await c.run();
-  assert.deepEqual(c.sent[2], { allowWithoutAppleRevocation: true });
+test("client: failed Apple re-authorization never falls back to an unsafe delete", async () => {
+  const c = client([REAUTH], {
+    ios: true,
+    reauth: async () => {
+      throw new Error("authorization failed");
+    },
+  });
+  await assert.rejects(c.run(), /アカウントは削除されていません/);
+  assert.deepEqual(c.sent, [{}]);
 });
 
 test("client: server errors surface and are not reported as success", async () => {

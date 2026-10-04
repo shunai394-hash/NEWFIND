@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AdminNav } from "@/components/admin-nav";
 import { authHeaders } from "@/lib/auth/client-headers";
 import { HEALTH_DOT, HEALTH_LABEL, hoursAgoLabel } from "@/lib/ai/control-tower/health";
@@ -26,7 +26,7 @@ export function AiControlTower() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
 
-  async function load() {
+  const load = useCallback(async () => {
     const response = await fetch("/api/admin/ai-control", {
       headers: await authHeaders(),
       cache: "no-store",
@@ -39,16 +39,21 @@ export function AiControlTower() {
     }
     setError("");
     setSnapshot(body as ControlTowerSnapshot);
-  }
+  }, []);
 
   useEffect(() => {
-    void load();
+    // Defer the initial fetch until after the effect commits; load updates React state.
+    const initialLoad = window.setTimeout(() => {
+      void load();
+    }, 0);
     const timer = window.setInterval(() => {
       void load();
     }, 30000);
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load + poll
-  }, []);
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(timer);
+    };
+  }, [load]);
 
   async function runAction(action: string) {
     setBusy(action);

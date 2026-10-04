@@ -76,13 +76,35 @@ async function linkedAppleUserIds(userId: string): Promise<string[]> {
     admin.from("profiles").select("apple_user_id").eq("id", userId).maybeSingle(),
     admin.auth.admin.getUserById(userId),
   ]);
+
+  // A genuinely deleted user has nothing left to revoke. For any other lookup
+  // failure, fail closed: treating a database/auth outage as "not linked" would
+  // allow account deletion without checking Apple's authorization.
+  if (authUser.error) {
+    if (authUser.error.status === 404 || /not.?found/i.test(authUser.error.message)) return [];
+    throw new Error("Apple identity lookup failed");
+  }
+  const authUserData = authUser.data.user;
+  if (!authUserData) return [];
+  const metaAppleId = authUserData.user_metadata?.apple_user_id;
+  const hasMetadataAppleId = typeof metaAppleId === "string" && metaAppleId.length > 0;
+
+  // Older deployments may lack one of the legacy identity columns/tables.
+  // The verified auth metadata is an acceptable fallback; without it, a failed
+  // lookup cannot safely prove that the user has no Apple identity.
+  if (identities.error && !hasMetadataAppleId) {
+    throw new Error("Apple identity lookup failed");
+  }
+  if (profile.error && !hasMetadataAppleId && !(identities.data ?? []).some((row) => row.apple_user_id)) {
+    throw new Error("Apple identity lookup failed");
+  }
+
   for (const row of identities.data ?? []) {
     if (row.apple_user_id) ids.add(String(row.apple_user_id));
   }
   const profileAppleId = (profile.data as { apple_user_id?: string | null } | null)?.apple_user_id;
   if (profileAppleId) ids.add(profileAppleId);
-  const metaAppleId = authUser.data.user?.user_metadata?.apple_user_id;
-  if (typeof metaAppleId === "string" && metaAppleId) ids.add(metaAppleId);
+  if (hasMetadataAppleId) ids.add(metaAppleId);
   return [...ids];
 }
 

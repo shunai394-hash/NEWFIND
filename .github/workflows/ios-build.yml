@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate and verify final app icons
+        run: node scripts/generate-ios-icons.mjs
+
       - name: Sync Capacitor
         run: |
           export CAPACITOR_SERVER_URL="https://newfind-self.vercel.app"

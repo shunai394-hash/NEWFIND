@@ -1,4 +1,4 @@
-import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
+import { rankForYouFeed } from "@/lib/feed-rank";
 import { mediaTypeFromFile } from "@/lib/media";
 import { buildCreatePostPayload } from "@/lib/posts/text-post";
 import {
@@ -552,10 +552,6 @@ async function viewerJoinedPostIds(
   return set;
 }
 
-function score(view: PostView) {
-  return engagementScore(view);
-}
-
 export const supabaseStore: Store = {
   async getSession() {
     try {
@@ -1047,7 +1043,7 @@ export const supabaseStore: Store = {
     return { url: data.publicUrl, type };
   },
 
-  async deletePost(postId, _userId) {
+  async deletePost(postId) {
     const { authHeaders } = await import("@/lib/auth/client-headers");
     const response = await fetch(`/api/posts/${encodeURIComponent(postId)}`, {
       method: "DELETE",

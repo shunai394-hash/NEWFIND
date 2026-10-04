@@ -31,10 +31,10 @@ const INTEREST_CHIPS = [
 ] as const;
 
 const TREND_CHIPS = [
-  "Trending discoveries",
-  "Most saved",
-  "Most discussed",
-  "Newly discovered",
+  { label: "Trending", tag: "trending" },
+  { label: "Hidden gems", tag: "hidden_gem" },
+  { label: "Japan trend", tag: "japan_trend" },
+  { label: "New releases", tag: "new_release" },
 ] as const;
 
 const DISCOVERY_STEPS = [
@@ -459,7 +459,7 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
           cta="Explore countries"
         >
           {COUNTRY_CHIPS.map((chip) => (
-            <Chip key={chip.label} href="/discover" dark>
+            <Chip key={chip.label} href={`/discover?country=${encodeURIComponent(chip.label)}`} dark>
               {chip.flag} {chip.label}
             </Chip>
           ))}
@@ -470,11 +470,14 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
           href="/discover"
           cta="Explore categories"
         >
-          {INTEREST_CHIPS.map((chip) => (
-            <Chip key={chip} href="/discover" dark>
-              {chip}
-            </Chip>
-          ))}
+          {INTEREST_CHIPS.map((chip) => {
+            const category = chip.toLowerCase();
+            return (
+              <Chip key={chip} href={`/discover?category=${encodeURIComponent(category)}`} dark>
+                {chip}
+              </Chip>
+            );
+          })}
         </ExploreGroup>
 
         <ExploreGroup
@@ -499,8 +502,8 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
           cta="See what's trending"
         >
           {TREND_CHIPS.map((chip) => (
-            <Chip key={chip} href="/discover" dark>
-              {chip}
+            <Chip key={chip.tag} href={`/discover?trend=${encodeURIComponent(chip.tag)}`} dark>
+              {chip.label}
             </Chip>
           ))}
         </ExploreGroup>

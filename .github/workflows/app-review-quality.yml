@@ -26,14 +26,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate and verify app icon assets
-        run: node scripts/generate-ios-icons.mjs
+      - name: App icons are committed, up to date and App Store-valid
+        # Fails if the PNGs differ from public/brand/app-icon.svg, have an alpha
+        # channel, wrong sizes, missing slots or stale files.
+        run: npm run icons:check
 
       - name: TypeScript
         run: npx tsc --noEmit
 
-      - name: Lint changed authentication modules
-        run: npx eslint lib/capacitor/oauth-return.ts lib/store/supabase.ts
+      - name: Lint authentication and app-review modules
+        run: >
+          npx eslint --max-warnings=0
+          lib/capacitor/oauth-return.ts
+          lib/capacitor/oauth-return-core.ts
+          lib/capacitor/oauth-browser.ts
+          lib/auth/login-errors.ts
+          lib/apple/client.ts
+          app/api/auth/apple/native/route.ts
+          components/auth-form.tsx
+          components/brand-mark.tsx
+
+      - name: Authentication regression tests
+        run: npm run test:auth
 
       - name: Production build
         run: npm run build

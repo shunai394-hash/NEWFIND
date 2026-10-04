@@ -1,8 +1,8 @@
 /**
  * Client side of account deletion. When the server cannot revoke Sign in with
  * Apple from a stored token, the iOS app re-authorizes with Apple and sends the
- * fresh authorization code; elsewhere (web) the account is deleted and the
- * user is told how to remove the Apple link manually (Apple TN3194).
+ * fresh authorization code. If re-authorization is unavailable or fails, the
+ * deletion is stopped rather than bypassing Apple's revocation requirement.
  */
 
 export type DeleteResponse = { status: number; body: Record<string, unknown> };
@@ -34,14 +34,12 @@ export async function requestAccountDeletion(deps: ClientDeleteDeps): Promise<{ 
           throw new Error("Appleでの確認がキャンセルされたため、アカウントは削除されていません。");
         }
       }
-      response = code
-        ? await deps.send({ appleAuthorizationCode: code })
-        : await deps.send({ allowWithoutAppleRevocation: true });
-      if (response.status === 400 && response.body.code === "apple_reauth_failed") {
-        response = await deps.send({ allowWithoutAppleRevocation: true });
+      if (!code) {
+        throw new Error("Appleでの確認が完了しなかったため、アカウントは削除されていません。もう一度お試しください。");
       }
+      response = await deps.send({ appleAuthorizationCode: code });
     } else {
-      response = await deps.send({ allowWithoutAppleRevocation: true });
+      throw new Error("Appleとの連携を安全に解除するため、iOSアプリでAppleの確認を行ってからアカウントを削除してください。");
     }
   }
 

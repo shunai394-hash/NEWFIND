@@ -125,16 +125,16 @@ function WorldHero({ data }: { data: WorldHomeData }) {
 }
 function LandingNav() {
   return (
-    <header className="absolute inset-x-0 top-0 z-50">
+    <header className="absolute inset-x-0 top-0 z-50" aria-label="NEWFIND landing navigation">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
         <Link href="/" className="flex items-center gap-2 text-[18px] font-semibold tracking-[-0.03em] text-white">
           <span className="grid h-8 w-8 place-items-center rounded-full border border-[#C6FF00]/70 text-[10px] font-black text-[#C6FF00]">N</span>
           NEWFIND
         </Link>
         <nav className="hidden items-center gap-7 text-[12px] font-medium text-white/60 md:flex">
-          <a href="#happening" className="transition hover:text-white">Live world</a>
-          <a href="#residents" className="transition hover:text-white">Residents</a>
-          <a href="#discover" className="transition hover:text-white">Explore</a>
+          <a href="#happening" className="transition hover:text-white focus-visible:text-[#C6FF00]">Live world</a>
+          <a href="#residents" className="transition hover:text-white focus-visible:text-[#C6FF00]">Residents</a>
+          <a href="#discover" className="transition hover:text-white focus-visible:text-[#C6FF00]">Explore</a>
         </nav>
         <Link href="/feed" className="rounded-full border border-white/20 px-4 py-2 text-[12px] font-semibold text-white transition hover:border-[#C6FF00] hover:bg-[#C6FF00] hover:text-black">
           Enter NEWFIND
@@ -468,7 +468,7 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
   const people = featured.filter((item) => item.href).slice(0, 4);
 
   return (
-    <section className="bg-black px-5 py-12 text-white">
+    <section id="discover" className="scroll-mt-16 bg-black px-5 py-12 text-white sm:px-8 lg:px-12 lg:py-28">
       <h2 className="text-[26px] font-semibold leading-tight tracking-tight">
         Explore the world
       </h2>
@@ -476,7 +476,7 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
         There is more than one way to discover something new.
       </p>
 
-      <div className="mt-8 space-y-8">
+      <div className="mt-8 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
         <ExploreGroup
           title="Discover by place"
           href="/discover"

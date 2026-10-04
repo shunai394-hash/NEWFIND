@@ -1,3 +1,4 @@
+import { assertPostContentAllowed } from "@/lib/moderation/content-filter";
 import { engagementScore, rankForYouFeed } from "@/lib/feed-rank";
 import { mediaTypeFromFile } from "@/lib/media";
 import { buildCreatePostPayload } from "@/lib/posts/text-post";
@@ -959,6 +960,7 @@ export const supabaseStore: Store = {
   },
 
   async createPost(authorId, input: CreatePostInput) {
+    assertPostContentAllowed(input.caption, input.productLabel);
     const supabase = createClient();
     const suspended = await supabase
       .from("profiles")
@@ -994,6 +996,7 @@ export const supabaseStore: Store = {
   },
 
   async updatePost(postId, userId, patch: UpdatePostInput) {
+    assertPostContentAllowed(patch.caption, patch.productLabel);
     const supabase = createClient();
     const payload: Record<string, unknown> = {};
     if (patch.caption !== undefined) payload.caption = patch.caption;

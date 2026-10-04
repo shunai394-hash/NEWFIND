@@ -5,6 +5,8 @@ type AppleUserInput = {
   email: string | null;
   isPrivateEmail: boolean;
   displayName: string | null;
+  refreshToken?: string | null;
+  appleClientId?: string | null;
 };
 
 type AuthUserLite = {
@@ -73,6 +75,8 @@ async function rememberAppleIdentity(
         user_id: userId,
         email: input.email,
         is_private_email: input.isPrivateEmail,
+        ...(input.refreshToken ? { refresh_token: input.refreshToken } : {}),
+        ...(input.appleClientId ? { client_id: input.appleClientId } : {}),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "apple_user_id" },

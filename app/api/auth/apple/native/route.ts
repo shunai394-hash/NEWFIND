@@ -36,14 +36,17 @@ export async function POST(request: Request) {
   }
 
   try {
+    let refreshToken: string | null = null;
     if (body.authorizationCode) {
-      await exchangeAppleAuthorizationCode({
+      const tokens = await exchangeAppleAuthorizationCode({
         code: body.authorizationCode,
         clientId: APPLE_BUNDLE_ID,
         redirectUri: null,
-      }).catch(() => {
-        // Native auth codes are still validated via identity token below.
+      }).catch((error) => {
+        console.warn("[apple] Native token exchange failed; revocation token unavailable", error);
+        return null;
       });
+      refreshToken = tokens?.refresh_token ?? null;
     }
 
     const identity = await verifyAppleIdentityToken({
@@ -62,6 +65,8 @@ export async function POST(request: Request) {
       email: identity.email || body.email || null,
       isPrivateEmail: identity.isPrivateEmail,
       displayName: displayName || null,
+      refreshToken,
+      appleClientId: APPLE_BUNDLE_ID,
     });
     const tokenHash = await issueAppleLoginTicket(user.email);
     return NextResponse.json({ tokenHash, created: user.created });

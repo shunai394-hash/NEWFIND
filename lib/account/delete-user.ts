@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mediaObjectPath } from "@/lib/media-storage";
+import { APPLE_REVOKE_URL } from "@/lib/apple/config";
+import { createAppleClientSecret } from "@/lib/apple/client-secret";
 
 const STORAGE_REMOVE_CHUNK = 100;
 
@@ -65,6 +67,45 @@ export async function deleteOwnedAccount(userId: string): Promise<DeleteOwnedAcc
   if (!id) throw new Error("invalid user");
 
   let warning: string | undefined;
+  const admin = createAdminClient();
+
+  // Revoke the Apple provider token before deleting the account record.
+  const { data: appleIdentity, error: appleIdentityError } = await admin
+    .from("apple_identities")
+    .select("refresh_token, client_id")
+    .eq("user_id", id)
+    .maybeSingle();
+
+  if (appleIdentityError) {
+    console.error("[account-delete] Apple identity lookup failed", appleIdentityError.message);
+    warning = "Appleとの連携解除を確認できませんでした。必要に応じてサポートへお問い合わせください。";
+  } else if (appleIdentity?.refresh_token && appleIdentity?.client_id) {
+    try {
+      const clientSecret = await createAppleClientSecret(appleIdentity.client_id);
+      const body = new URLSearchParams({
+        client_id: appleIdentity.client_id,
+        client_secret: clientSecret,
+        token: appleIdentity.refresh_token,
+        token_type_hint: "refresh_token",
+      });
+      const response = await fetch(APPLE_REVOKE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new Error(detail || "Apple token revocation failed");
+      }
+    } catch (error) {
+      console.error("[account-delete] Apple token revocation failed", error);
+      warning = "Appleとの連携解除を完了できませんでした。アカウントは削除します。";
+    }
+  } else if (appleIdentity) {
+    warning = "Appleとの連携トークンを確認できませんでした。アカウントは削除します。";
+  }
+
   try {
     await removeOwnedMedia(await collectOwnedMediaPaths(id));
   } catch (error) {
@@ -74,7 +115,6 @@ export async function deleteOwnedAccount(userId: string): Promise<DeleteOwnedAcc
         : "アカウントは削除しますが、一部の画像ファイルを削除できませんでした";
   }
 
-  const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(id);
   if (error) throw new Error(error.message);
 

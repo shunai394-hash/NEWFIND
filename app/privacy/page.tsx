@@ -152,7 +152,7 @@ export default function PrivacyPage() {
 
       <Section title="11. お問い合わせ">
         <p>
-          本ポリシーに関するお問い合わせは、App Store または Google Play のデベロッパー情報に記載の連絡先へご連絡ください。アプリ内に専用のお問い合わせフォームは、現時点ではありません。
+          本ポリシーに関するお問い合わせは、<Link href="/support" className="underline">NEWFINDサポートページ</Link>からご連絡ください。
         </p>
       </Section>
 

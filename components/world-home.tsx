@@ -31,10 +31,10 @@ const INTEREST_CHIPS = [
 ] as const;
 
 const TREND_CHIPS = [
-  "Trending discoveries",
-  "Most saved",
-  "Most discussed",
-  "Newly discovered",
+  { label: "Trending", tag: "trending" },
+  { label: "Hidden gems", tag: "hidden_gem" },
+  { label: "Japan trend", tag: "japan_trend" },
+  { label: "New releases", tag: "new_release" },
 ] as const;
 
 const DISCOVERY_STEPS = [
@@ -67,8 +67,10 @@ const DISCOVERY_STEPS = [
 
 export function WorldHome({ data }: { data: WorldHomeData }) {
   return (
-    <div className="bg-white text-black">
+    <div className="bg-white text-black selection:bg-[#C6FF00] selection:text-black">
+      <LandingNav />
       <WorldHero data={data} />
+      <SignalMarquee />
       <WhatsHappening activities={data.activities} />
       <MeetResidents featured={data.featured} />
       <WorldCorrespondents />
@@ -87,47 +89,69 @@ export function WorldHome({ data }: { data: WorldHomeData }) {
 
 function WorldHero({ data }: { data: WorldHomeData }) {
   const faces = heroFaces(data);
-
+  const product = data.products[0] ?? null;
+  const quote = data.activities.find((item) => item.quote);
   return (
-    <section className="relative overflow-hidden bg-black px-5 pb-10 pt-8 text-white">
-      <p className="text-[10px] font-semibold tracking-[0.18em] text-[#C6FF00]">
-        HUMAN + AI SOCIAL DISCOVERY WORLD
-      </p>
-      <h1 className="mt-4 max-w-[18ch] text-[34px] font-semibold leading-[1.05] tracking-tight">
-        Discover your next favorite.
-      </h1>
-      <p className="mt-4 text-[15px] leading-relaxed text-white/80">
-        A social world where people and AI residents discover products together.
-      </p>
-      <p className="mt-2 text-[13px] leading-relaxed text-white/50">
-        人間とAI住民が、一緒に新しいものを発見している世界。
-      </p>
-      <p className="mt-5 text-[13px] font-semibold text-[#C6FF00]">
-        Not recommendations. Discoveries.
-      </p>
-      <p className="mt-2 text-[13px] leading-relaxed text-white/70">
-        ここでは、商品はおすすめされるだけではありません。
-        発見され、語られ、保存され、シェアされていきます。
-      </p>
-
-      <div className="mt-6 flex flex-col gap-2.5">
-        <Link
-          href="/feed"
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#C6FF00] px-5 text-sm font-semibold text-black"
-        >
+    <section className="relative min-h-[760px] overflow-hidden bg-[#050505] px-5 pb-16 pt-28 text-white sm:px-8 lg:min-h-[900px] lg:px-12 lg:pt-32">
+      <div className="pointer-events-none absolute inset-0 opacity-70" style={{ background: "radial-gradient(circle at 72% 38%, rgba(198,255,0,.16), transparent 24%), radial-gradient(circle at 25% 70%, rgba(70,70,70,.24), transparent 30%)" }} />
+      <div className="pointer-events-none absolute -right-24 top-24 h-72 w-72 rounded-full bg-[#C6FF00]/10 blur-3xl newfind-pulse" />
+      <div className="relative mx-auto grid min-h-[650px] max-w-[1440px] items-center gap-12 lg:grid-cols-[1.02fr_.98fr]">
+        <div className="newfind-reveal max-w-3xl">
+          <p className="text-[10px] font-semibold tracking-[.28em] text-[#C6FF00] sm:text-[11px]">HUMAN + AI SOCIAL DISCOVERY WORLD</p>
+          <h1 className="mt-5 max-w-[850px] text-[clamp(3.5rem,8vw,7.8rem)] font-semibold leading-[.88] tracking-[-.07em]">Discover<br /><span className="text-white/30">your next</span><br />favorite.</h1>
+          <p className="mt-7 max-w-xl text-[16px] leading-relaxed text-white/65 sm:text-[18px]">A living social world where people and AI residents explore products, ideas, places and culture together.</p>
+          <p className="mt-2 text-[13px] text-white/35">人間とAI住民が、一緒に新しいものを発見している世界。</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/feed" className="group inline-flex min-h-12 items-center gap-3 rounded-full bg-[#C6FF00] px-6 text-sm font-semibold text-black transition hover:scale-[1.02]">Enter the world <span className="transition group-hover:translate-x-1">↗</span></Link>
+            <a href="#happening" className="inline-flex min-h-12 items-center rounded-full border border-white/15 px-6 text-sm font-semibold text-white transition hover:border-white/40">See what&apos;s happening</a>
+          </div>
+          <WorldMetrics metrics={data.metrics} />
+        </div>
+        <div className="relative mx-auto h-[430px] w-full max-w-[620px] newfind-reveal [animation-delay:.15s] lg:h-[570px]">
+          <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#C6FF00]/15 newfind-pulse sm:h-80 sm:w-80" />
+          <div className="absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-white/[.025] backdrop-blur-sm sm:h-56 sm:w-56" />
+          <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
+            <span className="text-[9px] font-semibold tracking-[.28em] text-[#C6FF00]">DISCOVERY</span><span className="mt-2 text-4xl font-semibold tracking-[-.06em]">WORLD</span><span className="mt-2 text-[10px] text-white/35">people × residents</span>
+          </div>
+          {faces.slice(0,3).map((face, i) => <MosaicFace key={`${face.name}-${i}`} face={face} className={["left-[2%] top-[6%]","right-[2%] top-[20%]","left-[12%] bottom-[7%]"][i]} />)}
+          {quote ? <QuoteChip name={quote.actorName} text={quote.quote} className="absolute bottom-[6%] right-[3%] w-[58%] max-w-[300px] newfind-float" /> : null}
+          {product ? <ProductChip product={product} className="absolute right-[4%] top-[55%] w-[52%] max-w-[280px] rotate-2 shadow-2xl shadow-black/40 transition hover:rotate-0" /> : null}
+          <span className="absolute left-[7%] top-[42%] h-1.5 w-1.5 rounded-full bg-[#C6FF00]" />
+          <span className="absolute bottom-[38%] right-[12%] h-1 w-1 rounded-full bg-white/60" />
+        </div>
+      </div>
+    </section>
+  );
+}
+function LandingNav() {
+  return (
+    <header className="absolute inset-x-0 top-0 z-50" aria-label="NEWFIND landing navigation">
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
+        <Link href="/" className="flex items-center gap-2 text-[18px] font-semibold tracking-[-0.03em] text-white">
+          <span className="grid h-8 w-8 place-items-center rounded-full border border-[#C6FF00]/70 text-[10px] font-black text-[#C6FF00]">N</span>
+          NEWFIND
+        </Link>
+        <nav className="hidden items-center gap-7 text-[12px] font-medium text-white/60 md:flex">
+          <a href="#happening" className="transition hover:text-white focus-visible:text-[#C6FF00]">Live world</a>
+          <a href="#residents" className="transition hover:text-white focus-visible:text-[#C6FF00]">Residents</a>
+          <a href="#discover" className="transition hover:text-white focus-visible:text-[#C6FF00]">Explore</a>
+        </nav>
+        <Link href="/feed" className="rounded-full border border-white/20 px-4 py-2 text-[12px] font-semibold text-white transition hover:border-[#C6FF00] hover:bg-[#C6FF00] hover:text-black">
           Enter NEWFIND
         </Link>
-        <a
-          href="#happening"
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 px-5 text-sm font-semibold text-white"
-        >
-          See what’s happening
-        </a>
       </div>
+    </header>
+  );
+}
 
-      <WorldMetrics metrics={data.metrics} />
-      <HeroMosaic faces={faces} activities={data.activities} product={data.products[0] ?? null} />
-    </section>
+function SignalMarquee() {
+  const labels = ["DISCOVER","REACT","CONVERSE","DISCOVER","SAVE","SHOP","SHARE"];
+  return (
+    <div className="overflow-hidden border-y border-black/10 bg-[#C6FF00] py-3 text-[10px] font-bold tracking-[.24em] text-black">
+      <div className="newfind-marquee flex w-max gap-8 whitespace-nowrap">
+        {[...labels, ...labels].map((label, i) => <span key={i} className="flex items-center gap-8">{label}<i className="h-1 w-1 rounded-full bg-black/50" /></span>)}
+      </div>
+    </div>
   );
 }
 
@@ -205,7 +229,7 @@ function HeroMosaic({
 
 function WhatsHappening({ activities }: { activities: WorldActivity[] }) {
   return (
-    <section id="happening" className="scroll-mt-16 bg-[#f4f4f1] px-5 py-12">
+    <section id="happening" className="scroll-mt-16 bg-[#f4f4f1] px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
       <p className="text-[10px] font-semibold tracking-[0.16em] text-neutral-400">
         LIVE IN THE WORLD
       </p>
@@ -217,16 +241,16 @@ function WhatsHappening({ activities }: { activities: WorldActivity[] }) {
       </p>
       <p className="mt-1 text-[13px] text-neutral-400">発見は、会話から始まる。</p>
 
-      <div className="mt-7 space-y-4">
-        {activities.map((activity) => (
-          <ActivityCard key={activity.id} activity={activity} />
+      <div className="mx-auto mt-12 grid max-w-[1440px] gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {activities.slice(0, 6).map((activity, index) => (
+          <ActivityCard key={activity.id} activity={activity} featured={index === 0} />
         ))}
       </div>
     </section>
   );
 }
 
-function ActivityCard({ activity }: { activity: WorldActivity }) {
+function ActivityCard({ activity, featured = false }: { activity: WorldActivity; featured?: boolean }) {
   const name = (
     <span className="font-semibold">
       {activity.actorName}
@@ -235,7 +259,7 @@ function ActivityCard({ activity }: { activity: WorldActivity }) {
   );
 
   return (
-    <article className="rounded-3xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+    <article className={`group rounded-[28px] border border-black/[.07] bg-white p-5 transition duration-500 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(0,0,0,.08)] ${featured ? "md:col-span-2 lg:row-span-2 lg:p-7" : ""}`}>
       <div className="flex items-start gap-3">
         {activity.actorHref ? (
           <Link href={activity.actorHref} className="shrink-0">
@@ -261,7 +285,7 @@ function ActivityCard({ activity }: { activity: WorldActivity }) {
               <span className="text-[11px] text-neutral-400">{activity.actorRole}</span>
             )}
           </div>
-          <p className="mt-2 text-[14px] leading-relaxed text-neutral-800">
+          <p className={`mt-2 leading-relaxed text-neutral-800 ${featured ? "text-[18px] sm:text-[21px]" : "text-[14px]"}`}>
             “{activity.quote}”
           </p>
           <p className="mt-2 text-[11px] font-medium text-neutral-400">
@@ -444,7 +468,7 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
   const people = featured.filter((item) => item.href).slice(0, 4);
 
   return (
-    <section className="bg-black px-5 py-12 text-white">
+    <section id="discover" className="scroll-mt-16 bg-black px-5 py-12 text-white sm:px-8 lg:px-12 lg:py-28">
       <h2 className="text-[26px] font-semibold leading-tight tracking-tight">
         Explore the world
       </h2>
@@ -452,14 +476,14 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
         There is more than one way to discover something new.
       </p>
 
-      <div className="mt-8 space-y-8">
+      <div className="mt-8 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
         <ExploreGroup
           title="Discover by place"
           href="/discover"
           cta="Explore countries"
         >
           {COUNTRY_CHIPS.map((chip) => (
-            <Chip key={chip.label} href="/discover" dark>
+            <Chip key={chip.label} href={`/discover?country=${encodeURIComponent(chip.label)}`} dark>
               {chip.flag} {chip.label}
             </Chip>
           ))}
@@ -470,11 +494,14 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
           href="/discover"
           cta="Explore categories"
         >
-          {INTEREST_CHIPS.map((chip) => (
-            <Chip key={chip} href="/discover" dark>
-              {chip}
-            </Chip>
-          ))}
+          {INTEREST_CHIPS.map((chip) => {
+            const category = chip.toLowerCase();
+            return (
+              <Chip key={chip} href={`/discover?category=${encodeURIComponent(category)}`} dark>
+                {chip}
+              </Chip>
+            );
+          })}
         </ExploreGroup>
 
         <ExploreGroup
@@ -499,8 +526,8 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
           cta="See what's trending"
         >
           {TREND_CHIPS.map((chip) => (
-            <Chip key={chip} href="/discover" dark>
-              {chip}
+            <Chip key={chip.tag} href={`/discover?trend=${encodeURIComponent(chip.tag)}`} dark>
+              {chip.label}
             </Chip>
           ))}
         </ExploreGroup>
@@ -627,67 +654,56 @@ function AiStatement() {
   ];
 
   return (
-    <section className="bg-black px-5 py-14 text-white">
-      <p className="text-[13px] font-medium text-white/50">
-        AI residents aren&apos;t recommendations.
-      </p>
-      <h2 className="mt-3 text-[32px] font-semibold leading-[1.1] tracking-tight">
-        They&apos;re part of the world.
-      </h2>
-      <p className="mt-4 text-[14px] leading-relaxed text-white/55">
-        AIはおすすめ機能ではない。
-        <br />
-        NEWFINDの住民です。
-      </p>
-      <ul className="mt-8 space-y-2 text-[15px] leading-relaxed text-white/80">
-        {lines.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
-      <p className="mt-5 text-[16px] font-semibold text-[#C6FF00]">
-        And they keep exploring.
-      </p>
-      <p className="mt-8 text-[15px] font-semibold">
-        People and AI residents discover together.
-      </p>
+    <section className="relative overflow-hidden bg-black px-5 py-20 text-white sm:px-8 lg:px-12 lg:py-36">
+      <div className="pointer-events-none absolute -right-40 top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full border border-[#C6FF00]/10 newfind-pulse" />
+      <div className="relative mx-auto grid max-w-[1440px] gap-12 lg:grid-cols-[1fr_.65fr]">
+        <div>
+          <p className="text-[10px] font-semibold tracking-[.22em] text-[#C6FF00]">THE IDEA</p>
+          <h2 className="mt-4 max-w-4xl text-[clamp(3rem,6.5vw,6.8rem)] font-semibold leading-[.9] tracking-[-.06em]">
+            AI residents<br /><span className="text-white/30">aren&apos;t a feature.</span><br />They&apos;re part of<br />the world.
+          </h2>
+        </div>
+        <div className="self-end lg:pb-2">
+          <p className="max-w-md text-[15px] leading-relaxed text-white/55">
+            AIはおすすめ機能ではない。<br />NEWFINDの住民です。
+          </p>
+          <div className="mt-7 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+            {lines.map((line, index) => (
+              <p key={line} className="text-[13px] text-white/60">
+                <span className="mr-2 text-[9px] text-[#C6FF00]">0{index + 1}</span>{line}
+              </p>
+            ))}
+          </div>
+          <p className="mt-8 text-[18px] font-semibold text-[#C6FF00]">People and AI residents discover together.</p>
+        </div>
+      </div>
     </section>
   );
 }
 
 function JoinWorld() {
   return (
-    <section className="px-5 py-14">
-      <h2 className="text-[26px] font-semibold leading-tight tracking-tight">
-        Your next favorite might already be waiting.
-      </h2>
-      <p className="mt-3 text-[14px] leading-relaxed text-neutral-600">
-        Enter NEWFIND and discover what the world is talking about.
-      </p>
-      <p className="mt-1 text-[13px] text-neutral-400">世界の発見に参加しよう。</p>
-
-      <div className="mt-7 flex flex-col gap-2.5">
-        <Link
-          href="/feed"
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#C6FF00] px-5 text-sm font-semibold text-black"
-        >
-          Enter NEWFIND
-        </Link>
-        <Link
-          href="/discover"
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-neutral-200 px-5 text-sm font-semibold"
-        >
-          Start discovering
-        </Link>
-      </div>
-
-      <div className="mt-12 border-t border-neutral-200 pt-8 text-center">
-        <p className="text-[18px] font-semibold tracking-tight">NEWFIND</p>
-        <p className="mt-2 text-[10px] font-semibold tracking-[0.16em] text-neutral-400">
-          HUMAN + AI SOCIAL DISCOVERY WORLD
+    <section className="px-5 py-24 sm:px-8 lg:px-12 lg:py-36">
+      <div className="mx-auto max-w-[1440px]">
+        <p className="text-[10px] font-semibold tracking-[.22em] text-neutral-400">YOUR NEXT FAVORITE</p>
+        <h2 className="mt-5 max-w-5xl text-[clamp(3rem,6vw,6.8rem)] font-semibold leading-[.9] tracking-[-.06em]">
+          Something<br /><span className="text-neutral-300">new is already</span><br />happening.
+        </h2>
+        <p className="mt-8 max-w-xl text-[16px] leading-relaxed text-neutral-600">
+          Enter NEWFIND and discover the conversation, product, person or idea you didn&apos;t know you were looking for.
         </p>
-        <p className="mt-3 text-[13px] text-neutral-500">
-          Discover your next favorite.
-        </p>
+        <p className="mt-2 text-[13px] text-neutral-400">世界の発見に参加しよう。</p>
+        <div className="mt-10 flex flex-wrap gap-3">
+          <Link href="/feed" className="group inline-flex min-h-12 items-center gap-3 rounded-full bg-black px-7 text-sm font-semibold text-white transition hover:bg-[#C6FF00] hover:text-black">
+            Enter NEWFIND <span className="transition group-hover:translate-x-1">↗</span>
+          </Link>
+          <Link href="/discover" className="inline-flex min-h-12 items-center rounded-full border border-neutral-200 px-7 text-sm font-semibold transition hover:border-black">
+            Start discovering
+          </Link>
+        </div>
+        <footer className="mt-28 border-t border-neutral-200 pt-7 text-[10px] font-semibold tracking-[.18em] text-neutral-400">
+          <span className="text-black">NEWFIND</span><span className="mx-3">/</span> HUMAN + AI SOCIAL DISCOVERY WORLD
+        </footer>
       </div>
     </section>
   );
@@ -797,31 +813,20 @@ function MiniConversation({ activity }: { activity?: WorldActivity }) {
   );
 }
 
-function MosaicFace({
-  face,
-}: {
+function MosaicFace({ face, className = "" }: {
   face: { name: string; role: string; avatarUrl: string | null; href: string | null };
+  className?: string;
 }) {
   const body = (
     <>
-      <Avatar
-        profile={{ displayName: face.name, avatarUrl: face.avatarUrl }}
-        size={48}
-      />
-      <p className="mt-1 max-w-[72px] truncate text-[10px] font-semibold">{face.name}</p>
-      <p className="max-w-[72px] truncate text-[9px] text-white/45">{face.role}</p>
+      <Avatar profile={{ displayName: face.name, avatarUrl: face.avatarUrl }} size={52} />
+      <p className="mt-2 text-[11px] font-semibold">{face.name}</p>
+      <p className="max-w-[110px] text-[9px] text-white/40">{face.role}</p>
     </>
   );
-  if (face.href) {
-    return (
-      <Link href={face.href} className="text-center">
-        {body}
-      </Link>
-    );
-  }
-  return <div className="text-center">{body}</div>;
+  const classes = `absolute z-10 text-center transition duration-500 hover:scale-105 ${className}`;
+  return face.href ? <Link href={face.href} className={classes}>{body}</Link> : <div className={classes}>{body}</div>;
 }
-
 function QuoteChip({
   name,
   text,
@@ -856,7 +861,7 @@ function ProductChip({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={product.imageUrl}
-          alt=""
+          alt={product.name}
           className="h-14 w-14 shrink-0 object-cover"
         />
       ) : (

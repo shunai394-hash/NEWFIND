@@ -21,12 +21,20 @@ type Tab = "products" | "search" | "posts";
 const PAGE_SIZE = 24;
 const DISCOVER_PRODUCTS_PER_CATEGORY = 12;
 
+const COUNTRY_SEARCH_TERMS: Record<string, string[]> = {
+  usa: ["usa", "united states", "u.s.", "america"],
+  uk: ["uk", "united kingdom", "great britain", "britain", "england"],
+  korea: ["korea", "south korea", "republic of korea"],
+};
+
 export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) {
   const { session } = useApp();
   const viewerId = session?.userId ?? null;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryId | "all">("all");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [trendFilter, setTrendFilter] = useState("");
   const [posts, setPosts] = useState<PostView[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +47,19 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const [catalog, setCatalog] = useState<DiscoveryProduct[]>([]);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedCategory = params.get("category") ?? "";
+    const requestedCountry = params.get("country") ?? "";
+    const requestedTrend = params.get("trend") ?? "";
+    if (POST_CATEGORIES.includes(requestedCategory as CategoryId)) {
+      setCategory(requestedCategory as CategoryId);
+    }
+    if (requestedCountry) setCountryFilter(requestedCountry);
+    if (requestedTrend) setTrendFilter(requestedTrend);
+  }, []);
 
   useEffect(() => {
     postsRef.current = posts;
@@ -49,11 +70,21 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
       .then((data) =>
         setCatalog(data.products.filter((item) => isUsableProductImage(item.productImageUrl))),
       )
-      .catch(() => setCatalog([]));
+      .catch(() => setCatalog([]))
+      .finally(() => setCatalogLoaded(true));
   }, []);
 
   const discoverProducts = useMemo(() => {
     const filtered = catalog.filter((item) => {
+      if (countryFilter) {
+        const productCountry = (item.country ?? "").trim().toLowerCase();
+        const countryKey = countryFilter.trim().toLowerCase();
+        const terms = COUNTRY_SEARCH_TERMS[countryKey] ?? [countryKey];
+        if (!productCountry || !terms.some((term) => productCountry.includes(term))) return false;
+      }
+      if (trendFilter && !item.trendTags.includes(trendFilter as DiscoveryProduct["trendTags"][number])) {
+        return false;
+      }
       if (category === "all") return true;
       if (category === "fashion") return item.category === "fashion" || item.trendTags.includes("teen");
       if (category === "beauty") return item.category === "beauty";
@@ -87,7 +118,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
         return true;
       })
       .slice(0, DISCOVER_PRODUCTS_PER_CATEGORY);
-  }, [category, catalog]);
+  }, [category, catalog, countryFilter, trendFilter]);
 
   const discoverProductIdentities = useMemo(
     () => new Set(discoverProducts.map((item) => productIdentityKey(item))),
@@ -241,8 +272,9 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
           <button
             key={id}
             type="button"
+            aria-pressed={tab === id}
             onClick={() => setTab(id)}
-            className={`py-3 ${tab === id ? "border-b-2 border-neutral-900" : "text-neutral-400"}`}
+            className={`py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black ${tab === id ? "border-b-2 border-neutral-900" : "text-neutral-400"}`}
           >
             {label}
           </button>
@@ -257,6 +289,28 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
             placeholder="商品・アカウント・投稿を検索"
             className="w-full rounded-lg bg-neutral-100 px-3 py-2 text-sm outline-none"
           />
+        </div>
+      ) : null}
+
+      {tab === "products" && (countryFilter || trendFilter) ? (
+        <div className="flex items-center justify-between gap-3 bg-white px-3 pt-3 text-xs text-neutral-500">
+          <span>
+            {countryFilter ? `地域: ${countryFilter}` : ""}
+            {countryFilter && trendFilter ? " · " : ""}
+            {trendFilter ? `テーマ: ${trendFilter.replaceAll("_", " ")}` : ""}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setCountryFilter("");
+              setTrendFilter("");
+              setCategory("all");
+              window.history.replaceState({}, "", "/discover");
+            }}
+            className="shrink-0 font-semibold text-neutral-900 underline underline-offset-2"
+          >
+            フィルター解除
+          </button>
         </div>
       ) : null}
 
@@ -302,6 +356,14 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
                 ))}
               </div>
             </section>
+          ) : null}
+
+          {tab === "products" && catalogLoaded && shownProducts.length === 0 ? (
+            <p className="px-6 py-12 text-center text-sm leading-relaxed text-neutral-500">
+              条件に合う商品はまだ見つかっていません。
+              <br />
+              フィルターを変えるか、ほかの発見を見てみてください。
+            </p>
           ) : null}
 
           {(tab === "products" || (tab === "search" && query.trim())) && shownProducts.length > 0 ? (

@@ -672,6 +672,11 @@ function main() {
       url: "https://shop.test/products/chisel",
       snippet: "yarn dye bench tool",
     },
+    music: {
+      title: "Independent label limited vinyl record",
+      url: "https://label.test/products/limited-vinyl",
+      snippet: "official label store physical record release",
+    },
     world: {
       title: "overseas hidden gem",
       url: "https://shop.test/products/import-object",
@@ -688,6 +693,44 @@ function main() {
     url: "https://www.ssense.com/en-us/product/atelier-jacket",
     snippet: "cut silhouette",
   };
+
+  const coco = SPECIALIST_PRODUCT_HUNTERS.find((hunter) => hunter.username === "coco_music_ai");
+  assert(coco, "coco_music_ai must exist");
+  const cocoStrategy = getHunterStrategy("coco_music_ai");
+  assert(cocoStrategy, "coco_music_ai must have a dedicated strategy");
+  assert(
+    resultFitsHunterSpecialty({
+      title: "Independent label limited vinyl record",
+      url: "https://label.test/products/limited-vinyl",
+      snippet: "official label store physical record release",
+      username: "coco_music_ai",
+      huntingSpecialty: coco.huntingSpecialty,
+      strategy: cocoStrategy,
+    }),
+    "Coco must accept a real music product page",
+  );
+  assert(
+    !resultFitsHunterSpecialty({
+      title: "New York label announces tour",
+      url: "https://music.test/news/label-announcement",
+      snippet: "Music news article covering an upcoming album",
+      username: "coco_music_ai",
+      huntingSpecialty: coco.huntingSpecialty,
+      strategy: cocoStrategy,
+    }),
+    "Coco must reject news articles",
+  );
+  assert(
+    !resultFitsHunterSpecialty({
+      title: "Late Night Listening Playlist",
+      url: "https://music.test/playlists/late-night",
+      snippet: "Listen now and stream this curated playlist",
+      username: "coco_music_ai",
+      huntingSpecialty: coco.huntingSpecialty,
+      strategy: cocoStrategy,
+    }),
+    "Coco must reject playlists",
+  );
 
   for (const hunter of SPECIALIST_PRODUCT_HUNTERS) {
     const strategy = getHunterStrategy(hunter.username);

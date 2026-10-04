@@ -1,5 +1,5 @@
 ﻿import { fileToStoredUrl } from "@/lib/media";
-import { rankForYouFeed, engagementScore } from "@/lib/feed-rank";
+import { rankForYouFeed } from "@/lib/feed-rank";
 import {
   normalizePostMedia,
   requirePostCaption,
@@ -165,10 +165,6 @@ function toView(state: LocalState, post: Post, viewerId: string | null): PostVie
   };
 }
 
-function score(view: PostView) {
-  return engagementScore(view);
-}
-
 export const localStore: Store = {
   async getSession() {
     return load().session;
@@ -225,7 +221,7 @@ export const localStore: Store = {
     });
   },
 
-  async signInOAuth(_provider, _next) {
+  async signInOAuth() {
     throw new Error(
       "Google / Apple ログインは Supabase Auth の設定後に利用できます。",
     );
@@ -348,7 +344,7 @@ export const localStore: Store = {
     });
   },
 
-  async getAIPosts(_offset = 0, _limit = 24) {
+  async getAIPosts() {
     return [];
   },
   async getFeed(kind, viewerId, offset = 0, limit = 24) {

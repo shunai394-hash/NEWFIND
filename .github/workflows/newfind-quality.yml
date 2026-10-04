@@ -25,6 +25,8 @@ jobs:
         run: npm ci
       - name: TypeScript
         run: npx tsc --noEmit
+      - name: Content moderation
+        run: npm run test:content-moderation
       - name: Discovery quality
         run: npm run test:discovery-quality
       - name: AI precision

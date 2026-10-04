@@ -15,6 +15,7 @@
         "test:discovery-quality": "tsx scripts/test-discovery-quality.ts",
         "test:tracer-integration": "tsx scripts/test-tracer-integration.ts",
         "test:auth": "tsx --test scripts/test-auth-flow.ts",
+        "test:security": "tsx --test scripts/test-account-security.ts",
         "icons:generate": "node scripts/generate-ios-icons.mjs",
         "icons:check": "node scripts/generate-ios-icons.mjs --check",
         "seed:demo": "tsx scripts/seed-demo.ts",

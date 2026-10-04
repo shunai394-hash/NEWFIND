@@ -45,9 +45,23 @@ jobs:
           app/api/auth/apple/native/route.ts
           components/auth-form.tsx
           components/brand-mark.tsx
+          lib/account
+          lib/apple/revoke.ts
+          lib/apple/token-store.ts
+          lib/auth/cron-auth.ts
+          lib/ai/ai-act-handler.ts
+          app/api/ai-act/route.ts
+          app/api/account/route.ts
+          app/api/integrations/outbox/drain/route.ts
 
       - name: Authentication regression tests
         run: npm run test:auth
+
+      - name: Account deletion and secret-handling tests
+        run: npm run test:security
+
+      - name: Integration contract tests
+        run: npx tsx scripts/test-tracer-integration.ts
 
       - name: Production build
         run: npm run build

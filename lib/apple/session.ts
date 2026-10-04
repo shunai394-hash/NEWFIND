@@ -13,7 +13,7 @@ type AuthUserLite = {
   user_metadata?: Record<string, unknown>;
 };
 
-async function lookupAuthUserByEmail(email: string): Promise<AuthUserLite | null> {
+export async function lookupAuthUserByEmail(email: string): Promise<AuthUserLite | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) return null;
@@ -31,12 +31,11 @@ async function lookupAuthUserByEmail(email: string): Promise<AuthUserLite | null
   if (!res.ok) return null;
   const json = (await res.json()) as { users?: AuthUserLite[] };
   const users = json.users ?? [];
-  const lowered = email.toLowerCase();
-  return (
-    users.find((user) => user.email?.toLowerCase() === lowered) ??
-    users[0] ??
-    null
-  );
+  const lowered = email.trim().toLowerCase();
+  // `filter` is a partial match. Only an exact email match may be linked:
+  // falling back to another result would sign this Apple ID into someone
+  // else's account.
+  return users.find((user) => user.email?.trim().toLowerCase() === lowered) ?? null;
 }
 
 async function lookupByAppleId(appleUserId: string): Promise<string | null> {

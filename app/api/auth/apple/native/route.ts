@@ -34,6 +34,10 @@ export async function POST(request: Request) {
   if (!body.identityToken) {
     return NextResponse.json({ error: "identity token がありません" }, { status: 400 });
   }
+  if (!body.rawNonce) {
+    // Without the nonce a captured identity token could be replayed.
+    return NextResponse.json({ error: "nonce がありません" }, { status: 400 });
+  }
 
   try {
     if (body.authorizationCode) {
@@ -59,7 +63,9 @@ export async function POST(request: Request) {
 
     const user = await findOrCreateAppleUser({
       appleUserId: identity.sub,
-      email: identity.email || body.email || null,
+      // Only the email inside Apple's signed identity token is trusted; the
+      // request body is client-controlled and must never link accounts.
+      email: identity.email || null,
       isPrivateEmail: identity.isPrivateEmail,
       displayName: displayName || null,
     });

@@ -105,7 +105,14 @@ extension SignInWithApplePlugin: ASAuthorizationControllerDelegate {
     ) {
         print("[NEWFIND][Apple] didCompleteWithError: \(error.localizedDescription)")
 
-        savedCall?.reject(error.localizedDescription)
+        // Let the web layer tell a user cancellation apart from a real failure.
+        let code: String
+        if let authError = error as? ASAuthorizationError, authError.code == .canceled {
+            code = "CANCELED"
+        } else {
+            code = "APPLE_AUTH_FAILED"
+        }
+        savedCall?.reject(error.localizedDescription, code, error)
         savedCall = nil
         self.controller = nil
     }

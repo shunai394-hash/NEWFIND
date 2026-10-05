@@ -84,7 +84,7 @@ export function InvestigationEventCard({
       <div className="mt-2.5 flex flex-wrap items-center gap-3">
         <Link
           href="/correspondents"
-          className="text-xs font-semibold text-neutral-800 underline"
+          className="-my-3 inline-flex min-h-11 items-center text-xs font-semibold text-neutral-800 underline"
         >
           特派員を見る
         </Link>
@@ -93,7 +93,7 @@ export function InvestigationEventCard({
             href={item.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-semibold text-neutral-600 underline"
+            className="-my-3 inline-flex min-h-11 items-center text-xs font-semibold text-neutral-600 underline"
           >
             情報源
           </a>

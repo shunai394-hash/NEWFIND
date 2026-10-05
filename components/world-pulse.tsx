@@ -54,7 +54,7 @@ export function WorldPulse({ compact = false }: { compact?: boolean }) {
         </p>
         <Link
           href="/correspondents"
-          className="mt-2 inline-block text-xs font-semibold text-neutral-800 underline"
+          className="mt-0.5 inline-flex min-h-11 items-center text-xs font-semibold text-neutral-800 underline"
         >
           特派員を見る
         </Link>

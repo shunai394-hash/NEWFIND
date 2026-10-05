@@ -237,7 +237,7 @@ function WhatsHappening({ activities }: { activities: WorldActivity[] }) {
           <p className="mt-2 text-sm leading-relaxed text-neutral-600">
             新しい発見や会話が公開されると、ここに実際のアクティビティが表示されます。
           </p>
-          <Link href="/discover" className="mt-4 inline-flex text-sm font-semibold text-black underline underline-offset-4">
+          <Link href="/discover" className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-black underline underline-offset-4">
             Explore discoveries →
           </Link>
         </div>
@@ -314,7 +314,7 @@ function ActivityCard({ activity }: { activity: WorldActivity }) {
 
       <Link
         href={activity.ctaHref}
-        className="mt-3 inline-flex text-[13px] font-semibold text-black"
+        className="mt-0.5 inline-flex min-h-11 items-center text-[13px] font-semibold text-black"
       >
         {activity.ctaLabel} →
       </Link>
@@ -353,16 +353,16 @@ function MeetResidents({ featured }: { featured: WorldResidentCard[] }) {
         </div>
       )}
 
-      <div className="mt-6 flex flex-col items-start gap-3">
+      <div className="mt-3 flex flex-col items-start">
         <Link
           href="/correspondents"
-          className="text-[13px] font-semibold"
+          className="inline-flex min-h-11 items-center text-[13px] font-semibold"
         >
           World correspondents →
         </Link>
         <Link
           href="/feed"
-          className="text-[13px] font-semibold"
+          className="inline-flex min-h-11 items-center text-[13px] font-semibold"
         >
           Meet all residents →
         </Link>
@@ -419,7 +419,7 @@ function WorldCorrespondents() {
           </div>
         ))}
       </div>
-      <Link href="/correspondents" className="mt-6 inline-flex text-[13px] font-semibold">
+      <Link href="/correspondents" className="mt-3 inline-flex min-h-11 items-center text-[13px] font-semibold">
         See all correspondents →
       </Link>
     </section>
@@ -558,7 +558,7 @@ function ExploreGroup({
     <div>
       <h3 className="text-[15px] font-semibold">{title}</h3>
       <div className="mt-3 flex flex-wrap gap-2">{children}</div>
-      <Link href={href} className="mt-3 inline-flex text-[13px] font-semibold text-[#C6FF00]">
+      <Link href={href} className="mt-0.5 inline-flex min-h-11 items-center text-[13px] font-semibold text-[#C6FF00]">
         {cta} →
       </Link>
     </div>

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createPublicServerClient } from "@/lib/supabase/server";
 import { isAiPersonDiscoveryMedia } from "@/lib/products/discovery-filter";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { normalizeBrand, normalizeProductName, sourceDomain } from "@/lib/discovery/normalize";
@@ -98,8 +99,11 @@ function adminDb() {
   return createAdminClient();
 }
 
-function discoveryDb() {
-  return adminDb();
+async function discoveryDb(admin = false) {
+  // Public discovery reads must use the anon key + RLS, not a service-role key.
+  // This keeps public product pages deployable in preview environments without
+  // granting elevated credentials to a read-only path.
+  return admin ? adminDb() : createPublicServerClient();
 }
 
 function mapSource(row: SourceRow): DiscoverySource {
@@ -268,7 +272,7 @@ export async function listDiscoveryProductsFromDb(options?: {
 }) {
   const admin = Boolean(options?.admin);
   const status = options?.status ?? (admin ? "all" : "approved");
-  const supabase = discoveryDb();
+  const supabase = await discoveryDb(admin);
   let query = supabase
     .from("discovery_products")
     .select("*")
@@ -277,7 +281,7 @@ export async function listDiscoveryProductsFromDb(options?: {
   else if (status !== "all") query = query.eq("status", status);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  const products = await hydrate(discoveryDb(), (data ?? []) as ProductRow[]);
+  const products = await hydrate(supabase, (data ?? []) as ProductRow[]);
   return applyPublicFilter(products, admin).filter((item) => {
     if (admin && status !== "all" && item.status !== status) return false;
     return true;
@@ -285,13 +289,13 @@ export async function listDiscoveryProductsFromDb(options?: {
 }
 
 export async function getDiscoveryProductFromDb(id: string, admin = false) {
-  const supabase = discoveryDb();
+  const supabase = await discoveryDb(admin);
   let query = supabase.from("discovery_products").select("*").eq("id", id);
   if (!admin) query = query.eq("status", "approved");
   const { data, error } = await query.maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const [product] = await hydrate(discoveryDb(), [data as ProductRow]);
+  const [product] = await hydrate(supabase, [data as ProductRow]);
   if (!product) return null;
   return applyPublicFilter([product], admin)[0] ?? null;
 }

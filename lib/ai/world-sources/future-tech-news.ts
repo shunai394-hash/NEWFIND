@@ -1,4 +1,3 @@
-import type { WorldSearchResult } from "@/lib/ai/world-search";
 import type { WorldSourceCollector, WorldSourceItem } from "./types";
 
 type FeedSource = {
@@ -131,7 +130,7 @@ export async function collectFutureTechNews(limit = 4): Promise<WorldSourceItem[
     FUTURE_TECH_FEEDS.map((source) => collectFeed(source, boundedLimit)),
   );
   const seen = new Set<string>();
-  const items: WorldSearchResult[] = [];
+  const items: WorldSourceItem[] = [];
 
   for (const result of results) {
     if (result.status === "rejected") {

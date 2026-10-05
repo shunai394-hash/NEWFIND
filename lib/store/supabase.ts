@@ -9,6 +9,7 @@ import {
   NATIVE_OAUTH_CALLBACK, isCapacitorNative,
 } from "@/lib/capacitor/platform";
 import { openNativeOAuthUrl } from "@/lib/capacitor/oauth-browser";
+import { rememberOAuthNext, startNativeOAuthReturnListener } from "@/lib/capacitor/oauth-return";
 import { createClient } from "@/lib/supabase/client";
 import { listDiscoveryProductsByIdsFromDb } from "@/lib/discovery/db";
 import type { Store } from "@/lib/store/types";
@@ -578,7 +579,7 @@ export const supabaseStore: Store = {
     const supabase = createClient();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.session?.user) {
-      throw new Error(error?.message || "繝ｭ繧ｰ繧､繝ｳ縺ｫ螟ｱ謨励＠縺ｾ縺励◆");
+      throw new Error(error?.message || "ログインに失敗しました");
     }
     const user = data.session.user;
     const suspended = await supabase
@@ -625,14 +626,22 @@ export const supabaseStore: Store = {
   },
 
   async signInOAuth(provider, next = "/") {
+    const native = isCapacitorNative();
+    // Do not start the external OAuth browser until the app-return listener is ready.
+    if (native) await startNativeOAuthReturnListener();
     const supabase = createClient();
     // Capacitor: open the OAuth page inside Safari View Controller via @capacitor/browser,
     // then return to the app through the custom URL scheme.
-    const redirectTo = isCapacitorNative()
+    const redirectTo = native
       ? new URL(NATIVE_OAUTH_CALLBACK)
       : new URL("/auth/callback", window.location.origin);
 
-    if (next.startsWith("/") && !next.startsWith("//")) {
+    if (native) {
+      // Keep the native redirect URL exactly NATIVE_OAUTH_CALLBACK so it matches the
+      // Supabase redirect allow-list; a query string can make Supabase fall back to
+      // the Site URL and leave the user on the website inside the browser sheet.
+      rememberOAuthNext(next);
+    } else if (next.startsWith("/") && !next.startsWith("//")) {
       redirectTo.searchParams.set("next", next);
     }
 
@@ -640,7 +649,7 @@ export const supabaseStore: Store = {
       provider,
       options: {
         redirectTo: redirectTo.toString(),
-        ...(isCapacitorNative() ? { skipBrowserRedirect: true } : {}),
+        ...(native ? { skipBrowserRedirect: true } : {}),
       },
     });
 
@@ -665,7 +674,7 @@ export const supabaseStore: Store = {
       );
     }
 
-    if (isCapacitorNative()) {
+    if (native) {
       await openNativeOAuthUrl(data.url);
       return;
     }
@@ -673,27 +682,43 @@ export const supabaseStore: Store = {
 
   async signOut() {
     const supabase = createClient();
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    // Offline or an already-revoked session makes the global sign-out fail and
+    // leaves the local session in place; always clear this device.
+    if (error) await supabase.auth.signOut({ scope: "local" });
   },
 
   async deleteAccount() {
     const { authHeaders } = await import("@/lib/auth/client-headers");
-    const response = await fetch("/api/account", {
-      method: "DELETE",
-      headers: await authHeaders(),
+    const { requestAccountDeletion } = await import("@/lib/account/client-delete");
+    const { isLoginCancellation } = await import("@/lib/auth/login-errors");
+    const { AppleSignInError, reauthorizeAppleForDeletion } = await import("@/lib/apple/client");
+    const { isIosCapacitor } = await import("@/lib/capacitor/platform");
+    const headers = await authHeaders();
+    const { warning } = await requestAccountDeletion({
+      send: async (payload) => {
+        const response = await fetch("/api/account", {
+          method: "DELETE",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+        return { status: response.status, body };
+      },
+      canReauthorizeWithApple: isIosCapacitor(),
+      reauthorizeWithApple: reauthorizeAppleForDeletion,
+      isCancellation: (error) =>
+        isLoginCancellation(
+          error instanceof AppleSignInError ? error.code : null,
+          error instanceof Error ? error.message : null,
+        ),
     });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(
-        typeof body.error === "string" ? body.error : "繧｢繧ｫ繧ｦ繝ｳ繝医・蜑企勁縺ｫ螟ｱ謨励＠縺ｾ縺励◆",
-      );
-    }
     try {
       await this.signOut();
     } catch {
       // Auth user is already gone; clear local session best-effort.
     }
-    return { warning: typeof body.warning === "string" ? body.warning : null };
+    return { warning };
   },
 
   async getProfile(id) {
@@ -999,7 +1024,7 @@ export const supabaseStore: Store = {
     }
     if (error) throw new Error(error.message);
     const [view] = await hydratePosts(supabase, [mapPost(data as PostRow)], authorId);
-    if (!view) throw new Error("謚慕ｨｿ縺ｮ菴懈・縺ｫ螟ｱ謨励＠縺ｾ縺励◆");
+    if (!view) throw new Error("投稿の作成に失敗しました");
     return view;
   },
 
@@ -1038,9 +1063,9 @@ export const supabaseStore: Store = {
       error = retry.error;
     }
     if (error) throw new Error(error.message);
-    if (!data) throw new Error("謚慕ｨｿ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ");
+    if (!data) throw new Error("投稿が見つかりません");
     const [view] = await hydratePosts(supabase, [mapPost(data as PostRow)], userId);
-    if (!view) throw new Error("謚慕ｨｿ縺ｮ譖ｴ譁ｰ縺ｫ螟ｱ謨励＠縺ｾ縺励◆");
+    if (!view) throw new Error("投稿の更新に失敗しました");
     return view;
   },
 
@@ -1067,7 +1092,7 @@ export const supabaseStore: Store = {
     const body = await response.json().catch(() => ({}));
     if (response.status === 404) return {};
     if (!response.ok) {
-      throw new Error(typeof body.error === "string" ? body.error : "蜑企勁縺ｫ螟ｱ謨励＠縺ｾ縺励◆");
+      throw new Error(typeof body.error === "string" ? body.error : "削除に失敗しました");
     }
     return { warning: typeof body.warning === "string" ? body.warning : null };
   },
@@ -1170,7 +1195,7 @@ export const supabaseStore: Store = {
       .single();
     if (error) throw new Error(error.message);
     const profile = await this.getProfile(userId);
-    if (!profile) throw new Error("繝励Ο繝輔ぅ繝ｼ繝ｫ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ");
+    if (!profile) throw new Error("プロフィールが見つかりません");
     void notifySocialEvent({ type: "comment", postId });
     return {
       id: data.id,
@@ -1236,7 +1261,7 @@ export const supabaseStore: Store = {
       followerId,
       time: new Date().toISOString(),
     });
-    if (followeeId === followerId) throw new Error("閾ｪ蛻・・繝輔か繝ｭ繝ｼ縺ｧ縺阪∪縺帙ｓ");
+    if (followeeId === followerId) throw new Error("自分はフォローできません");
     const supabase = createClient();
     const { data, error: lookupError } = await supabase
       .from("follows")
@@ -1454,7 +1479,7 @@ function stubFollowProfile(id: string): Profile {
   return {
     id,
     username: `user_${id.replace(/-/g, "").slice(0, 10)}`,
-    displayName: "繝ｦ繝ｼ繧ｶ繝ｼ",
+    displayName: "ユーザー",
     bio: "",
     avatarUrl: null,
     accountType: "personal",

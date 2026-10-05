@@ -28,8 +28,9 @@ on:
       - "lib/ai/agent-os/quality.ts"
       - "lib/ai/control-tower/world-report.ts"
       - "components/world-pulse.tsx"
-      - "scripts/render-app-icon.mjs"
-      - "scripts/check-app-icons.mjs"
+      - "scripts/generate-ios-icons.mjs"
+      - "scripts/verify-ios-icons.mjs"
+      - "public/brand/app-icon.svg"
       - "lib/capacitor/oauth-return.ts"
       - "lib/store/supabase.ts"
       - "components/auth-form.tsx"
@@ -55,7 +56,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Final app icon validation
-        run: npm run icons:finalize
+        run: npm run icons:check
       - name: TypeScript verification
         run: npx tsc --noEmit
       - name: Homepage quality regression

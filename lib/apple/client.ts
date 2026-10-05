@@ -2,6 +2,8 @@
 
 import { NativeAppleSignIn } from "@/lib/capacitor/sign-in-with-apple";
 import { openNativeOAuthUrl } from "@/lib/capacitor/oauth-browser";
+import { startNativeOAuthReturnListener } from "@/lib/capacitor/oauth-return";
+import { safeNextPath } from "@/lib/config";
 import {
   isAndroidCapacitor,
   isCapacitorNative,
@@ -35,40 +37,69 @@ async function completeWithTicket(tokenHash: string) {
   if (error) throw new Error(error.message);
 }
 
+/** Carries the Capacitor plugin error code (e.g. "CANCELED") to the UI. */
+export class AppleSignInError extends Error {
+  code: string | null;
+  constructor(message: string, code: string | null = null) {
+    super(message);
+    this.name = "AppleSignInError";
+    this.code = code;
+  }
+}
+
 async function nativeIosAppleSignIn(next: string) {
   const rawNonce = randomNonce();
   const hashedNonce = await sha256Hex(rawNonce);
-  const result = await NativeAppleSignIn.authorize({
-    nonce: hashedNonce,
-    state: randomNonce(),
-  });
+  let result: Awaited<ReturnType<typeof NativeAppleSignIn.authorize>>;
+  try {
+    result = await NativeAppleSignIn.authorize({
+      nonce: hashedNonce,
+      state: randomNonce(),
+    });
+  } catch (err) {
+    const code =
+      err && typeof err === "object" && "code" in err && typeof err.code === "string"
+        ? err.code
+        : null;
+    throw new AppleSignInError(err instanceof Error ? err.message : String(err), code);
+  }
 
-  const res = await fetch("/api/auth/apple/native", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      identityToken: result.identityToken,
-      authorizationCode: result.authorizationCode,
-      rawNonce,
-      email: result.email,
-      givenName: result.givenName,
-      familyName: result.familyName,
-    }),
-  });
-  const json = (await res.json()) as {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 30_000);
+  let res: Response;
+  try {
+    res = await fetch("/api/auth/apple/native", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        identityToken: result.identityToken,
+        authorizationCode: result.authorizationCode,
+        rawNonce,
+        email: result.email,
+        givenName: result.givenName,
+        familyName: result.familyName,
+      }),
+    });
+  } catch {
+    throw new AppleSignInError("network: Apple sign-in request failed");
+  } finally {
+    window.clearTimeout(timer);
+  }
+  const json = (await res.json().catch(() => ({}))) as {
     tokenHash?: string;
     created?: boolean;
     error?: string;
   };
   if (!res.ok || !json.tokenHash) {
-    throw new Error(json.error || "Apple ログインに失敗しました");
+    throw new AppleSignInError(json.error || `Apple sign-in failed (HTTP ${res.status})`);
   }
   await completeWithTicket(json.tokenHash);
   if (json.created) {
     window.location.replace(signupConsentPath(next));
     return;
   }
-  window.location.replace(next.startsWith("/") ? next : "/");
+  window.location.replace(safeNextPath(next));
 }
 
 export async function startAppleSignIn(next = "/") {
@@ -78,9 +109,12 @@ export async function startAppleSignIn(next = "/") {
       return;
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
-      if (!/not implemented|unimplemented|unavailable/i.test(message)) {
-        throw err;
-      }
+      const code = err instanceof AppleSignInError ? err.code : null;
+      const pluginMissing =
+        code === "UNIMPLEMENTED" ||
+        code === "UNAVAILABLE" ||
+        /not implemented|unimplemented|plugin is not available/i.test(message);
+      if (!pluginMissing) throw err;
     }
   }
 
@@ -90,9 +124,27 @@ export async function startAppleSignIn(next = "/") {
   if (isAndroidCapacitor()) start.searchParams.set("platform", "android");
 
   if (isCapacitorNative()) {
+    // The web flow returns through app.newfind.social://auth/callback?token_hash=…
+    await startNativeOAuthReturnListener();
     await openNativeOAuthUrl(start.toString());
     return;
   }
 
   window.location.assign(start.toString());
+}
+
+/** Native Sign in with Apple re-authorization, used before deleting the account. */
+export async function reauthorizeAppleForDeletion(): Promise<string> {
+  try {
+    const result = await NativeAppleSignIn.authorize({ state: randomNonce() });
+    if (!result.authorizationCode) throw new AppleSignInError("Apple authorization code missing");
+    return result.authorizationCode;
+  } catch (err) {
+    if (err instanceof AppleSignInError) throw err;
+    const code =
+      err && typeof err === "object" && "code" in err && typeof err.code === "string"
+        ? err.code
+        : null;
+    throw new AppleSignInError(err instanceof Error ? err.message : String(err), code);
+  }
 }

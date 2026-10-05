@@ -57,6 +57,18 @@ export async function verifyAppleIdentityToken(params: {
   };
 }
 
+/** Error response from https://appleid.apple.com/auth/token, with Apple's OAuth error code. */
+export class AppleTokenEndpointError extends Error {
+  readonly oauthError: string | null;
+  readonly status: number;
+  constructor(message: string, oauthError: string | null, status: number) {
+    super(message);
+    this.name = "AppleTokenEndpointError";
+    this.oauthError = oauthError;
+    this.status = status;
+  }
+}
+
 export async function exchangeAppleAuthorizationCode(params: {
   code: string;
   clientId: string;
@@ -80,19 +92,22 @@ export async function exchangeAppleAuthorizationCode(params: {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
-  const json = (await res.json()) as {
+  const json = (await res.json().catch(() => ({ error: `http_${res.status}` }))) as {
     error?: string;
     error_description?: string;
     id_token?: string;
     access_token?: string;
+    refresh_token?: string;
   };
   if (!res.ok || json.error) {
-    throw new Error(
+    throw new AppleTokenEndpointError(
       json.error_description || json.error || "Apple authorization code の検証に失敗しました",
+      json.error ?? null,
+      res.status,
     );
   }
   if (!json.id_token) {
     throw new Error("Apple から identity token が返りませんでした");
   }
-  return json as { id_token: string; access_token?: string };
+  return json as { id_token: string; access_token?: string; refresh_token?: string };
 }

@@ -19,6 +19,10 @@
       - name: Install dependencies
         script: npm ci
 
+      - name: Verify final app icons
+        # Icons are committed; fail the build if they are stale, transparent or missing.
+        script: npm run icons:check
+
       - name: Check iOS signing files
         script: |
           echo "=== PROVISIONING PROFILES ==="
@@ -27,9 +31,6 @@
           ls -la "$HOME/Library/MobileDevice/Certificates/" || true
           echo "=== KEYCHAIN ==="
           security find-identity -v -p codesigning || true
-
-      - name: Render and verify final app icons
-        script: npm run icons:finalize
 
       - name: Set production Capacitor URL
         script: |
@@ -42,8 +43,22 @@
           set -e
 
           echo "=== SET BUILD NUMBER ==="
+          # App Store Connect rejects a build number that was already uploaded.
+          # Use the next number after the latest uploaded build when the App
+          # Store Connect app id is configured, never lower than the project's.
+          PROJECT_BUILD=$(sed -n 's/.*CURRENT_PROJECT_VERSION = \([0-9]*\);.*/\1/p' ios/App/App.xcodeproj/project.pbxproj | head -1)
+          NEXT_BUILD="$PROJECT_BUILD"
+          if [ -n "${APP_STORE_APPLE_ID:-}" ]; then
+            LATEST_BUILD=$(app-store-connect get-latest-build-number "$APP_STORE_APPLE_ID" --platform IOS 2>/dev/null | tail -1 | tr -dc '0-9')
+            if [ -n "$LATEST_BUILD" ] && [ "$((LATEST_BUILD + 1))" -gt "$NEXT_BUILD" ]; then
+              NEXT_BUILD=$((LATEST_BUILD + 1))
+            fi
+          else
+            echo "APP_STORE_APPLE_ID is not set; using project build number $PROJECT_BUILD"
+          fi
+          echo "Build number: $NEXT_BUILD"
           cd ios/App
-          agvtool new-version -all 17
+          agvtool new-version -all "$NEXT_BUILD"
           cd ../..
 
           echo "=== ARCHIVE ==="

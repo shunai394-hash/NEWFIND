@@ -1,30 +1,22 @@
 import { Browser } from "@capacitor/browser";
-import { safeNextPath } from "@/lib/config";
 import { createClient } from "@/lib/supabase/client";
 import { isCapacitorNative } from "@/lib/capacitor/platform";
+import {
+  createAppUrlListener,
+  createOAuthReturnHandler,
+  rememberNativeOAuthNext,
+} from "@/lib/capacitor/oauth-return-core";
 import {
   needsSignupTermsConsent,
   signupConsentPath,
 } from "@/lib/terms/consent";
 
-const processedCodes = new Set<string>();
-const receivedCallbackUrls = new Set<string>();
-let inFlightCode: string | null = null;
-let started = false;
-
-function isOAuthCallbackUrl(url: URL): boolean {
-  const combined = `${url.hostname}${url.pathname}`.replace(/\/+/g, "/");
-  return (
-    combined.includes("auth/callback") ||
-    url.pathname === "/auth/callback" ||
-    url.pathname.endsWith("/auth/callback")
-  );
-}
-
-function oauthErrorMessage(url: URL): string | null {
-  const error = url.searchParams.get("error");
-  if (!error) return null;
-  return url.searchParams.get("error_description") || error;
+function storage(kind: "sessionStorage" | "localStorage"): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window[kind];
+  } catch {
+    return null;
+  }
 }
 
 async function destinationAfterNativeSession(next: string): Promise<string> {
@@ -47,133 +39,75 @@ async function destinationAfterNativeSession(next: string): Promise<string> {
   return next;
 }
 
+let handler: ReturnType<typeof createOAuthReturnHandler> | null = null;
+
+function oauthReturnHandler() {
+  if (!handler) {
+    handler = createOAuthReturnHandler({
+      appOrigin: window.location.origin,
+      sessionStore: storage("sessionStorage"),
+      persistentStore: storage("localStorage"),
+      closeBrowser: () => Browser.close(),
+      exchangeCodeForSession: (code) => createClient().auth.exchangeCodeForSession(code),
+      verifyMagicLink: (tokenHash) =>
+        createClient().auth.verifyOtp({ type: "magiclink", token_hash: tokenHash }),
+      hasSession: async () => {
+        const { data } = await createClient().auth.getSession();
+        return Boolean(data.session);
+      },
+      destinationAfterSession: destinationAfterNativeSession,
+      signupConsentPath,
+      navigate: (path) => window.location.replace(path),
+    });
+  }
+  return handler;
+}
+
 /**
  * Handle an OAuth return URL on Capacitor iOS / Android.
  * Uses the native localStorage PKCE client + exchangeCodeForSession.
  * Does not touch the Next.js /auth/callback route (web keeps that path).
  */
-export async function handleOAuthReturnUrl(rawUrl: string): Promise<boolean> {
-  if (!rawUrl) return false;
-
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    return false;
-  }
-
-  if (!isOAuthCallbackUrl(url)) return false;
-
-  // Let the login screen distinguish an app return from a user closing the browser.
-  window.dispatchEvent(new Event("newfind:oauth-return"));
-
-  // Close the Capacitor Safari View Controller when OAuth returns to the app.
-  await Browser.close().catch(() => {});
-
-  const oauthError = oauthErrorMessage(url);
-  if (oauthError) {
-    const detail = encodeURIComponent(oauthError);
-    window.location.replace(`/login?error=oauth&detail=${detail}`);
-    return true;
-  }
-
-  const tokenHash = url.searchParams.get("token_hash");
-  if (tokenHash) {
-    if (processedCodes.has(tokenHash) || inFlightCode === tokenHash) {
-      return true;
-    }
-    inFlightCode = tokenHash;
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.verifyOtp({
-        type: "magiclink",
-        token_hash: tokenHash,
-      });
-      if (error) {
-        const detail = encodeURIComponent(error.message);
-        window.location.replace(`/login?error=apple&detail=${detail}`);
-        return true;
-      }
-      processedCodes.add(tokenHash);
-      const next = safeNextPath(url.searchParams.get("next"));
-      if (url.searchParams.get("created") === "1") {
-        window.location.replace(signupConsentPath(next));
-        return true;
-      }
-      window.location.replace(next);
-      return true;
-    } finally {
-      if (inFlightCode === tokenHash) inFlightCode = null;
-    }
-  }
-
-  const code = url.searchParams.get("code");
-  if (!code) return false;
-
-  if (processedCodes.has(code) || inFlightCode === code) {
-    return true;
-  }
-
-  inFlightCode = code;
-  try {
-    const supabase = createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) {
-      const detail = encodeURIComponent(error.message);
-      window.location.replace(`/login?error=oauth&detail=${detail}`);
-      return true;
-    }
-
-    processedCodes.add(code);
-    const next = safeNextPath(url.searchParams.get("next"));
-    window.location.replace(await destinationAfterNativeSession(next));
-    return true;
-  } finally {
-    if (inFlightCode === code) inFlightCode = null;
-  }
+export function handleOAuthReturnUrl(rawUrl: string): Promise<boolean> {
+  return oauthReturnHandler()(rawUrl);
 }
 
+/** Store the post-login destination before leaving the app for OAuth. */
+export function rememberOAuthNext(next: string) {
+  rememberNativeOAuthNext(storage("localStorage"), next);
+}
+
+let appUrlListener: ReturnType<typeof createAppUrlListener> | null = null;
+
 /**
- * Register native deep-link listeners for OAuth return.
- * Safe to call once from a client component; no-ops on web.
+ * Register native deep-link listeners for OAuth return. The listener lives for
+ * the whole app session: it is shared by <OAuthReturnListener> and by
+ * signInOAuth, so one caller unmounting never removes it from the other.
+ * No-op on web.
  */
 export async function startNativeOAuthReturnListener(): Promise<() => void> {
-  if (typeof window === "undefined" || started || !isCapacitorNative()) {
+  if (typeof window === "undefined" || !isCapacitorNative()) {
     return () => {};
   }
-
-  started = true;
-  try {
-    const { App } = await import("@capacitor/app");
-
-    const onUrl = (raw: string | undefined) => {
-      if (!raw || receivedCallbackUrls.has(raw)) return;
-      receivedCallbackUrls.add(raw);
-      if (receivedCallbackUrls.size > 32) {
-        const oldest = receivedCallbackUrls.values().next().value;
-        if (oldest) receivedCallbackUrls.delete(oldest);
-      }
-      void handleOAuthReturnUrl(raw).catch((err) => {
-        console.error("[oauth-return] handle failed", err);
-      });
-    };
-
-    // Subscribe before reading the launch URL so an OAuth return cannot fall
-    // between the initial URL check and appUrlOpen listener registration.
-    const handle = await App.addListener("appUrlOpen", (event) => {
-      onUrl(event.url);
-    });
-
-    const launch = await App.getLaunchUrl().catch(() => undefined);
-    onUrl(launch?.url);
-
-    return () => {
-      started = false;
-      void handle.remove();
-    };
-  } catch (error) {
-    // A transient native-plugin failure must not permanently disable retries.
-    started = false;
-    throw error;
+  if (!appUrlListener) {
+    appUrlListener = createAppUrlListener(
+      {
+        addUrlListener: async (onUrl) => {
+          const { App } = await import("@capacitor/app");
+          return App.addListener("appUrlOpen", (event) => onUrl(event.url));
+        },
+        getLaunchUrl: async () => {
+          const { App } = await import("@capacitor/app");
+          return (await App.getLaunchUrl())?.url;
+        },
+      },
+      (url) => {
+        void handleOAuthReturnUrl(url ?? "").catch((err) => {
+          console.error("[oauth-return] handle failed", err instanceof Error ? err.message : err);
+        });
+      },
+    );
   }
+  await appUrlListener.start();
+  return () => {};
 }

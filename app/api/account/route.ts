@@ -1,22 +1,14 @@
-import { NextResponse } from "next/server";
+import { createSelfDeleteHandler } from "@/lib/account/delete-handlers";
 import { deleteOwnedAccount } from "@/lib/account/delete-user";
-import { authErrorResponse, requireUser } from "@/lib/auth/request-user";
+import { requireUser } from "@/lib/auth/request-user";
 
 export const dynamic = "force-dynamic";
 
+const handleDelete = createSelfDeleteHandler({
+  requireUser,
+  deleteOwnAccount: deleteOwnedAccount,
+});
+
 export async function DELETE(request: Request) {
-  try {
-    const auth = await requireUser(request);
-    if (!auth.userId) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-    }
-    const result = await deleteOwnedAccount(auth.userId);
-    return NextResponse.json(result);
-  } catch (error) {
-    const { status, message } = authErrorResponse(error);
-    return NextResponse.json(
-      { error: message || "アカウントの削除に失敗しました" },
-      { status },
-    );
-  }
+  return handleDelete(request);
 }

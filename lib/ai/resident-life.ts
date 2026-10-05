@@ -340,7 +340,7 @@ async function polishCaption(input: {
             `Original: ${caption}`,
             "Return the rewritten caption only.",
           ].join("\n"),
-          { temperature: 0.9, maxTokens: 220 },
+          { temperature: 0.78, maxTokens: input.subject?.kind === "world" || input.subject?.kind === "news" ? 1000 : 220 },
         )
       )
         .trim()
@@ -1706,7 +1706,7 @@ async function generateCadencePostFallback(input: {
           "Do not copy the subject title or source text.",
           "Return only the post caption.",
         ].join("\n"),
-        { temperature: 0.9, maxTokens: 180 },
+        { temperature: 0.78, maxTokens: subject.kind === "world" || subject.kind === "news" ? 1000 : 180 },
       )
     )
       .trim()

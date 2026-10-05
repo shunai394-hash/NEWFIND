@@ -80,102 +80,74 @@ function masterSvg({
   const view = size + inset * 2;
   const tx = inset + (size - size * markScale) / 2;
   const ty = inset + (size - size * markScale) / 2 + markY;
-
+  const mark = `
+    <g fill="none" stroke="${LIME}" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="448" cy="448" r="248" stroke-width="66"/>
+      <path d="M 625 625 L 824 824" stroke-width="82"/>
+    </g>
+    <path d="M 626 242 L 665 326 L 749 365 L 665 404 L 626 488 L 587 404 L 503 365 L 587 326 Z" fill="${LIME}"/>
+    <circle cx="448" cy="448" r="104" fill="${BLACK}"/>
+    <circle cx="448" cy="448" r="43" fill="${LIME}"/>
+  `;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${view} ${view}" width="${view}" height="${view}" role="img" aria-label="NEWFIND">
   ${background ? `<rect width="${view}" height="${view}" fill="${BLACK}"/>` : ""}
-  <g transform="translate(${tx} ${ty}) scale(${scale})">
-    <defs>
-      <clipPath id="world-a">
-        <circle cx="${C1.x}" cy="${C1.y}" r="${RADIUS}"/>
-      </clipPath>
-    </defs>
-    <circle cx="${C2.x}" cy="${C2.y}" r="${RADIUS}" fill="${LIME}" clip-path="url(#world-a)"/>
-    <circle cx="${C1.x}" cy="${C1.y}" r="${RADIUS}" fill="none" stroke="${LIME}" stroke-width="${STROKE}"/>
-    <circle cx="${C2.x}" cy="${C2.y}" r="${RADIUS}" fill="none" stroke="${LIME}" stroke-width="${STROKE}"/>
-  </g>
-  ${wordmark ? wordmarkSvg(view / 2, view * 0.86, 13, 16) : ""}
+  <g transform="translate(${tx} ${ty}) scale(${scale})">${mark}</g>
+  ${wordmark ? `<text x="${view / 2}" y="${view * 0.92}" fill="${LIME}" font-family="Arial, Helvetica, sans-serif" font-size="${view * 0.075}" font-weight="700" letter-spacing="${view * 0.018}" text-anchor="middle">NEWFIND</text>` : ""}
 </svg>
 `;
 }
 
 function compactCenters() {
-  const d = 9.7;
-  const angle = (30 * Math.PI) / 180;
-  const dx = Math.cos(angle) * (d / 2);
-  const dy = Math.sin(angle) * (d / 2);
   return {
-    r: 8.15,
-    stroke: 2.4,
-    a: { x: round(16 - dx), y: round(16 - dy) },
-    b: { x: round(16 + dx), y: round(16 + dy) },
+    ring: { x: 14, y: 14, r: 9.2 },
+    handle: { x1: 20.1, y1: 20.1, x2: 27.2, y2: 27.2 },
+    spark: { x: 21.0, y: 7.8 },
   };
 }
 
 function compactSvg() {
-  const { r, stroke, a, b } = compactCenters();
-
+  const { ring, handle, spark } = compactCenters();
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="NEWFIND">
   <rect width="32" height="32" fill="${BLACK}"/>
-  <defs>
-    <clipPath id="world-a">
-      <circle cx="${a.x}" cy="${a.y}" r="${r}"/>
-    </clipPath>
-  </defs>
-  <circle cx="${b.x}" cy="${b.y}" r="${r}" fill="${LIME}" clip-path="url(#world-a)"/>
-  <circle cx="${a.x}" cy="${a.y}" r="${r}" fill="none" stroke="${LIME}" stroke-width="${stroke}"/>
-  <circle cx="${b.x}" cy="${b.y}" r="${r}" fill="none" stroke="${LIME}" stroke-width="${stroke}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="${ring.r}" fill="none" stroke="${LIME}" stroke-width="2.8"/>
+  <path d="M ${handle.x1} ${handle.y1} L ${handle.x2} ${handle.y2}" fill="none" stroke="${LIME}" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M ${spark.x} 3.1 L ${spark.x + 1.2} 6.6 L ${spark.x + 4.7} ${spark.y} L ${spark.x + 1.2} 9.0 L ${spark.x} 12.5 L ${spark.x - 1.2} 9.0 L ${spark.x - 4.7} ${spark.y} L ${spark.x - 1.2} 6.6 Z" fill="${LIME}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="3.0" fill="${BLACK}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="1.45" fill="${LIME}"/>
 </svg>
 `;
 }
 
 function compactFgSvg() {
-  const { r, stroke, a, b } = compactCenters();
-
+  const { ring, handle, spark } = compactCenters();
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <defs>
-    <clipPath id="world-a">
-      <circle cx="${a.x}" cy="${a.y}" r="${r}"/>
-    </clipPath>
-  </defs>
-  <circle cx="${b.x}" cy="${b.y}" r="${r}" fill="${LIME}" clip-path="url(#world-a)"/>
-  <circle cx="${a.x}" cy="${a.y}" r="${r}" fill="none" stroke="${LIME}" stroke-width="${stroke}"/>
-  <circle cx="${b.x}" cy="${b.y}" r="${r}" fill="none" stroke="${LIME}" stroke-width="${stroke}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="${ring.r}" fill="none" stroke="${LIME}" stroke-width="2.8"/>
+  <path d="M ${handle.x1} ${handle.y1} L ${handle.x2} ${handle.y2}" fill="none" stroke="${LIME}" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M ${spark.x} 3.1 L ${spark.x + 1.2} 6.6 L ${spark.x + 4.7} ${spark.y} L ${spark.x + 1.2} 9.0 L ${spark.x} 12.5 L ${spark.x - 1.2} 9.0 L ${spark.x - 4.7} ${spark.y} L ${spark.x - 1.2} 6.6 Z" fill="${LIME}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="3.0" fill="${BLACK}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="1.45" fill="${LIME}"/>
 </svg>
 `;
 }
 
 function androidVector() {
-  const scale = 108 / MASTER;
-  const a = { x: C1.x * scale, y: C1.y * scale };
-  const b = { x: C2.x * scale, y: C2.y * scale };
-  const r = RADIUS * scale;
-  const stroke = STROKE * scale;
-
+  const ring = circlePath({ x: 448, y: 448 }, 248);
+  const star = "M 626 242 L 665 326 L 749 365 L 665 404 L 626 488 L 587 404 L 503 365 L 587 326 Z";
+  const handle = "M 625 625 L 824 824";
+  const center = circlePath({ x: 448, y: 448 }, 104);
+  const core = circlePath({ x: 448, y: 448 }, 43);
   return `<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <group>
-        <clip-path android:pathData="${circlePath(a, r)}"/>
-        <path
-            android:fillColor="${LIME}"
-            android:pathData="${circlePath(b, r)}"/>
-    </group>
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="${LIME}"
-        android:strokeWidth="${round(stroke)}"
-        android:pathData="${circlePath(a, r)}"/>
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="${LIME}"
-        android:strokeWidth="${round(stroke)}"
-        android:pathData="${circlePath(b, r)}"/>
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="1024" android:viewportHeight="1024">
+    <path android:fillColor="#00000000" android:pathData="${ring}" android:strokeColor="${LIME}" android:strokeWidth="66"/>
+    <path android:fillColor="#00000000" android:pathData="${handle}" android:strokeColor="${LIME}" android:strokeWidth="82" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:fillColor="${LIME}" android:pathData="${star}"/>
+    <path android:fillColor="${BLACK}" android:pathData="${center}"/>
+    <path android:fillColor="${LIME}" android:pathData="${core}"/>
 </vector>
 `;
 }
@@ -407,10 +379,14 @@ async function main() {
   const apple180 = await pngFromSvg(withBg, 180, { opaque: true });
   const icon32 = await pngFromSvg(compact, 32, { opaque: true });
   const icon256 = await pngFromSvg(withBg, 256, { opaque: true });
+  const icon32Ico = await pngFromSvg(compact, 32, { transparent: true });
+  const icon256Ico = await pngFromSvg(withBg, 256, { transparent: true });
   const fg432 = await pngFromSvg(foreground, 432, { transparent: true });
+  // PNG payloads inside ICO must be RGBA; opaque RGB PNGs fail Turbopack's
+  // favicon decoder even though the same files are valid launcher assets.
   const favicon = icoFromPngs([
-    { width: 32, height: 32, png: icon32 },
-    { width: 256, height: 256, png: icon256 },
+    { width: 32, height: 32, png: icon32Ico },
+    { width: 256, height: 256, png: icon256Ico },
   ]);
 
   await writeFile("public/brand/icon-1024.png", marketing1024);

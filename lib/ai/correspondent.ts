@@ -139,6 +139,27 @@ export function beatFromIdentity(
   };
 }
 
+/** Keep a resident's identity, but temporarily score against the assigned future-tech beat. */
+export function beatForExploration(
+  beat: CorrespondentBeat,
+  axis?: string | null,
+): CorrespondentBeat {
+  if (axis !== "future_technology") return beat;
+  const futureTerms = [
+    "AI", "generative AI", "image generation", "robotics", "humanoid robot",
+    "computer architecture", "PC", "GPU", "semiconductor", "holography",
+    "holographic display", "spatial computing", "quantum", "advanced materials",
+    "energy efficiency", "SaaS", "software", "open source",
+  ];
+  const merge = (values: string[]) => [...new Set([...values, ...futureTerms])];
+  return {
+    ...beat,
+    primary: "technology",
+    secondary: merge(beat.secondary),
+    expertise: merge(beat.expertise),
+  };
+}
+
 export function classifyWorldInfo(result: {
   title: string;
   url: string;
@@ -153,8 +174,9 @@ export function classifyWorldInfo(result: {
 
   if (role === "product" || /\/products?\//i.test(path)) return "PRODUCT";
   if (
-    /research|study|whitepaper|arxiv|journal/.test(text) ||
-    /\/research\//.test(path)
+    /research|study|whitepaper|arxiv|journal|proceedings|conference paper|preprint/.test(text) ||
+    /\/research\//.test(path) ||
+    /https?:\/\/(?:arxiv\.org|ieeexplore\.ieee\.org|dl\.acm\.org|proceedings\.mlr\.press)\//i.test(path)
   ) {
     return "RESEARCH";
   }

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
 import { SignupTermsConsent } from "@/components/signup-terms-consent";
 import { startAppleSignIn } from "@/lib/apple/client";
 import { useApp } from "@/lib/app-context";
 import { safeNextPath } from "@/lib/config";
+import { isCapacitorNative } from "@/lib/capacitor/platform";
 import { getStore, storeMode } from "@/lib/store";
 import {
   markSignupTermsCookie,
@@ -48,8 +49,43 @@ export function AuthForm() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [appleBusy, setAppleBusy] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const oauthReturning = useRef(false);
   const next = safeNextPath(params.get("next"));
   const local = storeMode() === "local";
+
+  useEffect(() => {
+    if (!isCapacitorNative()) return;
+
+    let cancelled = false;
+    let listener: { remove: () => Promise<void> } | undefined;
+    const onOAuthReturn = () => {
+      oauthReturning.current = true;
+    };
+    window.addEventListener("newfind:oauth-return", onOAuthReturn);
+
+    void import("@capacitor/browser")
+      .then(({ Browser }) =>
+        Browser.addListener("browserFinished", () => {
+          if (cancelled || oauthReturning.current) return;
+          setGoogleBusy(false);
+          setAppleBusy(false);
+          setError("ログイン画面が閉じられました。続ける場合は、もう一度お試しください。");
+        }),
+      )
+      .then((handle) => {
+        if (cancelled) void handle.remove();
+        else listener = handle;
+      })
+      .catch((error: unknown) => {
+        console.error("[auth] browser close listener setup failed", error);
+      });
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("newfind:oauth-return", onOAuthReturn);
+      if (listener) void listener.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (!ready || !sessionResolved || !session) return;
@@ -143,14 +179,20 @@ export function AuthForm() {
 
       <form onSubmit={submit} className="mt-8 space-y-3">
         {mode === "signup" ? (
-          <input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="表示名"
-            autoComplete="nickname"
-            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900"
-          />
+          <>
+            <label htmlFor="signup-display-name" className="sr-only">表示名</label>
+            <input
+              id="signup-display-name"
+              name="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="表示名"
+              autoComplete="nickname"
+              className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+            />
+          </>
         ) : null}
+        <label htmlFor="login-email" className="sr-only">メールアドレス</label>
         <input
           id="login-email"
           name="email"
@@ -164,8 +206,9 @@ export function AuthForm() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="メールアドレス"
           required
-          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900"
+          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
         />
+        <label htmlFor="login-password" className="sr-only">パスワード</label>
         <input
           id="login-password"
           name="password"
@@ -176,7 +219,7 @@ export function AuthForm() {
           placeholder="パスワード"
           required
           minLength={6}
-          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900"
+          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
         />
         {mode === "signup" ? (
           <SignupTermsConsent
@@ -184,13 +227,18 @@ export function AuthForm() {
             onChange={setTermsAccepted}
           />
         ) : null}
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {error ? (
+          <p role="alert" aria-live="polite" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        ) : null}
         <button
           type="submit"
           disabled={busy || (mode === "signup" && !termsAccepted)}
-          className="w-full rounded-lg bg-[#C6FF00] py-2.5 text-sm font-semibold text-black disabled:opacity-50"
+          aria-busy={busy}
+          className="w-full rounded-lg bg-[#C6FF00] py-2.5 text-sm font-semibold text-black transition-colors hover:bg-[#b5e800] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:opacity-50"
         >
-          {mode === "signup" ? "登録する" : "ログイン"}
+          {busy ? "処理中..." : mode === "signup" ? "登録する" : "ログイン"}
         </button>
       </form>
 
@@ -205,7 +253,8 @@ export function AuthForm() {
           type="button"
           onClick={() => void oauthGoogle()}
           disabled={googleBusy || (mode === "signup" && !termsAccepted)}
-          className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold disabled:opacity-50"
+          aria-busy={googleBusy}
+          className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold transition-colors hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:opacity-50"
         >
           {googleBusy ? "Google に接続中..." : "Googleで続ける"}
         </button>
@@ -213,7 +262,8 @@ export function AuthForm() {
           type="button"
           onClick={() => void oauthApple()}
           disabled={appleBusy || (mode === "signup" && !termsAccepted)}
-          className="w-full rounded-lg border border-neutral-200 bg-black py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          aria-busy={appleBusy}
+          className="w-full rounded-lg border border-neutral-200 bg-black py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:opacity-50"
         >
           {appleBusy ? "Apple に接続中..." : "Appleでログイン"}
         </button>

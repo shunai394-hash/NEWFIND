@@ -10,6 +10,10 @@ export type WorldTodayHeadline = {
   dispatch: string;
   title: string;
   status?: string;
+  sourceUrl?: string | null;
+  sourceTitle?: string | null;
+  confidence?: number | null;
+  evidenceCount?: number | null;
 };
 
 export type WorldTodayPayload = {
@@ -90,6 +94,22 @@ export function WorldPulse({ compact = false }: { compact?: boolean }) {
               </span>
             ) : null}
             <span className="mt-0.5 block text-neutral-600">{item.title}</span>
+            {item.sourceUrl ? (
+              <a
+                href={item.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex min-h-8 items-center gap-1 font-medium text-neutral-800 underline underline-offset-2"
+                aria-label={`原文を確認: ${item.sourceTitle || item.title}`}
+              >
+                原文・研究ソースを確認 ↗
+              </a>
+            ) : null}
+            {typeof item.confidence === "number" ? (
+              <span className="ml-2 text-[10px] text-neutral-400">
+                確度 {Math.round(item.confidence)}{typeof item.evidenceCount === "number" ? ` · 根拠 ${item.evidenceCount}件` : ""}
+              </span>
+            ) : null}
           </li>
         ))}
       </ul>

@@ -1,6 +1,8 @@
 import { getActiveAiPersonas, type AiPersona } from "@/lib/ai-post-engine";
 import { getSharedWorldNews } from "@/lib/ai/gdelt";
 import { getGoogleTrendsForWorld } from "@/lib/ai/google-trends";
+import { arxivWorldSourceCollector } from "@/lib/ai/world-sources/arxiv";
+import { collectFutureTechNews } from "@/lib/ai/world-sources/future-tech-news";
 import { ensureAiResidentPopulation } from "@/lib/ai/resident-factory";
 import { ensureFeaturedLivingResidents } from "@/lib/ai/ensure-featured-residents";
 import { runResidentLifeCycle } from "@/lib/ai/resident-life";
@@ -14,7 +16,11 @@ import type { EngineRunType, EngineTrigger } from "@/lib/ai/control-tower/types"
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 import { listAssignedDiscoveryResidentIds } from "@/lib/ai/discovery-handoff";
 
-// Keep the daily cron bounded: resident life is intentionally sequential because\n// each turn can perform several AI/network operations. Six turns per run\n// preserves rotation while leaving enough headroom for the 300s Vercel budget.\nconst DEFAULT_ACT_LIMIT = 6;
+// Keep the daily cron bounded: resident life is intentionally sequential because
+// each turn can perform several AI/network operations. Four turns per run
+// preserves rotation while leaving enough headroom for the 300s Vercel budget.
+const DEFAULT_ACT_LIMIT = 4;
+const MAX_RUN_MS = 240_000; // Leave headroom before Vercel's 300s execution ceiling.
 
 export type AiEngineMode = "ai_engine" | "world_scout" | "product_hunter";
 
@@ -277,6 +283,42 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       worldNews = [];
     }
 
+    let researchSourceCount = 0;
+    let futureTechNewsCount = 0;
+    const seenWorldUrls = new Set(
+      worldNews.map((item) => item.url.replace(/\/$/, "").toLowerCase()),
+    );
+    try {
+      // Academic research is a first-class discovery source, not product-search noise.
+      const research = await arxivWorldSourceCollector.collect({ limit: 12 });
+      for (const item of research) {
+        const key = item.url.replace(/\/$/, "").toLowerCase();
+        if (!key || seenWorldUrls.has(key)) continue;
+        seenWorldUrls.add(key);
+        worldNews.push(item);
+        researchSourceCount += 1;
+      }
+      console.info("[AI engine] official research items:", researchSourceCount);
+    } catch (error) {
+      console.warn("arXiv research collection failed. Continuing with other sources.", error);
+    }
+
+    try {
+      // Pull real publisher and research-lab feeds; one unavailable feed must not
+      // cancel the rest of the resident cycle. These items keep their source URLs.
+      const futureTechNews = await collectFutureTechNews(4);
+      for (const item of futureTechNews) {
+        const key = item.url.replace(/\/$/, "").toLowerCase();
+        if (!key || seenWorldUrls.has(key)) continue;
+        seenWorldUrls.add(key);
+        worldNews.push(item);
+        futureTechNewsCount += 1;
+      }
+      console.info("[AI engine] future-tech news items:", futureTechNewsCount);
+    } catch (error) {
+      console.warn("Future-tech news collection failed. Continuing with shared news.", error);
+    }
+
     let googleTrends: Awaited<ReturnType<typeof getGoogleTrendsForWorld>> = [];
     try {
       googleTrends = await getGoogleTrendsForWorld(["JP", "US", "GB", "KR"], 6);
@@ -284,8 +326,22 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       console.error("Google Trends failed. Continuing without trends.", error);
     }
     const results = [];
+    const runStartedAt = Date.now();
 
     for (const persona of acting) {
+      // A resident turn can fan out into search, AI generation, Supabase writes,
+      // editorial review, and world correspondence. Stop starting new turns
+      // before the platform timeout so one slow cycle cannot kill the patrol.
+      if (Date.now() - runStartedAt >= MAX_RUN_MS) {
+        await logAiActivity({
+          actorName: "SYSTEM",
+          actorRole: "engine",
+          action: "run_budget_reached",
+          detail: `stopped before ${persona.persona_name}; elapsed=${Date.now() - runStartedAt}ms`,
+          relatedRunId: lock.runId,
+        });
+        break;
+      }
       try {
         results.push(
           await runResidentLifeCycle(persona, worldNews, googleTrends, {
@@ -348,6 +404,7 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
         factory,
         featuredResidents,
         worldNewsCount: worldNews.length,
+        researchSourceCount,
         results,
         summary,
       },

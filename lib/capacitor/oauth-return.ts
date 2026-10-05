@@ -8,6 +8,7 @@ import {
 } from "@/lib/terms/consent";
 
 const processedCodes = new Set<string>();
+const receivedCallbackUrls = new Set<string>();
 let inFlightCode: string | null = null;
 let started = false;
 
@@ -62,6 +63,9 @@ export async function handleOAuthReturnUrl(rawUrl: string): Promise<boolean> {
   }
 
   if (!isOAuthCallbackUrl(url)) return false;
+
+  // Let the login screen distinguish an app return from a user closing the browser.
+  window.dispatchEvent(new Event("newfind:oauth-return"));
 
   // Close the Capacitor Safari View Controller when OAuth returns to the app.
   await Browser.close().catch(() => {});
@@ -139,24 +143,37 @@ export async function startNativeOAuthReturnListener(): Promise<() => void> {
   }
 
   started = true;
-  const { App } = await import("@capacitor/app");
+  try {
+    const { App } = await import("@capacitor/app");
 
-  const onUrl = (raw: string | undefined) => {
-    if (!raw) return;
-    void handleOAuthReturnUrl(raw).catch((err) => {
-      console.error("[oauth-return] handle failed", err);
+    const onUrl = (raw: string | undefined) => {
+      if (!raw || receivedCallbackUrls.has(raw)) return;
+      receivedCallbackUrls.add(raw);
+      if (receivedCallbackUrls.size > 32) {
+        const oldest = receivedCallbackUrls.values().next().value;
+        if (oldest) receivedCallbackUrls.delete(oldest);
+      }
+      void handleOAuthReturnUrl(raw).catch((err) => {
+        console.error("[oauth-return] handle failed", err);
+      });
+    };
+
+    // Subscribe before reading the launch URL so an OAuth return cannot fall
+    // between the initial URL check and appUrlOpen listener registration.
+    const handle = await App.addListener("appUrlOpen", (event) => {
+      onUrl(event.url);
     });
-  };
 
-  const launch = await App.getLaunchUrl().catch(() => undefined);
-  onUrl(launch?.url);
+    const launch = await App.getLaunchUrl().catch(() => undefined);
+    onUrl(launch?.url);
 
-  const handle = await App.addListener("appUrlOpen", (event) => {
-    onUrl(event.url);
-  });
-
-  return () => {
+    return () => {
+      started = false;
+      void handle.remove();
+    };
+  } catch (error) {
+    // A transient native-plugin failure must not permanently disable retries.
     started = false;
-    void handle.remove();
-  };
+    throw error;
+  }
 }

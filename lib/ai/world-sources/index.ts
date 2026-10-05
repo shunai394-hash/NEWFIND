@@ -11,6 +11,7 @@ import { nasaWorldSourceCollector } from "./nasa";
 import { kickstarterWorldSourceCollector } from "./kickstarter";
 import { indiegogoWorldSourceCollector } from "./indiegogo";
 import { googleTrendsWorldSourceCollector } from "./google-trends";
+import { futureTechNewsWorldSourceCollector } from "./future-tech-news";
 
 export const worldSourceCollectors: WorldSourceCollector[] = [
   productHuntWorldSourceCollector,
@@ -21,6 +22,7 @@ export const worldSourceCollectors: WorldSourceCollector[] = [
   kickstarterWorldSourceCollector,
   indiegogoWorldSourceCollector,
   googleTrendsWorldSourceCollector,
+  futureTechNewsWorldSourceCollector,
 ];
 
 export async function collectWorldIntelligence(

@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Finalize and verify app icons
+        run: npm run icons:finalize
+
       - name: Sync Capacitor
         run: |
           export CAPACITOR_SERVER_URL="https://newfind-self.vercel.app"

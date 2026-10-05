@@ -107,6 +107,10 @@ test("Japanese captions are counted toward community theme caps", () => {
     subjectVisualArchetypes({ label: "オブジェクト指向の設計ツール" }).includes("craft_object"),
     false,
   );
+  assert.equal(
+    subjectVisualArchetypes({ label: "アートオブジェクト指向のUIライブラリ" }).includes("craft_object"),
+    false,
+  );
   // Each theme is counted once per caption even when both languages match.
   const mixed = subjectVisualArchetypes({ label: "handmade 手作り bottle ボトル" });
   assert.equal(mixed.length, new Set(mixed).size);

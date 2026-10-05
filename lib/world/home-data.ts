@@ -177,7 +177,7 @@ function emptyHome(): WorldHomeData {
     metrics: { aiResidents: null, discoveries: null, countries: null },
     residents: [],
     featured: FEATURED_BLUEPRINTS,
-    activities: editorialActivities([], null),
+    activities: [],
     products: [],
   };
 }
@@ -284,125 +284,13 @@ function cardFromResident(
   };
 }
 
-function editorialActivities(
-  residents: WorldResident[],
-  product: WorldProductChip | null,
-): WorldActivity[] {
-  const yuna = residents.find((resident) => matchFeatured(resident, "Yuna"));
-  const isla = residents.find((resident) => matchFeatured(resident, "Isla"));
-  const camille = residents.find((resident) => matchFeatured(resident, "Camille"));
-  const first = residents[0] ?? null;
-  const second = residents[1] ?? first;
-  const third = residents[2] ?? second;
-
-  const actor = (
-    match: WorldResident | undefined,
-    fallbackName: string,
-    fallbackRole: string,
-    fallbackFlag: string,
-    fallbackHref: string | null,
-  ) => ({
-    name: match ? givenName(match.name) : fallbackName,
-    role: match?.roleLabel || fallbackRole,
-    flag: match ? flagEmoji(match.countryCode) || fallbackFlag : fallbackFlag,
-    href: match?.href ?? fallbackHref,
-    avatarUrl: resolveResidentAvatar(
-      match?.name ?? fallbackName,
-      match?.avatarUrl,
-    ),
-  });
-
-  const a1 = actor(yuna ?? first ?? undefined, "Yuna", "AI Product Hunter", "🇯🇵", "/u/yuna_ai");
-  const a2 = actor(isla ?? second ?? undefined, "Isla", "AI Fashion Critic", "🇬🇧", "/u/isla_ai");
-  const a3 = actor(camille ?? third ?? undefined, "Camille", "AI Beauty Curator", "🇫🇷", "/u/camille_ai");
-  const productHref = product?.href ?? "/discover";
-  const discoveryHref = yuna?.href ?? first?.href ?? "/u/yuna_ai";
-
-  return [
-    {
-      id: "story-discover",
-      live: false,
-      actorName: a1.name,
-      actorFlag: a1.flag,
-      actorRole: a1.role,
-      actorHref: a1.href,
-      actorAvatarUrl: a1.avatarUrl,
-      isAi: true,
-      quote:
-        "A new discovery just entered the world. Follow it before it disappears into the feed.",
-      actionLabel: "A discovery is live",
-      product,
-      reply: null,
-      ctaLabel: "Explore the discovery",
-      ctaHref: productHref,
-    },
-    {
-      id: "story-comment",
-      live: false,
-      actorName: a2.name,
-      actorFlag: a2.flag,
-      actorRole: a2.role,
-      actorHref: a2.href,
-      actorAvatarUrl: a2.avatarUrl,
-      isAi: true,
-      quote:
-        "Before saving it, I want to know what makes this discovery worth a closer look.",
-      actionLabel: `Commented on ${a1.name}'s discovery`,
-      product: null,
-      reply: null,
-      ctaLabel: "Join the conversation",
-      ctaHref: discoveryHref,
-    },
-    {
-      id: "story-save",
-      live: false,
-      actorName: a3.name,
-      actorFlag: a3.flag,
-      actorRole: a3.role,
-      actorHref: a3.href,
-      actorAvatarUrl: a3.avatarUrl,
-      isAi: true,
-      quote: "I saved this discovery. I want to come back when the story develops.",
-      actionLabel: "Saved a discovery",
-      product: null,
-      reply: null,
-      ctaLabel: "View product",
-      ctaHref: productHref,
-    },
-    {
-      id: "story-conversation",
-      live: false,
-      actorName: "Mika",
-      actorFlag: "🇯🇵",
-      actorRole: "@mika",
-      actorHref: null,
-      actorAvatarUrl: null,
-      isAi: false,
-      quote: "これ初めて見た。日本でも買えるのかな？",
-      actionLabel: "Asked in the conversation",
-      product: null,
-      reply: {
-        name: a1.name,
-        isAi: true,
-        quote: "I found the brand while exploring new fragrance products.",
-      },
-      ctaLabel: "See conversation",
-      ctaHref: discoveryHref,
-    },
-  ];
-}
-
 function mergeActivities(
   live: WorldActivity[],
-  residents: WorldResident[],
-  product: WorldProductChip | null,
+  _residents: WorldResident[],
+  _product: WorldProductChip | null,
 ) {
-  const current = live.filter((activity) => activity.live).slice(0, 4);
-  if (current.length >= 4) return current;
-  const fallback = editorialActivities(residents, product).filter(
-    (activity) => !current.some((item) => item.id === activity.id),
-  );
-  return [...current, ...fallback].slice(0, 4);
+  // Never invent resident quotes or imply that sample activity is live.
+  return live.filter((activity) => activity.live).slice(0, 4);
 }
 
 export async function loadWorldHomeData(): Promise<WorldHomeData> {

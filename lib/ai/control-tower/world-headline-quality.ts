@@ -4,6 +4,10 @@ export type WorldHeadline = {
   kind: string;
   dispatch: string;
   title: string;
+  sourceUrl?: string | null;
+  sourceTitle?: string | null;
+  confidence?: number | null;
+  evidenceCount?: number | null;
 };
 
 function normalizeHeadline(value: string) {

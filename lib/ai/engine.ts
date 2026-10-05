@@ -1,6 +1,7 @@
 import { getActiveAiPersonas, type AiPersona } from "@/lib/ai-post-engine";
 import { getSharedWorldNews } from "@/lib/ai/gdelt";
 import { getGoogleTrendsForWorld } from "@/lib/ai/google-trends";
+import { arxivWorldSourceCollector } from "@/lib/ai/world-sources/arxiv";
 import { ensureAiResidentPopulation } from "@/lib/ai/resident-factory";
 import { ensureFeaturedLivingResidents } from "@/lib/ai/ensure-featured-residents";
 import { runResidentLifeCycle } from "@/lib/ai/resident-life";
@@ -281,6 +282,25 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       worldNews = [];
     }
 
+    let researchSourceCount = 0;
+    try {
+      // Research papers are a first-class discovery source, not just product-search noise.
+      // A bounded official arXiv feed adds AI, robotics, computer architecture,
+      // distributed systems, software engineering, HCI, and networking research.
+      const research = await arxivWorldSourceCollector.collect({ limit: 12 });
+      const seen = new Set(worldNews.map((item) => item.url.replace(/\\/$/, "").toLowerCase()));
+      for (const item of research) {
+        const key = item.url.replace(/\\/$/, "").toLowerCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        worldNews.push(item);
+        researchSourceCount += 1;
+      }
+      console.info("[AI engine] official research items:", researchSourceCount);
+    } catch (error) {
+      console.warn("arXiv research collection failed. Continuing with news feeds.", error);
+    }
+
     let googleTrends: Awaited<ReturnType<typeof getGoogleTrendsForWorld>> = [];
     try {
       googleTrends = await getGoogleTrendsForWorld(["JP", "US", "GB", "KR"], 6);
@@ -366,6 +386,7 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
         factory,
         featuredResidents,
         worldNewsCount: worldNews.length,
+        researchSourceCount,
         results,
         summary,
       },

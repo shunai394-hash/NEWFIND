@@ -78,7 +78,11 @@ export function parseFutureTechFeed(xml: string): FeedEntry[] {
     }
   }
 
-  return entries;
+  return entries.sort((a, b) => {
+    const aDate = Date.parse(a.publishedAt || "") || 0;
+    const bDate = Date.parse(b.publishedAt || "") || 0;
+    return bDate - aDate;
+  });
 }
 
 /**

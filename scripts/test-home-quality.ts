@@ -122,6 +122,13 @@ function main() {
     "unpriced product must fail",
   );
   assert(
+    isHomepageProductEligible(
+      { ...verified, price: null },
+      { requireVerifiedFields: false },
+    ),
+    "a discovery chip with no displayed price may pass when its identity and image are verified",
+  );
+  assert(
     !isHomepageProductEligible({
       ...verified,
       name: "Ceramic Tea Whisk Vertical Tea Whisk Seats",

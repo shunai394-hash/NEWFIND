@@ -128,9 +128,10 @@ export async function decideResidentLifePost(
     "SKIP_POSTは、本当に新しい情報がない、根拠が足りない、または同じ内容を直近で扱ったときに選ぶ。";
   ].join("\n");
 
+  const isWorldExplainer = /種類: 世界情報|情報源の要点:/.test(context);
   const result = await generateAIText(prompt, {
-    temperature: 0.85,
-    maxTokens: 500,
+    temperature: isWorldExplainer ? 0.72 : 0.85,
+    maxTokens: isWorldExplainer ? 1100 : 500,
   });
   const parsed = parseAIJson<ResidentLifeDecision>(result);
   if (!parsed) return { type: "SKIP_POST", reason: "invalid json" };

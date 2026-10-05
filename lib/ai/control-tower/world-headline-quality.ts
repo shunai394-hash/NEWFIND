@@ -17,9 +17,36 @@ function normalizeHeadline(value: string) {
     .replace(/[\p{P}\p{Z}\p{S}]+/gu, "");
 }
 
+function hasVerifiableSource(sourceUrl?: string | null): boolean {
+  if (!sourceUrl?.trim()) return false;
+  try {
+    const url = new URL(sourceUrl);
+    if (url.protocol !== "https:" || url.username || url.password) return false;
+    const host = url.hostname.toLowerCase().replace(/\.$/, "");
+    if (
+      !host ||
+      host === "localhost" ||
+      host.endsWith(".localhost") ||
+      host.endsWith(".local") ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(?:1[6-9]|2\d|3[01])\./.test(host)
+    ) return false;
+    return host.includes(".");
+  } catch {
+    return false;
+  }
+}
+
 export function isPresentableWorldHeadline(headline: WorldHeadline): boolean {
   const title = headline.title.replace(/\s+/g, " ").trim();
   if (title.length < 12) return false;
+
+  // Every public-facing research/news claim must lead to a verifiable source.
+  // Do not make an unsourced title look like a reported discovery.
+  if (!hasVerifiableSource(headline.sourceUrl)) return false;
 
   // Synthetic aggregates can be wrapped in otherwise plausible prose, so
   // reject them anywhere in the title rather than only at the first word.

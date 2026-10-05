@@ -7,6 +7,7 @@ import { logAiActivity } from "@/lib/ai/control-tower/activity-log";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   beatForPersona,
+  beatForExploration,
   classifyWorldInfo,
   correspondentQuery,
   decideWorldDispatch,
@@ -184,6 +185,7 @@ export async function watchWorldForResident(
     return empty;
   }
 
+  const dispatchBeat = beatForExploration(beat, input.exploration?.axis);
   const peer = (input.peerSignals ?? []).find((item) =>
     item.beat === beat.primary ||
     beat.secondary.includes(item.beat) ||
@@ -288,7 +290,7 @@ export async function watchWorldForResident(
     const scores = scoreWorldSignal({
       result,
       infoKind,
-      beat,
+      beat: dispatchBeat,
       knownKeys,
       peerTitles,
     });
@@ -303,7 +305,7 @@ export async function watchWorldForResident(
         activityLevel: persona.activity_level,
         huntingSpecialty: beat.primary,
       },
-      beat,
+      beat: dispatchBeat,
       intent: input.intent,
       infoKind,
       scores,

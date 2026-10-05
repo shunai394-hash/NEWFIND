@@ -535,7 +535,15 @@ async function loadProducts(
       .slice(0, 8);
 
     if (eligible.length) {
-      return eligible.map((row) => ({
+      const seen = new Set<string>();
+      const distinct = eligible.filter((row) => {
+        const key = `${String(row.brand ?? "").trim().toLowerCase()}::${String(row.product_name ?? "").trim().toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      return distinct.slice(0, 8).map((row) => ({
         id: row.id as string,
         brand: (row.brand as string) ?? "",
         name: (row.product_name as string) ?? "",

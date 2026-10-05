@@ -521,7 +521,7 @@ export function isHomepageProductEligible(
   // This catches catalog rows where ingestion copied the manufacturer into both
   // fields (for example, "Young Solutions" / "young solutions").
   const normalizeLabel = (value: string) =>
-    value.toLocaleLowerCase().normalize("NFKC").replace(/[^\\p{L}\\p{N}]+/gu, "");
+    value.toLocaleLowerCase().normalize("NFKC").replace(/[\\p{P}\\p{Z}\\p{S}]+/gu, "");
   if (normalizeLabel(name) === normalizeLabel(brand)) return false;
 
   if (

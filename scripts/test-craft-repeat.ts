@@ -155,3 +155,24 @@ test("posting gate treats tracking-parameter variants of a posted URL as repeats
   );
   assert.deepEqual(kept.map((s) => s.id), ["new"]);
 });
+
+test("the same news article is capped across residents, products are not", () => {
+  const article = "https://lab.example.org/holography?utm_source=rss";
+  const twice = community({
+    sourceCounts: new Map([["https://lab.example.org/holography", 2]]),
+  });
+  const once = community({
+    sourceCounts: new Map([["https://lab.example.org/holography", 1]]),
+  });
+  const news = subject({ id: "news", kind: "news", label: "Holography", sourceUrl: article });
+  assert.deepEqual(dropCommunityRepeatedSubjects([news], once).map((s) => s.id), ["news"]);
+  assert.deepEqual(dropCommunityRepeatedSubjects([news], twice), []);
+  // A product whose official site is a shared brand URL is not an article.
+  const product = subject({
+    id: "product",
+    kind: "hunter",
+    productUrl: "https://lab.example.org/products/x",
+    sourceUrl: "https://lab.example.org/holography",
+  });
+  assert.deepEqual(dropCommunityRepeatedSubjects([product], twice).map((s) => s.id), ["product"]);
+});

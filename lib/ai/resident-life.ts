@@ -1316,6 +1316,8 @@ export type CommunityPostContext = {
   domainCounts: Map<string, number>;
   captions: string[];
   visualArchetypes: Map<string, number>;
+  /** Recent posts per canonical news/source URL (news posts have no product URL). */
+  sourceCounts?: Map<string, number>;
 };
 
 function normalizeHost(value: string | null | undefined): string | null {
@@ -1334,13 +1336,14 @@ async function loadRecentCommunityPostKeys(hours = 24): Promise<CommunityPostCon
     domainCounts: new Map<string, number>(),
     captions: [],
     visualArchetypes: new Map<string, number>(),
+    sourceCounts: new Map<string, number>(),
   };
 
   try {
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("posts")
-      .select("author_id, product_url, discovery_product_id, caption")
+      .select("author_id, product_url, source_url, discovery_product_id, caption")
       .gte("created_at", new Date(Date.now() - hours * 36e5).toISOString())
       .order("created_at", { ascending: false })
       .limit(300);
@@ -1355,6 +1358,12 @@ async function loadRecentCommunityPostKeys(hours = 24): Promise<CommunityPostCon
 
       const discoveryId = String(row.discovery_product_id ?? "").trim();
       if (discoveryId) empty.keys.add(`discovery:${discoveryId}`);
+
+      const rawSource = String(row.source_url ?? "").trim();
+      const sourceKey = rawSource ? canonicalizeSourceUrl(rawSource) : "";
+      if (sourceKey) {
+        empty.sourceCounts!.set(sourceKey, (empty.sourceCounts!.get(sourceKey) ?? 0) + 1);
+      }
 
       const host = normalizeHost(sourceUrl);
       if (host) {
@@ -1433,6 +1442,19 @@ export function dropCommunityRepeatedSubjects(
       subject.discoveryProductId &&
       recentCommunity.keys.has(`discovery:${subject.discoveryProductId}`)
     ) {
+      return false;
+    }
+
+    // News and world reports carry their article in sourceUrl. One other
+    // resident may add a different angle (see the brain prompt); a third post
+    // on the same article within the window is the "everyone posts the same
+    // story" pattern, so stop it here.
+    // Product subjects use the brand's official URL as sourceUrl, which many
+    // different products share, so only apply this to articles.
+    const isArticle = subject.kind === "news" || subject.kind === "world";
+    const source = isArticle ? (subject.sourceUrl || "").trim() : "";
+    const sourceKey = source ? canonicalizeSourceUrl(source) : "";
+    if (sourceKey && (recentCommunity.sourceCounts?.get(sourceKey) ?? 0) >= 2) {
       return false;
     }
 

@@ -1,4 +1,5 @@
 import { parseFutureTechFeed } from "../lib/ai/world-sources/future-tech-news";
+import { ARXIV_FUTURE_TECH_QUERY_GROUPS } from "../lib/ai/world-sources/arxiv";
 import { evaluateCaptionQuality } from "../lib/ai/post-quality";
 
 function assert(condition: unknown, message: string) {
@@ -37,6 +38,15 @@ assert(
 assert(
   !evaluateCaptionQuality({ caption: "A very short research note.", subjectLabel: "research", isEditorial: true }).ok,
   "editorial mode must still reject low-substance short captions",
+);
+
+assert(
+  ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:cs.AR")),
+  "research intake should cover computer architecture and next-generation PC/chip work",
+);
+assert(
+  ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:physics.optics") && query.includes("cat:cs.GR")),
+  "research intake should cover optical/holographic and spatial-computing work",
 );
 
 console.log("Future-tech feed and editorial quality tests passed");

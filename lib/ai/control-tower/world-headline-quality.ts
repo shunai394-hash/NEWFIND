@@ -16,10 +16,19 @@ function normalizeHeadline(value: string) {
 export function isPresentableWorldHeadline(headline: WorldHeadline): boolean {
   const title = headline.title.replace(/\s+/g, " ").trim();
   if (title.length < 12) return false;
-  if (/^(?:trend signal|unknown|untitled|no title|new discovery|discovery)\b/i.test(title)) {
+
+  // Synthetic aggregates can be wrapped in otherwise plausible prose, so
+  // reject them anywhere in the title rather than only at the first word.
+  if (
+    /\b(?:trend\s*signal|unknown|untitled|no\s+title|new\s+discovery|discovery\s+pending|mixed\s+unrelated\s+headlines)\b/i.test(title)
+  ) {
     return false;
   }
-  if (/^(?:expired|rejected|closed)$/i.test(headline.dispatch.trim())) {
+
+  const status = headline.dispatch.trim().toLowerCase();
+  if (
+    /^(?:expired|rejected|closed|archived|failed|cancelled|canceled|draft)$/.test(status)
+  ) {
     return false;
   }
   return true;

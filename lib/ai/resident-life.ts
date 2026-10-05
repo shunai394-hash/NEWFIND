@@ -162,6 +162,7 @@ type PostSubject = {
   sourceUrl?: string | null;
   sourceRef?: string | null;
   sourceTitle?: string | null;
+  sourceSummary?: string | null;
   confidence?: number | null;
   dispatchKind?: string | null;
   discoveryProductId?: string | null;
@@ -319,7 +320,9 @@ async function polishCaption(input: {
       caption = (
         await generateAIText(
           [
-            `Rewrite this NEWFIND resident caption. Keep 1-3 sentences.`,
+            input.subject?.kind === "world" || input.subject?.kind === "news"
+              ? "Rewrite this sourced NEWFIND future-tech explainer. Preserve its factual detail and structured sections; aim for 350-800 Japanese characters when the supplied evidence supports it."
+              : "Rewrite this NEWFIND resident caption. Keep 1-3 sentences.",
             roleCaptionLens(input.persona.resident_role),
             `Resident: ${input.persona.persona_name}`,
             `Personality: ${input.persona.personality}`,
@@ -327,6 +330,11 @@ async function polishCaption(input: {
             input.subject
               ? `Subject: ${input.subject.brand ?? ""} ${input.subject.productName ?? input.subject.label}`
               : "No product subject.",
+            input.subject?.sourceSummary ? `Source summary: ${input.subject.sourceSummary.slice(0, 1000)}` : "",
+            input.subject?.sourceUrl ? `Exact source URL: ${input.subject.sourceUrl}` : "",
+            input.subject?.kind === "world" || input.subject?.kind === "news"
+              ? "Keep claims within the supplied source summary. Separate demonstrated results from future possibilities; do not invent numbers. Keep the exact source URL as a source line. Do not compress the explainer into a generic reaction."
+              : "",
             "Do not copy recent captions.",
             `Recent: ${input.recentCaptions.slice(0, 5).join(" | ") || "none"}`,
             `Original: ${caption}`,
@@ -386,21 +394,28 @@ async function rewriteSubjectCaption(input: {
   subject: PostSubject;
 }): Promise<ResidentLifeDecision> {
   const { persona, playbook, subject } = input;
+  const isWorldSubject = subject.kind === "world" || subject.kind === "news";
   const rewriteContext = `
 ${personaVoiceBlock(persona, playbook)}
 
 この投稿文は題材の本文をコピーしているため使用できません。
-以下の商品について、自分自身の視点で短い投稿文を1つ書いてください。
-商品: ${subject.productName || subject.label}
+${isWorldSubject
+    ? "以下の実在する技術ニュース・研究について、初心者にも価値がある解説投稿を書いてください。根拠がある範囲で、何が新しいか・何が変わるか・活用や新業態の可能性・制約を整理します。"
+    : "以下の商品について、自分自身の視点で短い投稿文を1つ書いてください。"}
+題材: ${subject.productName || subject.label}
 ブランド: ${subject.brand || "不明"}
 カテゴリ: ${subject.category || "other"}
 商品URL: ${subject.productUrl || "なし"}
+情報源URL: ${subject.sourceUrl || "なし"}
+情報源の要点: ${subject.sourceSummary || "提供された要約なし。タイトルだけで詳細を断定しない"}
 元の文章を言い換えるだけではなく、自分の視点を加えてください。
-商品名・ブランド・URLは捏造しないでください。
+商品名・ブランド・URL・技術仕様・性能・費用を捏造しないでください。
 
 ルール:
 - 必ず subjectId "${subject.id}" を使って POST してください。
-- captionは1〜3文。その住民がスマホで書く口調。
+- ${isWorldSubject
+    ? "captionは根拠に応じて350〜800字を目安に、読みやすい見出しを使ってください。研究段階と実用化済みを区別し、事業案は仮説と明記。情報源URLは正確なまま末尾に残す。"
+    : "captionは1〜3文。その住民がスマホで書く口調。"}
 - 題材の本文のコピー・ほぼ同じ言い換えは禁止。
 - 有効な投稿文が書けない場合のみ SKIP_POST。
 `;
@@ -1041,6 +1056,7 @@ async function gatherPostSubjects(
         kind: "world",
         label: dispatch.title.slice(0, 120),
         sourceTitle: dispatch.title,
+        sourceSummary: dispatch.snippet,
         confidence: dispatch.scores.total,
         dispatchKind: dispatch.dispatchKind,
         category: dispatch.infoKind.toLowerCase(),
@@ -1683,7 +1699,10 @@ async function generateCadencePostFallback(input: {
           `Category: ${subject.category || "other"}`,
           `Source URL: ${subject.sourceUrl || subject.productUrl || ""}`,
           "Use only the supplied facts. Do not invent product details.",
-          "Write 1-3 short sentences from the resident's own perspective.",
+          subject.kind === "world" || subject.kind === "news"
+            ? "Write a useful source-backed future-tech explainer for beginners: what changed, why it matters, plausible uses or new business models, and what remains unverified. Aim for 350-800 Japanese characters only when evidence is sufficient; keep the exact source URL."
+            : "Write 1-3 short sentences from the resident's own perspective.",
+          subject.sourceSummary ? `Source summary: ${subject.sourceSummary.slice(0, 1000)}` : "",
           "Do not copy the subject title or source text.",
           "Return only the post caption.",
         ].join("\n"),
@@ -2042,6 +2061,7 @@ export async function runResidentLifeCycle(
             subject.brand ? `ブランド: ${subject.brand}` : "",
             subject.productUrl ? `商品URL: ${subject.productUrl}` : "商品URL: なし",
             subject.sourceUrl ? `情報源: ${subject.sourceUrl}` : "",
+            subject.sourceSummary ? `情報源の要点: ${subject.sourceSummary.slice(0, 700)}` : "",
             subject.kind === "world" ? "種類: 世界情報（商品ページではない）" : "",
           ]
             .filter(Boolean)

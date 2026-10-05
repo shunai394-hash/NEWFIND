@@ -15,6 +15,7 @@ on:
       - "scripts/render-app-icon.mjs"
       - "scripts/check-app-icons.mjs"
       - "lib/capacitor/oauth-return.ts"
+      - "components/oauth-return-listener.tsx"
       - "codemagic.yaml"
       - ".github/workflows/ios-build.yml"
       - "package.json"

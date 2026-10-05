@@ -11,7 +11,15 @@ on:
       - "lib/ai/control-tower/world-headline-quality.ts"
       - "app/api/world/today/route.ts"
       - "scripts/test-world-headline-quality.ts"
+      - "scripts/test-today-exploration.ts"
+      - "scripts/test-ai-correspondent.ts"
       - "scripts/test-home-quality.ts"
+      - "lib/ai/today-exploration.ts"
+      - "lib/ai/world-search.ts"
+      - "lib/ai/correspondent.ts"
+      - "lib/ai/agent-os/quality.ts"
+      - "lib/ai/control-tower/world-report.ts"
+      - "components/world-pulse.tsx"
       - "scripts/render-app-icon.mjs"
       - "scripts/check-app-icons.mjs"
       - "lib/capacitor/oauth-return.ts"
@@ -44,5 +52,9 @@ jobs:
         run: npm run test:home-quality
       - name: World headline quality regression
         run: npm run test:world-headlines
+      - name: AI correspondent research quality
+        run: npm run test:ai-correspondent
+      - name: Daily exploration query quality
+        run: npm run test:today-exploration
       - name: Lint changed quality code
-        run: npx eslint lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts lib/capacitor/oauth-return.ts lib/store/supabase.ts components/oauth-return-listener.tsx components/auth-form.tsx
+        run: npx eslint lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts lib/ai/control-tower/world-report.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts lib/ai/today-exploration.ts lib/ai/world-search.ts lib/ai/correspondent.ts lib/ai/agent-os/quality.ts scripts/test-today-exploration.ts scripts/test-ai-correspondent.ts components/world-pulse.tsx lib/capacitor/oauth-return.ts lib/store/supabase.ts components/oauth-return-listener.tsx components/auth-form.tsx

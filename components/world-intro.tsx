@@ -1,28 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "newfind_world_intro_dismissed";
 
-export function WorldIntro({ force = false }: { force?: boolean }) {
-  const [open, setOpen] = useState(false);
+function subscribe() {
+  // The flag only changes through dismiss() below, which updates local state.
+  return () => {};
+}
 
-  useEffect(() => {
-    const forced =
-      force ||
-      (typeof window !== "undefined" &&
-        new URLSearchParams(window.location.search).get("joined") === "1");
-    if (forced) {
-      setOpen(true);
-      return;
-    }
-    try {
-      setOpen(window.localStorage.getItem(STORAGE_KEY) !== "1");
-    } catch {
-      setOpen(true);
-    }
-  }, [force]);
+/** Whether the intro should show, read on the client only (hidden during SSR). */
+function shouldShowIntro(force: boolean): boolean {
+  if (force) return true;
+  if (new URLSearchParams(window.location.search).get("joined") === "1") return true;
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) !== "1";
+  } catch {
+    return true;
+  }
+}
+
+export function WorldIntro({ force = false }: { force?: boolean }) {
+  const [dismissed, setDismissed] = useState(false);
+  const wantsOpen = useSyncExternalStore(
+    subscribe,
+    () => shouldShowIntro(force),
+    () => false,
+  );
+  const open = wantsOpen && !dismissed;
 
   function dismiss() {
     try {
@@ -30,7 +36,7 @@ export function WorldIntro({ force = false }: { force?: boolean }) {
     } catch {
       // ignore
     }
-    setOpen(false);
+    setDismissed(true);
   }
 
   if (!open) return null;

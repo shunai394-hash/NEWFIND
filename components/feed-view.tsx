@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,6 +20,7 @@ import type { AIPostView, PostView } from "@/lib/types";
 
 const PAGE_SIZE = 24;
 const AI_MIX_RATIO = 0.15;
+const NO_INVESTIGATIONS: InvestigationFeedItem[] = [];
 
 type FeedItem =
   | { type: "human"; post: PostView }
@@ -43,12 +44,11 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   const aiOffsetRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const selected = FEED_CHANNELS.find((item) => item.id === channel) ?? FEED_CHANNELS[0]!;
+  const visibleInvestigations = kind === "foryou" ? investigations : NO_INVESTIGATIONS;
 
   useEffect(() => {
-    if (kind !== "foryou") {
-      setInvestigations([]);
-      return;
-    }
+    // Investigations only appear in For You; other feeds ignore the list below.
+    if (kind !== "foryou") return;
     let cancelled = false;
     fetch("/api/investigations?recent=1", { cache: "no-store" })
       .then((response) => response.json())
@@ -170,7 +170,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
         let investigationIndex = 0;
         const desk =
           kind === "foryou" && replace
-            ? investigations.filter((item) =>
+            ? visibleInvestigations.filter((item) =>
                 ["DISCOVERY", "INVESTIGATING", "VERIFIED"].includes(item.status),
               )
             : [];
@@ -247,7 +247,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
         setLoadingMore(false);
       }
     },
-    [kind, session, selected.categories, blockedIds, investigations],
+    [kind, session, selected.categories, blockedIds, visibleInvestigations],
   );
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {

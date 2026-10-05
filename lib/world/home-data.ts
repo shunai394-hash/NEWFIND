@@ -568,6 +568,9 @@ export function isHomepageProductEligible(
   // The homepage is the first quality impression. Never let weak, anonymous,
   // craft/decor objects or unverified catalog noise become the hero discovery.
   if (!brand || !name || !imageUrl) return false;
+  if (/^(?:unknown|discovery|product|untitled|new discovery|n\/?a|none|null)$/i.test(name)) {
+    return false;
+  }
   if (
     options.requireVerifiedFields !== false &&
     /^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)

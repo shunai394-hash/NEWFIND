@@ -145,12 +145,41 @@ function parseArxivFeed(xml: string): ArxivEntry[] {
   return entries;
 }
 
-async function fetchArxivFeed(
+export const ARXIV_FUTURE_TECH_QUERY_GROUPS = [
+  // AI, robotics, vision, machine learning, and human-computer interaction.
+  "cat:cs.AI OR cat:cs.RO OR cat:cs.CV OR cat:cs.LG OR cat:cs.HC OR cat:cs.HRI",
+  // Computer architecture, chips, systems, electronics, quantum, materials, and energy.
+  "cat:cs.AR OR cat:cs.DC OR cat:cs.ET OR cat:cs.NI OR cat:eess.SY OR cat:eess.SP OR cat:quant-ph OR cat:cond-mat.mtrl-sci OR cat:physics.app-ph",
+] as const;
+
+/** Interleave research areas so a fast-moving AI category cannot crowd out hardware or materials. */
+export function diversifyArxivEntries(
+  groups: ArxivEntry[][],
+  limit: number,
+): ArxivEntry[] {
+  const max = Math.max(0, Math.floor(limit));
+  const seen = new Set<string>();
+  const result: ArxivEntry[] = [];
+  const longest = Math.max(0, ...groups.map((group) => group.length));
+
+  for (let index = 0; index < longest && result.length < max; index += 1) {
+    for (const group of groups) {
+      const entry = group[index];
+      if (!entry || result.length >= max) continue;
+      const key = String(entry.id ?? "").trim().replace(/\\/$/, "").toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      result.push(entry);
+    }
+  }
+
+  return result;
+}
+
+async function fetchArxivQuery(
+  query: string,
   limit: number,
 ): Promise<ArxivEntry[]> {
-  const query =
-    "cat:cs.AI OR cat:cs.RO OR cat:cs.CV OR cat:cs.LG OR cat:cs.AR OR cat:cs.DC OR cat:cs.SE OR cat:cs.ET OR cat:cs.HC OR cat:cs.NI";
-
   const url =
     "https://export.arxiv.org/api/query" +
     `?search_query=${encodeURIComponent(query)}` +
@@ -169,12 +198,31 @@ async function fetchArxivFeed(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `arXiv request failed: ${response.status}`,
-    );
+    throw new Error(`arXiv request failed: ${response.status}`);
   }
 
   return parseArxivFeed(await response.text());
+}
+
+async function fetchArxivFeed(limit: number): Promise<ArxivEntry[]> {
+  const boundedLimit = Math.min(Math.max(limit, 1), 50);
+  const results = await Promise.allSettled(
+    ARXIV_FUTURE_TECH_QUERY_GROUPS.map((query) =>
+      fetchArxivQuery(query, boundedLimit),
+    ),
+  );
+  const fulfilled = results.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
+
+  if (fulfilled.length === 0) {
+    const failure = results.find((result) => result.status === "rejected");
+    throw failure?.status === "rejected"
+      ? failure.reason
+      : new Error("arXiv returned no research feeds");
+  }
+
+  return diversifyArxivEntries(fulfilled, boundedLimit);
 }
 
 export const arxivWorldSourceCollector: WorldSourceCollector = {

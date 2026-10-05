@@ -2,6 +2,7 @@ import { getActiveAiPersonas, type AiPersona } from "@/lib/ai-post-engine";
 import { getSharedWorldNews } from "@/lib/ai/gdelt";
 import { getGoogleTrendsForWorld } from "@/lib/ai/google-trends";
 import { arxivWorldSourceCollector } from "@/lib/ai/world-sources/arxiv";
+import { collectFutureTechNews } from "@/lib/ai/world-sources/future-tech-news";
 import { ensureAiResidentPopulation } from "@/lib/ai/resident-factory";
 import { ensureFeaturedLivingResidents } from "@/lib/ai/ensure-featured-residents";
 import { runResidentLifeCycle } from "@/lib/ai/resident-life";
@@ -283,22 +284,39 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
     }
 
     let researchSourceCount = 0;
+    let futureTechNewsCount = 0;
+    const seenWorldUrls = new Set(
+      worldNews.map((item) => item.url.replace(/\/$/, "").toLowerCase()),
+    );
     try {
-      // Research papers are a first-class discovery source, not just product-search noise.
-      // A bounded official arXiv feed adds AI, robotics, computer architecture,
-      // distributed systems, software engineering, HCI, and networking research.
+      // Academic research is a first-class discovery source, not product-search noise.
       const research = await arxivWorldSourceCollector.collect({ limit: 12 });
-      const seen = new Set(worldNews.map((item) => item.url.replace(/\/$/, "").toLowerCase()));
       for (const item of research) {
         const key = item.url.replace(/\/$/, "").toLowerCase();
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
+        if (!key || seenWorldUrls.has(key)) continue;
+        seenWorldUrls.add(key);
         worldNews.push(item);
         researchSourceCount += 1;
       }
       console.info("[AI engine] official research items:", researchSourceCount);
     } catch (error) {
-      console.warn("arXiv research collection failed. Continuing with news feeds.", error);
+      console.warn("arXiv research collection failed. Continuing with other sources.", error);
+    }
+
+    try {
+      // Pull real publisher and research-lab feeds; one unavailable feed must not
+      // cancel the rest of the resident cycle. These items keep their source URLs.
+      const futureTechNews = await collectFutureTechNews(4);
+      for (const item of futureTechNews) {
+        const key = item.url.replace(/\/$/, "").toLowerCase();
+        if (!key || seenWorldUrls.has(key)) continue;
+        seenWorldUrls.add(key);
+        worldNews.push(item);
+        futureTechNewsCount += 1;
+      }
+      console.info("[AI engine] future-tech news items:", futureTechNewsCount);
+    } catch (error) {
+      console.warn("Future-tech news collection failed. Continuing with shared news.", error);
     }
 
     let googleTrends: Awaited<ReturnType<typeof getGoogleTrendsForWorld>> = [];

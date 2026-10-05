@@ -161,6 +161,9 @@ type PostSubject = {
   category?: string;
   sourceUrl?: string | null;
   sourceRef?: string | null;
+  sourceTitle?: string | null;
+  confidence?: number | null;
+  dispatchKind?: string | null;
   discoveryProductId?: string | null;
   hunterIndex?: number;
   /** World Scout → specialist handoff (listAssignedDiscoveries). */
@@ -1036,7 +1039,10 @@ async function gatherPostSubjects(
       subjects.push({
         id: String(n++),
         kind: "world",
-        label: `${dispatch.dispatchKind} ${dispatch.title}`.slice(0, 80),
+        label: dispatch.title.slice(0, 120),
+        sourceTitle: dispatch.title,
+        confidence: dispatch.scores.total,
+        dispatchKind: dispatch.dispatchKind,
         category: dispatch.infoKind.toLowerCase(),
         mediaUrl: dispatch.imageUrl ?? null,
         sourceUrl: dispatch.url,
@@ -2484,9 +2490,12 @@ ${playbook.workBias}
             relatedRunId: options?.runId ?? null,
             metadata: {
               world: subject.kind === "world",
-              title: subject.label,
+              title: subject.sourceTitle ?? subject.label,
+              sourceTitle: subject.sourceTitle ?? subject.label,
               url: subject.sourceUrl ?? subject.productUrl,
               infoKind: subject.category,
+              dispatchKind: subject.dispatchKind,
+              confidence: subject.confidence,
             },
           });
           const postedId =

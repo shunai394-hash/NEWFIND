@@ -143,14 +143,20 @@ export function AuthForm() {
 
       <form onSubmit={submit} className="mt-8 space-y-3">
         {mode === "signup" ? (
-          <input
+          <>
+            <label htmlFor="signup-display-name" className="sr-only">表示名</label>
+            <input
+            id="signup-display-name"
+            name="displayName"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="表示名"
             autoComplete="nickname"
-            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900"
-          />
+            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+            />
+          </>
         ) : null}
+        <label htmlFor="login-email" className="sr-only">メールアドレス</label>
         <input
           id="login-email"
           name="email"
@@ -164,8 +170,10 @@ export function AuthForm() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="メールアドレス"
           required
-          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900"
+          aria-invalid={Boolean(error)}
+          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
         />
+        <label htmlFor="login-password" className="sr-only">パスワード</label>
         <input
           id="login-password"
           name="password"
@@ -176,7 +184,8 @@ export function AuthForm() {
           placeholder="パスワード"
           required
           minLength={6}
-          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900"
+          aria-invalid={Boolean(error)}
+          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
         />
         {mode === "signup" ? (
           <SignupTermsConsent
@@ -184,7 +193,11 @@ export function AuthForm() {
             onChange={setTermsAccepted}
           />
         ) : null}
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {error ? (
+          <p role="alert" aria-live="polite" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        ) : null}
         <button
           type="submit"
           disabled={busy || (mode === "signup" && !termsAccepted)}
@@ -205,7 +218,8 @@ export function AuthForm() {
           type="button"
           onClick={() => void oauthGoogle()}
           disabled={googleBusy || (mode === "signup" && !termsAccepted)}
-          className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold disabled:opacity-50"
+          aria-busy={googleBusy}
+          className="w-full rounded-lg border border-neutral-200 py-2.5 text-sm font-semibold transition-colors hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:opacity-50"
         >
           {googleBusy ? "Google に接続中..." : "Googleで続ける"}
         </button>
@@ -213,7 +227,8 @@ export function AuthForm() {
           type="button"
           onClick={() => void oauthApple()}
           disabled={appleBusy || (mode === "signup" && !termsAccepted)}
-          className="w-full rounded-lg border border-neutral-200 bg-black py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          aria-busy={appleBusy}
+          className="w-full rounded-lg border border-neutral-200 bg-black py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:opacity-50"
         >
           {appleBusy ? "Apple に接続中..." : "Appleでログイン"}
         </button>

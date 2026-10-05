@@ -149,7 +149,7 @@ async function fetchArxivFeed(
   limit: number,
 ): Promise<ArxivEntry[]> {
   const query =
-    "cat:cs.AI OR cat:cs.RO OR cat:cs.CV OR cat:cs.LG";
+    "cat:cs.AI OR cat:cs.RO OR cat:cs.CV OR cat:cs.LG OR cat:cs.AR OR cat:cs.DC OR cat:cs.SE OR cat:cs.ET OR cat:cs.HC OR cat:cs.NI";
 
   const url =
     "https://export.arxiv.org/api/query" +
@@ -164,6 +164,7 @@ async function fetchArxivFeed(
       Accept: "application/atom+xml",
       "User-Agent": "NEWFIND-World-Intelligence/1.0",
     },
+    signal: AbortSignal.timeout(9_000),
     cache: "no-store",
   });
 

@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "lib/world/home-data.ts"
+      - "lib/ai/control-tower/world-headline-quality.ts"
+      - "app/api/world/today/route.ts"
+      - "scripts/test-world-headline-quality.ts"
       - "scripts/test-home-quality.ts"
       - "package.json"
       - "package-lock.json"
@@ -26,5 +29,7 @@ jobs:
       - run: npm ci
       - name: Homepage quality regression
         run: npm run test:home-quality
+      - name: World headline quality regression
+        run: npm run test:world-headlines
       - name: Lint changed quality code
-        run: npx eslint lib/world/home-data.ts scripts/test-home-quality.ts
+        run: npx eslint lib/world/home-data.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts

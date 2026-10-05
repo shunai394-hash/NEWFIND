@@ -1,6 +1,7 @@
 import { parseFutureTechFeed } from "../lib/ai/world-sources/future-tech-news";
 import { ARXIV_FUTURE_TECH_QUERY_GROUPS } from "../lib/ai/world-sources/arxiv";
 import { evaluateCaptionQuality } from "../lib/ai/post-quality";
+import { worldSourceCollectors } from "../lib/ai/world-sources";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -40,6 +41,10 @@ assert(
   "editorial mode must still reject low-substance short captions",
 );
 
+assert(
+  worldSourceCollectors.some((collector) => collector.source === "future_tech_news"),
+  "future-tech reporting feeds must be wired into the live world intelligence collector",
+);
 assert(
   ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:cs.AR")),
   "research intake should cover computer architecture and next-generation PC/chip work",

@@ -449,6 +449,27 @@ function isUsableProductImageUrl(value: string): boolean {
   }
 }
 
+export function hasVerifiedProductIdentity(product: {
+  officialUrl?: string | null;
+  productUrl?: string | null;
+  sku?: string | null;
+  gtin?: string | null;
+  modelNumber?: string | null;
+}): boolean {
+  const hasSourceUrl = [product.officialUrl, product.productUrl].some((value) => {
+    try {
+      const url = new URL(String(value ?? ""));
+      return url.protocol === "https:" && Boolean(url.hostname);
+    } catch {
+      return false;
+    }
+  });
+  const hasStructuredIdentity = [product.sku, product.gtin, product.modelNumber].some(
+    (value) => Boolean(String(value ?? "").trim()),
+  );
+  return hasSourceUrl || hasStructuredIdentity;
+}
+
 export function isHomepageProductEligible(
   product: {
     brand: string;
@@ -529,20 +550,14 @@ async function loadProducts(
       // An actual product/source URL is useful identity evidence too; requiring
       // only SKU/GTIN/model fields can hide every approved item in catalogs
       // whose trusted source URL is already the canonical product reference.
-      const hasSourceUrl = [row.official_url, row.product_url].some((value) => {
-        try {
-          const url = new URL(String(value ?? ""));
-          return url.protocol === "https:" && Boolean(url.hostname);
-        } catch {
-          return false;
-        }
-      });
-      const hasStructuredIdentity = [row.sku, row.gtin, row.model_number].some(
-        (value) => Boolean(String(value ?? "").trim()),
-      );
-
       return Number(row.confidence_score ?? 0) >= 55 &&
-        (hasSourceUrl || hasStructuredIdentity);
+        hasVerifiedProductIdentity({
+          officialUrl: row.official_url as string | null,
+          productUrl: row.product_url as string | null,
+          sku: row.sku as string | null,
+          gtin: row.gtin as string | null,
+          modelNumber: row.model_number as string | null,
+        });
     });
 
     if (eligible.length) {

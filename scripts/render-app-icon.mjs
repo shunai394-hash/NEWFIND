@@ -379,10 +379,14 @@ async function main() {
   const apple180 = await pngFromSvg(withBg, 180, { opaque: true });
   const icon32 = await pngFromSvg(compact, 32, { opaque: true });
   const icon256 = await pngFromSvg(withBg, 256, { opaque: true });
+  const icon32Ico = await pngFromSvg(compact, 32, { transparent: true });
+  const icon256Ico = await pngFromSvg(withBg, 256, { transparent: true });
   const fg432 = await pngFromSvg(foreground, 432, { transparent: true });
+  // PNG payloads inside ICO must be RGBA; opaque RGB PNGs fail Turbopack's
+  // favicon decoder even though the same files are valid launcher assets.
   const favicon = icoFromPngs([
-    { width: 32, height: 32, png: icon32 },
-    { width: 256, height: 256, png: icon256 },
+    { width: 32, height: 32, png: icon32Ico },
+    { width: 256, height: 256, png: icon256Ico },
   ]);
 
   await writeFile("public/brand/icon-1024.png", marketing1024);

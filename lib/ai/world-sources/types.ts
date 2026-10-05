@@ -67,18 +67,20 @@ export function dedupeWorldSourceItems(
     const item = normalizeWorldSourceItem(rawItem);
     let key = "";
 
-    // The URL identifies the actual article/release/product and can dedupe a
-    // syndicated story across collectors. sourceRef may be a non-URL ID (e.g.
-    // an arXiv id), so it is only the fallback when the item URL is invalid.
+    // Canonicalize URL-shaped source references (e.g. arXiv article URLs)
+    // so tracking variants dedupe. Keep opaque IDs source-scoped: Product Hunt
+    // and GitHub IDs are not URLs, and two entries can legitimately link to a
+    // shared product homepage.
+    const sourceRef = item.sourceRef.trim();
     try {
-      const parsed = new URL(item.url);
+      const parsed = new URL(sourceRef);
       if (parsed.protocol === "https:" || parsed.protocol === "http:") {
-        key = `url:${canonicalizeSourceUrl(item.url)}`;
+        key = `url:${canonicalizeSourceUrl(sourceRef)}`;
       }
     } catch {
-      // Use the source-specific reference below for non-URL items.
+      // Opaque source references use the source-specific fallback below.
     }
-    if (!key) key = `${item.sourceName}:${item.sourceRef || item.url}`;
+    if (!key) key = `${item.sourceName}:${sourceRef || item.url}`;
 
     if (seen.has(key)) continue;
     seen.add(key);

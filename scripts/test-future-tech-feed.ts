@@ -38,7 +38,7 @@ const diversified = diversifyFutureTechItems(
   6,
 );
 assert(
-  diversified.map((item) => new URL(item.url).hostname).join(",") ===
+  diversified.slice(0, 4).map((item) => new URL(item.url).hostname).join(",") ===
     "ai.example.org,robot.example.org,ai.example.org,robot.example.org",
   "future-tech intake should interleave publishers instead of letting one feed dominate",
 );

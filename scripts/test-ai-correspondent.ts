@@ -186,6 +186,13 @@ function main() {
   });
   assert(yunaBeat.primary === "beauty", `Yuna beat should be beauty, got ${yunaBeat.primary}`);
   assert(yunaBeat.regions.includes("Japan"), "Yuna covers Japan");
+  const futureTechBeat = beatForPersona({
+    username: "alex_tech_ai",
+    expertise: ["robotics", "semiconductors", "computing"],
+    interests: ["AI"],
+    countryCode: "US",
+  });
+  assert(futureTechBeat.primary === "tech", "robotics, AI, chips and computing must map to the tech beat");
 
   const clusters = detectTrendClusters([
     { title: "niacinamide serum launch korea", url: "https://a.test/1" },

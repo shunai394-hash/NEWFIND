@@ -87,6 +87,10 @@ function main() {
     "unknown brand must fail the homepage quality gate",
   );
   assert(
+    !isHomepageProductEligible({ ...verified, brand: "Young Solutions", name: "young solutions" }),
+    "a brand duplicated as the product name must not be presented as a discovery",
+  );
+  assert(
     !isHomepageProductEligible(
       { ...verified, brand: "Discovery" },
       { requireVerifiedFields: false },

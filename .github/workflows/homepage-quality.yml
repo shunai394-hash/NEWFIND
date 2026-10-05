@@ -21,6 +21,10 @@ on:
       - "lib/ai/resident-life.ts"
       - "lib/ai/gdelt.ts"
       - "lib/ai/world-sources/arxiv.ts"
+      - "lib/ai/world-sources/future-tech-news.ts"
+      - "lib/ai/post-quality.ts"
+      - "lib/ai/brain.ts"
+      - "scripts/test-future-tech-feed.ts"
       - "lib/ai/agent-os/quality.ts"
       - "lib/ai/control-tower/world-report.ts"
       - "components/world-pulse.tsx"
@@ -58,9 +62,11 @@ jobs:
         run: npm run test:home-quality
       - name: World headline quality regression
         run: npm run test:world-headlines
+      - name: Future-tech feed and editorial quality regression
+        run: npm run test:future-tech-feed
       - name: AI correspondent research quality
         run: npm run test:ai-correspondent
       - name: Daily exploration query quality
         run: npm run test:today-exploration
       - name: Lint changed quality code
-        run: npx eslint lib/ai/engine.ts lib/ai/resident-life.ts lib/ai/gdelt.ts lib/ai/world-sources/arxiv.ts lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts lib/ai/control-tower/world-report.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts lib/ai/today-exploration.ts lib/ai/world-search.ts lib/ai/correspondent.ts lib/ai/agent-os/quality.ts scripts/test-today-exploration.ts scripts/test-ai-correspondent.ts components/world-pulse.tsx lib/capacitor/oauth-return.ts lib/store/supabase.ts components/oauth-return-listener.tsx components/auth-form.tsx
+        run: npx eslint lib/ai/engine.ts lib/ai/resident-life.ts lib/ai/brain.ts lib/ai/post-quality.ts lib/ai/gdelt.ts lib/ai/world-sources/arxiv.ts lib/ai/world-sources/future-tech-news.ts scripts/test-future-tech-feed.ts lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts lib/ai/control-tower/world-report.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts lib/ai/today-exploration.ts lib/ai/world-search.ts lib/ai/correspondent.ts lib/ai/agent-os/quality.ts scripts/test-today-exploration.ts scripts/test-ai-correspondent.ts components/world-pulse.tsx lib/capacitor/oauth-return.ts lib/store/supabase.ts components/oauth-return-listener.tsx components/auth-form.tsx

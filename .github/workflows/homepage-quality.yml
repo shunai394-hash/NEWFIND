@@ -15,6 +15,8 @@ on:
       - "scripts/render-app-icon.mjs"
       - "scripts/check-app-icons.mjs"
       - "lib/capacitor/oauth-return.ts"
+      - "lib/store/supabase.ts"
+      - "components/auth-form.tsx"
       - "components/oauth-return-listener.tsx"
       - "codemagic.yaml"
       - ".github/workflows/ios-build.yml"
@@ -43,4 +45,4 @@ jobs:
       - name: World headline quality regression
         run: npm run test:world-headlines
       - name: Lint changed quality code
-        run: npx eslint lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts lib/capacitor/oauth-return.ts
+        run: npx eslint lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts lib/capacitor/oauth-return.ts lib/store/supabase.ts components/oauth-return-listener.tsx components/auth-form.tsx

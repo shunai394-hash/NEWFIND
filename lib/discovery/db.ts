@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient as createPublicServerClient } from "@/lib/supabase/server";
+import { createClient as createPublicSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isAiPersonDiscoveryMedia } from "@/lib/products/discovery-filter";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { normalizeBrand, normalizeProductName, sourceDomain } from "@/lib/discovery/normalize";
@@ -99,11 +99,31 @@ function adminDb() {
   return createAdminClient();
 }
 
-async function discoveryDb(admin = false) {
-  // Public discovery reads must use the anon key + RLS, not a service-role key.
-  // This keeps public product pages deployable in preview environments without
-  // granting elevated credentials to a read-only path.
-  return admin ? adminDb() : createPublicServerClient();
+let publicDiscoveryClient: SupabaseClient | null = null;
+
+function publicDb() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!url || !key) {
+    throw new Error("公開商品を読み込むためのSupabase設定がありません");
+  }
+
+  if (!publicDiscoveryClient) {
+    publicDiscoveryClient = createPublicSupabaseClient(url, key, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+  }
+  return publicDiscoveryClient;
+}
+
+function discoveryDb(admin = false) {
+  // This module is shared by browser and server code. Keep public reads on a
+  // browser-safe anon-key client; elevated writes remain on the admin client.
+  return admin ? adminDb() : publicDb();
 }
 
 function mapSource(row: SourceRow): DiscoverySource {

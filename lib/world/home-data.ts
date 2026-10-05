@@ -459,10 +459,7 @@ export function isHomepageProductEligible(
   if (/^(?:unknown|discovery|product|untitled|new discovery|n\/?a|none|null)$/i.test(name)) {
     return false;
   }
-  if (
-    options.requireVerifiedFields !== false &&
-    /^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)
-  ) {
+  if (/^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)) {
     return false;
   }
   if (

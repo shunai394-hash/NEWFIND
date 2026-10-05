@@ -17,6 +17,10 @@ on:
       - "lib/ai/today-exploration.ts"
       - "lib/ai/world-search.ts"
       - "lib/ai/correspondent.ts"
+      - "lib/ai/engine.ts"
+      - "lib/ai/resident-life.ts"
+      - "lib/ai/gdelt.ts"
+      - "lib/ai/world-sources/arxiv.ts"
       - "lib/ai/agent-os/quality.ts"
       - "lib/ai/control-tower/world-report.ts"
       - "components/world-pulse.tsx"
@@ -48,6 +52,8 @@ jobs:
       - run: npm ci
       - name: Final app icon validation
         run: npm run icons:finalize
+      - name: TypeScript verification
+        run: npx tsc --noEmit
       - name: Homepage quality regression
         run: npm run test:home-quality
       - name: World headline quality regression
@@ -57,4 +63,4 @@ jobs:
       - name: Daily exploration query quality
         run: npm run test:today-exploration
       - name: Lint changed quality code
-        run: npx eslint lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts lib/ai/control-tower/world-report.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts lib/ai/today-exploration.ts lib/ai/world-search.ts lib/ai/correspondent.ts lib/ai/agent-os/quality.ts scripts/test-today-exploration.ts scripts/test-ai-correspondent.ts components/world-pulse.tsx lib/capacitor/oauth-return.ts lib/store/supabase.ts components/oauth-return-listener.tsx components/auth-form.tsx
+        run: npx eslint lib/ai/engine.ts lib/ai/resident-life.ts lib/ai/gdelt.ts lib/ai/world-sources/arxiv.ts lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts lib/ai/control-tower/world-report.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts lib/ai/today-exploration.ts lib/ai/world-search.ts lib/ai/correspondent.ts lib/ai/agent-os/quality.ts scripts/test-today-exploration.ts scripts/test-ai-correspondent.ts components/world-pulse.tsx lib/capacitor/oauth-return.ts lib/store/supabase.ts components/oauth-return-listener.tsx components/auth-form.tsx

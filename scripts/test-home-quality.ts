@@ -1,4 +1,4 @@
-import { hasVerifiedProductIdentity, isHomepageProductEligible } from "../lib/world/home-data";
+import { hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible } from "../lib/world/home-data";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);

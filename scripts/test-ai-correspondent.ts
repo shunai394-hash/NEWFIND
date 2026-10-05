@@ -15,7 +15,7 @@ import {
   namedCorrespondentIdentity,
 } from "../lib/ai/correspondent-identity";
 import { applyExperience, buildSelfState, formIntent } from "../lib/ai/self-model";
-import type { WorldSearchResult } from "../lib/ai/world-search";
+import { sourceTypeFromDomain, type WorldSearchResult } from "../lib/ai/world-search";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -125,6 +125,21 @@ function main() {
     sourceRole: "product",
     domain: "aesop.com",
   });
+
+  const arxivResearch = result({
+    title: "A new study demonstrates more efficient on-device language model inference",
+    url: "https://arxiv.org/abs/2601.12345",
+    snippet: "Research paper evaluating inference latency, memory use, and energy consumption.",
+    sourceType: sourceTypeFromDomain("arxiv.org"),
+    sourceRole: "general",
+    publishedAt: new Date().toISOString(),
+    domain: "arxiv.org",
+  });
+  assert(arxivResearch.sourceType === "editorial", "arXiv must be recognized as a specialist research source");
+  assert(classifyWorldInfo(arxivResearch) === "RESEARCH", "research papers must be classified as RESEARCH");
+  assert(worldQualityGate({ result: arxivResearch, infoKind: "RESEARCH" }).ok, "peer-reviewed/preprint sources must pass source quality gating");
+  assert(sourceTypeFromDomain("nvidia.com") === "brand_official", "official technology research announcements must retain provenance");
+  assert(sourceTypeFromDomain("dl.acm.org") === "editorial", "ACM conference/library sources must be recognized as specialist research");
 
   const mira = persona("Mira", "mira_beauty_ai", "product_hunter", ["skincare", "beauty"]);
   const leo = persona("Leo", "leo_fashion_ai", "product_hunter", ["fashion"]);

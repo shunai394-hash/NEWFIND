@@ -59,6 +59,11 @@ function main() {
     "legitimate functional bottle must remain eligible",
   );
 
+  assert(
+    isHomepageProductEligible({ ...verified, name: "Handcrafted leather wallet" }),
+    "handcrafted functional product must not be rejected just for being handcrafted",
+  );
+
   console.log("Homepage quality gate tests passed");
 }
 

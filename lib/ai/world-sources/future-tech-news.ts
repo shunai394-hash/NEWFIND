@@ -81,6 +81,41 @@ export function parseFutureTechFeed(xml: string): FeedEntry[] {
   return entries;
 }
 
+/**
+ * Keep the intelligence stream genuinely multi-source: sort each publisher's
+ * feed by recency, then interleave publishers instead of letting one prolific
+ * RSS feed occupy the whole batch. URLs are deduplicated across feeds.
+ */
+export function diversifyFutureTechItems<T extends { url: string; publishedAt?: string | null }>(
+  groups: T[][],
+  limit: number,
+): T[] {
+  const max = Math.max(0, Math.floor(limit));
+  const sortedGroups = groups.map((group) =>
+    [...group].sort((a, b) => {
+      const aDate = Date.parse(a.publishedAt || "") || 0;
+      const bDate = Date.parse(b.publishedAt || "") || 0;
+      return bDate - aDate;
+    }),
+  );
+  const seen = new Set<string>();
+  const result: T[] = [];
+  const longest = Math.max(0, ...sortedGroups.map((group) => group.length));
+
+  for (let index = 0; index < longest && result.length < max; index += 1) {
+    for (const group of sortedGroups) {
+      const item = group[index];
+      if (!item || result.length >= max) continue;
+      const key = item.url.replace(/[?#].*$/, "").replace(/\/$/, "").toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      result.push(item);
+    }
+  }
+
+  return result;
+}
+
 async function collectFeed(source: FeedSource, limit: number): Promise<WorldSourceItem[]> {
   const response = await fetch(source.url, {
     headers: {
@@ -131,29 +166,17 @@ export async function collectFutureTechNews(limit = 4): Promise<WorldSourceItem[
   const results = await Promise.allSettled(
     FUTURE_TECH_FEEDS.map((source) => collectFeed(source, boundedLimit)),
   );
-  const seen = new Set<string>();
-  const items: WorldSourceItem[] = [];
+  const groups: WorldSourceItem[][] = [];
 
   for (const result of results) {
     if (result.status === "rejected") {
       console.warn("[Future Tech Desk] feed unavailable:", result.reason);
       continue;
     }
-    for (const item of result.value) {
-      const key = item.url.replace(/[?#].*$/, "").replace(/\/$/, "").toLowerCase();
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      items.push(item);
-    }
+    groups.push(result.value);
   }
 
-  return items
-    .sort((a, b) => {
-      const aDate = Date.parse(a.publishedAt || "") || 0;
-      const bDate = Date.parse(b.publishedAt || "") || 0;
-      return bDate - aDate;
-    })
-    .slice(0, boundedLimit * 3);
+  return diversifyFutureTechItems(groups, boundedLimit * 3);
 }
 
 

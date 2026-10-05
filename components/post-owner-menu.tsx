@@ -44,13 +44,6 @@ export function PostOwnerMenu({
     }
   }
 
-  function openMenu(event: React.MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    setOpen(true);
-  }
-
   function closeMenu(event: React.MouseEvent) {
     event.preventDefault();
     event.stopPropagation();

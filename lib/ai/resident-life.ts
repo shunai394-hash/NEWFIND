@@ -258,7 +258,7 @@ function fallbackLifePost(
   return { type: "SKIP_POST", reason: "quality-first skip instead of template post" };
 }
 
-function fallbackLifeTweet(_persona: AiPersona): ResidentLifeDecision {
+function fallbackLifeTweet(): ResidentLifeDecision {
   return { type: "SKIP_POST", reason: "no template tweet on API fallback" };
 }
 
@@ -1155,7 +1155,7 @@ function subjectVisualArchetypes(subject: {
     ["bottle", /\b(?:bottle|flacon|vial|ampoule|perfume|parfum|fragrance)\b/],
     ["jar", /\b(?:jar|pot|balm|cream|ointment)\b/],
     ["vessel", /\b(?:vessel|ceramic|pottery|potter|stoneware|tableware|container)\b/],
-    ["craft_object", /\b(?:craft|crafted|craftsmanship|ceramic|pottery|potter|vessel|artisan|handmade|maker)\b/],
+    ["craft_object", /\b(?:craft|crafted|craftsmanship|ceramic|pottery|potter|vessel|artisan|handmade|hand-blown|handblown|glassblowing|vase)\b/],
     ["lip", /\b(?:lipstick|lip gloss|lip balm|lip tint|lip liner)\b/],
     ["eye", /\b(?:mascara|eyeliner|eye shadow|eyeshadow)\b/],
     ["shoe", /\b(?:shoe|sneaker|trainer|loafer|boot|heel)\b/],
@@ -1281,12 +1281,12 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<Rec
     }
     return empty;
   } catch (error) {
-    console.error("loadRecentOwnPostKeys failed", personaSafeName(profileId), error);
+    console.error("loadRecentOwnPostKeys failed", personaSafeName(), error);
     return empty;
   }
 }
 
-function personaSafeName(_profileId: string) {
+function personaSafeName() {
   return "AI resident";
 }
 
@@ -1393,14 +1393,6 @@ function dropCommunityRepeatedSubjects(
       return false;
     }
 
-    // Craft/vessel objects were repeatedly leaking across unrelated residents.
-    // Keep the feed diverse without suppressing ordinary fashion/beauty objects.
-    if (
-      subjectArchetypes.includes("craft_object") &&
-      (recentCommunity.visualArchetypes.get("craft_object") ?? 0) >= 2
-    ) {
-      return false;
-    }
 
     // Brand concentration is softer than URL/domain duplication. Only apply
     // it when the subject has an explicit brand and that brand appears in
@@ -2424,7 +2416,7 @@ ${playbook.workBias}
     mayTweet &&
     playbook.allowTrendTweet
   ) {
-    workDecision = fallbackLifeTweet(persona);
+    workDecision = fallbackLifeTweet();
   }
 
   if (workDecision.type === "POST") {

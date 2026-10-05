@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import { CorrespondentByline } from "@/components/correspondent-identity-card";
 import { namedCorrespondentIdentity } from "@/lib/ai/correspondent-identity";
-import { ProductLinkButton } from "@/components/product-link-button";
 import { categoryLabel } from "@/lib/categories";
 import { timeAgo } from "@/lib/format";
 import type { AIPostView } from "@/lib/types";

@@ -40,35 +40,6 @@ function isDue(persona: AiPersona, now = Date.now()): boolean {
   return !Number.isFinite(parsed) || parsed <= now;
 }
 
-function pickByRole(personas: AiPersona[], limit: number): AiPersona[] {
-  const byRole = new Map<string, AiPersona[]>();
-  for (const persona of personas) {
-    const role = persona.resident_role || "general_user";
-    const list = byRole.get(role) ?? [];
-    list.push(persona);
-    byRole.set(role, list);
-  }
-  for (const list of byRole.values()) {
-    list.sort((a, b) => dueStamp(a) - dueStamp(b));
-  }
-
-  const picked: AiPersona[] = [];
-  const roles = [...byRole.keys()];
-  while (picked.length < limit) {
-    let added = false;
-    for (const role of roles) {
-      if (picked.length >= limit) break;
-      const next = byRole.get(role)?.shift();
-      if (next) {
-        picked.push(next);
-        added = true;
-      }
-    }
-    if (!added) break;
-  }
-  return picked;
-}
-
 function pickResidentsToAct(
   personas: AiPersona[],
   limit: number,

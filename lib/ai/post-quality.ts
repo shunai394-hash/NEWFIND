@@ -110,7 +110,7 @@ export function evaluateCaptionQuality(
   if (caption.length < 12) {
     return { ok: false, needsRewrite: true, reason: "too_short" };
   }
-  if (input.isEditorial ? caption.length < 180 : captionIsGeneric(caption)) {
+  if (input.isEditorial ? caption.length < 180 || !/https:\/\/\S+/i.test(caption) : captionIsGeneric(caption)) {
     return { ok: false, needsRewrite: true, reason: "generic_caption" };
   }
   if (!input.isEditorial && !captionHasConcreteObservation(caption)) {

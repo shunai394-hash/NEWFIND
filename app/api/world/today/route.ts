@@ -19,6 +19,10 @@ export async function GET() {
     dispatch: item.status,
     title: item.summary || item.title,
     status: item.status,
+    sourceUrl: item.sourceUrl,
+    sourceTitle: item.sourceTitle,
+    confidence: item.confidence,
+    evidenceCount: item.evidenceCount,
   }));
 
   // Keep the public world pulse distinct and evidence-shaped: never surface

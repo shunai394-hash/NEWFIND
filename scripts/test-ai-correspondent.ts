@@ -16,6 +16,10 @@ import {
 } from "../lib/ai/correspondent-identity";
 import { applyExperience, buildSelfState, formIntent } from "../lib/ai/self-model";
 import { sourceTypeFromDomain, type WorldSearchResult } from "../lib/ai/world-search";
+import {
+  ARXIV_FUTURE_TECH_QUERY_GROUPS,
+  diversifyArxivEntries,
+} from "../lib/ai/world-sources/arxiv";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -125,6 +129,38 @@ function main() {
     sourceRole: "product",
     domain: "aesop.com",
   });
+
+  assert(
+    ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => /cat:cs\\.RO/.test(query)) &&
+      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => /cat:cs\\.AR/.test(query)) &&
+      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => /cat:quant-ph/.test(query)) &&
+      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => /cat:cond-mat\\.mtrl-sci/.test(query)),
+    "research intake must cover robotics, computer architecture, quantum, and advanced materials",
+  );
+  const diversified = diversifyArxivEntries(
+    [
+      [
+        { id: "https://arxiv.org/abs/ai-1", title: "AI paper 1" },
+        { id: "https://arxiv.org/abs/ai-2", title: "AI paper 2" },
+        { id: "https://arxiv.org/abs/shared", title: "Shared paper" },
+      ],
+      [
+        { id: "https://arxiv.org/abs/hardware-1", title: "Hardware paper 1" },
+        { id: "https://arxiv.org/abs/materials-1", title: "Materials paper 1" },
+        { id: "https://arxiv.org/abs/shared", title: "Duplicate shared paper" },
+      ],
+    ],
+    5,
+  );
+  assert(diversified.length === 5, "research diversification should fill the requested limit");
+  assert(
+    diversified[0]?.id?.includes("ai-1") && diversified[1]?.id?.includes("hardware-1"),
+    "research intake should alternate AI and hardware/materials instead of letting one category dominate",
+  );
+  assert(
+    new Set(diversified.map((entry) => entry.id)).size === diversified.length,
+    "research intake should deduplicate identical source URLs across query groups",
+  );
 
   const arxivResearch = result({
     title: "A new study demonstrates more efficient on-device language model inference",

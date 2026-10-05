@@ -575,6 +575,14 @@ async function loadProducts(
       const price = Number(row.price);
       return row.price != null && Number.isFinite(price) && price > 0;
     }).length,
+    rowsWithEligibleProductFields: candidateRows.filter((row) =>
+      isHomepageProductEligible({
+        brand: String(row.brand ?? ""),
+        name: String(row.product_name ?? ""),
+        imageUrl: String(row.product_image_url ?? ""),
+        description: String(row.description ?? ""),
+      }, { requireVerifiedFields: false }),
+    ).length,
     rowsWithVerifiedIdentity: rowsWithVerifiedIdentity,
     rowsWithEligibleConfidence: candidateRows.filter((row) =>
       isHomepageProductConfidenceEligible(

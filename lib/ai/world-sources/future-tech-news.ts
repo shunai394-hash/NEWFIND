@@ -17,9 +17,11 @@ export const FUTURE_TECH_FEEDS: FeedSource[] = [
   { name: "MIT News — Artificial Intelligence", url: "https://news.mit.edu/rss/topic/artificial-intelligence2", focus: "ai" },
   { name: "The Robot Report", url: "https://www.therobotreport.com/feed/", focus: "robotics" },
   { name: "IEEE Spectrum — Robotics", url: "https://spectrum.ieee.org/feeds/topic/robotics.rss", focus: "robotics" },
+  { name: "IEEE Spectrum — Computing", url: "https://spectrum.ieee.org/feeds/topic/computing.rss", focus: "computing" },
   { name: "Google Research", url: "https://blog.research.google/feeds/posts/default?alt=rss", focus: "research" },
   { name: "TechCrunch — AI", url: "https://techcrunch.com/category/artificial-intelligence/feed/", focus: "ai" },
   { name: "NASA Technology", url: "https://www.nasa.gov/feed/", focus: "research" },
+  { name: "NVIDIA Blog", url: "https://blogs.nvidia.com/feed/", focus: "computing" },
 ];
 
 function decodeXml(value: string): string {

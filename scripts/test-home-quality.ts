@@ -19,6 +19,10 @@ function main() {
     "anonymous product must fail",
   );
   assert(
+    !isHomepageProductEligible({ ...verified, brand: "Unknown" }),
+    "unknown brand must fail the homepage quality gate",
+  );
+  assert(
     !isHomepageProductEligible({ ...verified, imageUrl: null }),
     "product without image must fail",
   );

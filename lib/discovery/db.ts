@@ -301,7 +301,7 @@ export async function getDiscoveryProductFromDb(id: string, admin = false) {
 }
 
 export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
-  const supabase = discoveryDb();
+  const supabase = await discoveryDb(true);
 
   // AI住民が同じ商品を再発見しても、既存Discovery商品を重複登録しない。
   // product_url の一意制約は維持し、既存商品をそのまま返す。
@@ -516,10 +516,10 @@ export async function listDiscoveryProductsByIdsFromDb(
   if (unique.length === 0) return [];
   const admin = Boolean(options?.admin);
   const requireImage = options?.requireImage !== false;
-  const supabase = discoveryDb();
+  const supabase = await discoveryDb(admin);
   const { data, error } = await supabase.from("discovery_products").select("*").in("id", unique);
   if (error) throw new Error(error.message);
-  const products = await hydrate(discoveryDb(), (data ?? []) as ProductRow[]);
+  const products = await hydrate(supabase, (data ?? []) as ProductRow[]);
   const visible = products.filter((item) => {
     if (!admin && item.status !== "approved") return false;
     if (!admin && requireImage && !isUsableProductImage(item.productImageUrl)) return false;

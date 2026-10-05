@@ -131,7 +131,7 @@ function isGarbageProductUrl(url: string): boolean {
   }
 }
 
-function sourceTypeFromDomain(
+export function sourceTypeFromDomain(
   domain: string,
 ): WorldSearchResult["sourceType"] {
   const d = domain.toLowerCase();

@@ -1,4 +1,4 @@
-import { isHomepageProductEligible } from "../lib/world/home-data";
+import { hasVerifiedProductIdentity, isHomepageProductEligible } from "../lib/world/home-data";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -14,6 +14,26 @@ function main() {
   };
 
   assert(isHomepageProductEligible(verified), "verified product should pass");
+  assert(
+    hasVerifiedProductIdentity({ productUrl: "https://brand.example/products/item" }),
+    "canonical product URL should count as source identity evidence",
+  );
+  assert(
+    hasVerifiedProductIdentity({ officialUrl: "https://brand.example/item" }),
+    "official URL should count as source identity evidence",
+  );
+  assert(
+    hasVerifiedProductIdentity({ sku: "SKU-100" }),
+    "structured SKU should count as identity evidence",
+  );
+  assert(
+    !hasVerifiedProductIdentity({ productUrl: "http://brand.example/item" }),
+    "insecure source URL alone must not count as identity evidence",
+  );
+  assert(
+    !hasVerifiedProductIdentity({}),
+    "missing source and structured identity must fail",
+  );
   assert(
     !isHomepageProductEligible(
       { brand: "Discovery", name: "Discovery", imageUrl: "https://example.com/product.jpg" },

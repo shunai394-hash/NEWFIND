@@ -1,4 +1,4 @@
-import { parseFutureTechFeed } from "../lib/ai/world-sources/future-tech-news";
+import { diversifyFutureTechItems, parseFutureTechFeed } from "../lib/ai/world-sources/future-tech-news";
 import { ARXIV_FUTURE_TECH_QUERY_GROUPS } from "../lib/ai/world-sources/arxiv";
 import { evaluateCaptionQuality } from "../lib/ai/post-quality";
 import { worldSourceCollectors } from "../lib/ai/world-sources";
@@ -19,6 +19,31 @@ assert(rssItems.length === 1, "RSS parser should keep only complete HTTPS items"
 assert(rssItems[0].title === "Robot learns new manipulation task", "RSS title should be preserved");
 assert(rssItems[0].link === "https://robotics.example.org/story?id=7", "RSS source URL should be preserved");
 assert(rssItems[0].description.includes("reduced setup time"), "RSS summary should be decoded");
+
+const diversified = diversifyFutureTechItems(
+  [
+    [
+      { url: "https://ai.example.org/newest", publishedAt: "2026-10-06T10:00:00Z" },
+      { url: "https://ai.example.org/older", publishedAt: "2026-10-05T10:00:00Z" },
+      { url: "https://shared.example.org/story?utm_source=ai", publishedAt: "2026-10-04T10:00:00Z" },
+    ],
+    [
+      { url: "https://robot.example.org/newest", publishedAt: "2026-10-06T09:00:00Z" },
+      { url: "https://robot.example.org/older", publishedAt: "2026-10-05T09:00:00Z" },
+      { url: "https://shared.example.org/story", publishedAt: "2026-10-04T09:00:00Z" },
+    ],
+  ],
+  4,
+);
+assert(
+  diversified.map((item) => new URL(item.url).hostname).join(",") ===
+    "ai.example.org,robot.example.org,ai.example.org,robot.example.org",
+  "future-tech intake should interleave publishers instead of letting one feed dominate",
+);
+assert(
+  new Set(diversified.map((item) => item.url.replace(/[?#].*$/, ""))).size === diversified.length,
+  "future-tech intake should deduplicate the same article across feeds",
+);
 
 const atom = `<feed><entry><title>Research on holographic displays</title><link rel="alternate" type="text/html" href="https://lab.example.org/holography"/><summary>Researchers report a new optical approach.</summary><published>2026-10-05T08:00:00Z</published></entry></feed>`;
 const atomItems = parseFutureTechFeed(atom);

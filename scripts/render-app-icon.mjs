@@ -81,68 +81,60 @@ function masterSvg({
   const tx = inset + (size - size * markScale) / 2;
   const ty = inset + (size - size * markScale) / 2 + markY;
 
+  // Final NEWFIND mark: a bold discovery lens with a four-point spark.
+  // The silhouette stays recognizable at notification and home-screen sizes.
+  const mark = `
+    <g fill="none" stroke="${LIME}" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="448" cy="448" r="248" stroke-width="66"/>
+      <path d="M 625 625 L 824 824" stroke-width="82"/>
+    </g>
+    <path d="M 626 242 L 665 326 L 749 365 L 665 404 L 626 488 L 587 404 L 503 365 L 587 326 Z" fill="${LIME}"/>
+    <circle cx="448" cy="448" r="104" fill="${BLACK}"/>
+    <circle cx="448" cy="448" r="43" fill="${LIME}"/>
+  `;
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${view} ${view}" width="${view}" height="${view}" role="img" aria-label="NEWFIND">
   ${background ? `<rect width="${view}" height="${view}" fill="${BLACK}"/>` : ""}
   <g transform="translate(${tx} ${ty}) scale(${scale})">
-    <defs>
-      <clipPath id="world-a">
-        <circle cx="${C1.x}" cy="${C1.y}" r="${RADIUS}"/>
-      </clipPath>
-    </defs>
-    <circle cx="${C2.x}" cy="${C2.y}" r="${RADIUS}" fill="${LIME}" clip-path="url(#world-a)"/>
-    <circle cx="${C1.x}" cy="${C1.y}" r="${RADIUS}" fill="none" stroke="${LIME}" stroke-width="${STROKE}"/>
-    <circle cx="${C2.x}" cy="${C2.y}" r="${RADIUS}" fill="none" stroke="${LIME}" stroke-width="${STROKE}"/>
+    ${mark}
   </g>
-  ${wordmark ? wordmarkSvg(view / 2, view * 0.86, 13, 16) : ""}
+  ${wordmark ? `<text x="${view / 2}" y="${view * 0.92}" fill="${LIME}" font-family="Arial, Helvetica, sans-serif" font-size="${view * 0.075}" font-weight="700" letter-spacing="${view * 0.018}" text-anchor="middle">NEWFIND</text>` : ""}
 </svg>
 `;
 }
 
 function compactCenters() {
-  const d = 9.7;
-  const angle = (30 * Math.PI) / 180;
-  const dx = Math.cos(angle) * (d / 2);
-  const dy = Math.sin(angle) * (d / 2);
   return {
-    r: 8.15,
-    stroke: 2.4,
-    a: { x: round(16 - dx), y: round(16 - dy) },
-    b: { x: round(16 + dx), y: round(16 + dy) },
+    ring: { x: 14, y: 14, r: 9.2 },
+    handle: { x1: 20.1, y1: 20.1, x2: 27.2, y2: 27.2 },
+    spark: { x: 21.0, y: 7.8 },
   };
 }
 
 function compactSvg() {
-  const { r, stroke, a, b } = compactCenters();
-
+  const { ring, handle, spark } = compactCenters();
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="NEWFIND">
   <rect width="32" height="32" fill="${BLACK}"/>
-  <defs>
-    <clipPath id="world-a">
-      <circle cx="${a.x}" cy="${a.y}" r="${r}"/>
-    </clipPath>
-  </defs>
-  <circle cx="${b.x}" cy="${b.y}" r="${r}" fill="${LIME}" clip-path="url(#world-a)"/>
-  <circle cx="${a.x}" cy="${a.y}" r="${r}" fill="none" stroke="${LIME}" stroke-width="${stroke}"/>
-  <circle cx="${b.x}" cy="${b.y}" r="${r}" fill="none" stroke="${LIME}" stroke-width="${stroke}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="${ring.r}" fill="none" stroke="${LIME}" stroke-width="2.8"/>
+  <path d="M ${handle.x1} ${handle.y1} L ${handle.x2} ${handle.y2}" fill="none" stroke="${LIME}" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M ${spark.x} 3.1 L ${spark.x + 1.2} 6.6 L ${spark.x + 4.7} ${spark.y} L ${spark.x + 1.2} 9.0 L ${spark.x} 12.5 L ${spark.x - 1.2} 9.0 L ${spark.x - 4.7} ${spark.y} L ${spark.x - 1.2} 6.6 Z" fill="${LIME}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="3.0" fill="${BLACK}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="1.45" fill="${LIME}"/>
 </svg>
 `;
 }
 
 function compactFgSvg() {
-  const { r, stroke, a, b } = compactCenters();
-
+  const { ring, handle, spark } = compactCenters();
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <defs>
-    <clipPath id="world-a">
-      <circle cx="${a.x}" cy="${a.y}" r="${r}"/>
-    </clipPath>
-  </defs>
-  <circle cx="${b.x}" cy="${b.y}" r="${r}" fill="${LIME}" clip-path="url(#world-a)"/>
-  <circle cx="${a.x}" cy="${a.y}" r="${r}" fill="none" stroke="${LIME}" stroke-width="${stroke}"/>
-  <circle cx="${b.x}" cy="${b.y}" r="${r}" fill="none" stroke="${LIME}" stroke-width="${stroke}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="${ring.r}" fill="none" stroke="${LIME}" stroke-width="2.8"/>
+  <path d="M ${handle.x1} ${handle.y1} L ${handle.x2} ${handle.y2}" fill="none" stroke="${LIME}" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M ${spark.x} 3.1 L ${spark.x + 1.2} 6.6 L ${spark.x + 4.7} ${spark.y} L ${spark.x + 1.2} 9.0 L ${spark.x} 12.5 L ${spark.x - 1.2} 9.0 L ${spark.x - 4.7} ${spark.y} L ${spark.x - 1.2} 6.6 Z" fill="${LIME}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="3.0" fill="${BLACK}"/>
+  <circle cx="${ring.x}" cy="${ring.y}" r="1.45" fill="${LIME}"/>
 </svg>
 `;
 }

@@ -59,3 +59,24 @@ jobs:
 
       - name: AI patrol execution path
         run: npm run test:hunter-ops
+
+      - name: Future-tech feed and source identity regression
+        run: npm run test:future-tech-feed
+
+      - name: Homepage product quality regression
+        run: npm run test:home-quality
+
+      - name: Public world headline quality regression
+        run: npm run test:world-headlines
+
+      - name: Native OAuth and login regression
+        run: npm run test:auth
+
+      - name: Account security and Apple revocation regression
+        run: npm run test:security
+
+      - name: App icon completeness and consistency
+        run: npm run icons:check
+
+      - name: Production build
+        run: npm run build

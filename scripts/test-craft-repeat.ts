@@ -47,6 +47,7 @@ const USEFUL = [
   "手作り器具セット",
   "クラフト瓶詰めジャム",
   "陶器のマグカップ",
+  "オブジェクト指向プログラミングの設計ツール",
 ];
 
 test("decorative craft objects are detected in English and Japanese", () => {

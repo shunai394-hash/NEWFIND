@@ -146,13 +146,13 @@ export function AuthForm() {
           <>
             <label htmlFor="signup-display-name" className="sr-only">表示名</label>
             <input
-            id="signup-display-name"
-            name="displayName"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="表示名"
-            autoComplete="nickname"
-            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+              id="signup-display-name"
+              name="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="表示名"
+              autoComplete="nickname"
+              className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
             />
           </>
         ) : null}
@@ -170,7 +170,6 @@ export function AuthForm() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="メールアドレス"
           required
-          aria-invalid={Boolean(error)}
           className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
         />
         <label htmlFor="login-password" className="sr-only">パスワード</label>
@@ -201,7 +200,7 @@ export function AuthForm() {
         <button
           type="submit"
           disabled={busy || (mode === "signup" && !termsAccepted)}
-          className="w-full rounded-lg bg-[#C6FF00] py-2.5 text-sm font-semibold text-black disabled:opacity-50"
+          className="w-full rounded-lg bg-[#C6FF00] py-2.5 text-sm font-semibold text-black transition-colors hover:bg-[#b5e800] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:opacity-50"
         >
           {mode === "signup" ? "登録する" : "ログイン"}
         </button>

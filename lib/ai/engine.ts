@@ -288,9 +288,9 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       // A bounded official arXiv feed adds AI, robotics, computer architecture,
       // distributed systems, software engineering, HCI, and networking research.
       const research = await arxivWorldSourceCollector.collect({ limit: 12 });
-      const seen = new Set(worldNews.map((item) => item.url.replace(/\\/$/, "").toLowerCase()));
+      const seen = new Set(worldNews.map((item) => item.url.replace(/\/$/, "").toLowerCase()));
       for (const item of research) {
-        const key = item.url.replace(/\\/$/, "").toLowerCase();
+        const key = item.url.replace(/\/$/, "").toLowerCase();
         if (!key || seen.has(key)) continue;
         seen.add(key);
         worldNews.push(item);

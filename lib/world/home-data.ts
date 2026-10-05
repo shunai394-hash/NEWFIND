@@ -230,7 +230,7 @@ function toResident(
   };
 }
 
-function featuredFromResidents(residents: WorldResident[]): WorldResidentCard[] {
+export function featuredFromResidents(residents: WorldResident[]): WorldResidentCard[] {
   const used = new Set<string>();
   const cards: WorldResidentCard[] = [];
 

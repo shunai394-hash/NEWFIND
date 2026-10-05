@@ -502,7 +502,7 @@ async function loadProducts(
     )
     .eq("status", "approved")
     .order("created_at", { ascending: false })
-    .limit(24);
+    .limit(100);
 
   if (!error && data?.length) {
     const eligible = data
@@ -537,44 +537,9 @@ async function loadProducts(
     }
   }
 
-  // Keep the world homepage populated from real AI product posts even when
-  // discovery_products has not been materialized yet. Never invent a product:
-  // only published AI posts carrying an actual product URL are eligible.
-  const { data: aiPosts, error: aiPostError } = await supabase
-    .from("ai_posts")
-    .select("id, product_url, product_label, media_url, thumbnail_url, published_at")
-    .eq("status", "published")
-    .not("product_url", "is", null)
-    .neq("product_url", "")
-    .order("published_at", { ascending: false })
-    .limit(24);
-
-  if (aiPostError) {
-    console.warn("[world-home] products", error?.message ?? aiPostError.message);
-    return [];
-  }
-
-  return (aiPosts ?? [])
-    .map((row) => ({
-      id: String(row.id),
-      brand: "",
-      name: String(row.product_label ?? "Discovery"),
-      imageUrl:
-        (row.thumbnail_url as string | null) ||
-        (row.media_url as string | null),
-      href: String(row.product_url),
-    }))
-    .filter((product) =>
-      isHomepageProductEligible(
-        {
-          brand: product.brand || "Discovery",
-          name: product.name,
-          imageUrl: product.imageUrl,
-          price: null,
-        },
-        { requireVerifiedFields: false },
-      ),
-    );
+  // A homepage with no fully verified products is better than a polished
+  // card with an unknown brand, missing price, or weak product identity.
+  return [];
 }
 
 async function countDiscoveries(

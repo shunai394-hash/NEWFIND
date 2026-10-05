@@ -449,6 +449,20 @@ function isUsableProductImageUrl(value: string): boolean {
   }
 }
 
+export function isHomepageProductConfidenceEligible(
+  confidenceScore: number | string | null | undefined,
+  hasVerifiedIdentity: boolean,
+): boolean {
+  if (!hasVerifiedIdentity) return false;
+  if (confidenceScore == null || confidenceScore === "") {
+    // Legacy approved rows may predate confidence scoring. Approved status plus
+    // a verifiable source/structured identity is the fallback evidence.
+    return true;
+  }
+  const score = Number(confidenceScore);
+  return Number.isFinite(score) && score >= 55;
+}
+
 export function hasVerifiedProductIdentity(product: {
   officialUrl?: string | null;
   productUrl?: string | null;
@@ -531,7 +545,7 @@ async function loadProducts(
     )
     .eq("status", "approved")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(300);
 
   if (!error && data?.length) {
     const eligible = data.filter((row) => {
@@ -550,14 +564,18 @@ async function loadProducts(
       // An actual product/source URL is useful identity evidence too; requiring
       // only SKU/GTIN/model fields can hide every approved item in catalogs
       // whose trusted source URL is already the canonical product reference.
-      return Number(row.confidence_score ?? 0) >= 55 &&
-        hasVerifiedProductIdentity({
-          officialUrl: row.official_url as string | null,
-          productUrl: row.product_url as string | null,
-          sku: row.sku as string | null,
-          gtin: row.gtin as string | null,
-          modelNumber: row.model_number as string | null,
-        });
+      const hasVerifiedIdentity = hasVerifiedProductIdentity({
+        officialUrl: row.official_url as string | null,
+        productUrl: row.product_url as string | null,
+        sku: row.sku as string | null,
+        gtin: row.gtin as string | null,
+        modelNumber: row.model_number as string | null,
+      });
+
+      return isHomepageProductConfidenceEligible(
+        row.confidence_score as number | string | null,
+        hasVerifiedIdentity,
+      );
     });
 
     if (eligible.length) {

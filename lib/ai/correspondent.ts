@@ -153,8 +153,9 @@ export function classifyWorldInfo(result: {
 
   if (role === "product" || /\/products?\//i.test(path)) return "PRODUCT";
   if (
-    /research|study|whitepaper|arxiv|journal/.test(text) ||
-    /\/research\//.test(path)
+    /research|study|whitepaper|arxiv|journal|proceedings|conference paper|preprint/.test(text) ||
+    /\/research\//.test(path) ||
+    /https?:\/\/(?:arxiv\.org|ieeexplore\.ieee\.org|dl\.acm\.org|proceedings\.mlr\.press)\//i.test(path)
   ) {
     return "RESEARCH";
   }

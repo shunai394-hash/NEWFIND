@@ -108,6 +108,14 @@ function main() {
     pickNextAxis({ recentAxes: ["emerging_brands", "new_products"], lastOutcome: "posted" }) === "future_technology",
     "future-facing research must recur at least every third exploration turn",
   );
+  assert(
+    pickNextAxis({ recentAxes: ["new_products"], lastOutcome: "posted" }) === "future_technology",
+    "future-tech reporting should be prioritized on the next successful exploration turn",
+  );
+  assert(
+    pickNextAxis({ recentAxes: ["future_technology"], lastOutcome: "posted" }) !== "future_technology",
+    "future-tech turns should alternate with other discovery axes rather than repeat consecutively",
+  );
 
   const islaIntent = formIntent({
     persona: isla,

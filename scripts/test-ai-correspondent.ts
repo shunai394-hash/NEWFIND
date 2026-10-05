@@ -140,6 +140,15 @@ function main() {
   assert(worldQualityGate({ result: arxivResearch, infoKind: "RESEARCH" }).ok, "peer-reviewed/preprint sources must pass source quality gating");
   assert(sourceTypeFromDomain("nvidia.com") === "brand_official", "official technology research announcements must retain provenance");
   assert(sourceTypeFromDomain("dl.acm.org") === "editorial", "ACM conference/library sources must be recognized as specialist research");
+  const conferencePaper = result({
+    title: "Proceedings: A new robot planning benchmark",
+    url: "https://proceedings.mlr.press/v999/example.html",
+    snippet: "Conference proceedings on robot planning and embodied AI.",
+    sourceType: "editorial",
+    sourceRole: "general",
+    domain: "proceedings.mlr.press",
+  });
+  assert(classifyWorldInfo(conferencePaper) === "RESEARCH", "conference proceedings must be classified as RESEARCH");
 
   const mira = persona("Mira", "mira_beauty_ai", "product_hunter", ["skincare", "beauty"]);
   const leo = persona("Leo", "leo_fashion_ai", "product_hunter", ["fashion"]);

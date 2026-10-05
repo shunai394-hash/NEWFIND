@@ -1,0 +1,30 @@
+name: Homepage quality regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/world/home-data.ts"
+      - "scripts/test-home-quality.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/homepage-quality.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  homepage-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Homepage quality regression
+        run: npm run test:home-quality
+      - name: Lint changed quality code
+        run: npx eslint lib/world/home-data.ts scripts/test-home-quality.ts

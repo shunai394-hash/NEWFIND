@@ -28,6 +28,9 @@
           echo "=== KEYCHAIN ==="
           security find-identity -v -p codesigning || true
 
+      - name: Render and verify final app icons
+        script: npm run icons:finalize
+
       - name: Set production Capacitor URL
         script: |
           export CAPACITOR_SERVER_URL="https://newfind-self.vercel.app"

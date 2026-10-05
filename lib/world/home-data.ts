@@ -547,6 +547,41 @@ async function loadProducts(
     .order("created_at", { ascending: false })
     .limit(300);
 
+  const candidateRows = data ?? [];
+  const rowsWithVerifiedIdentity = candidateRows.filter((row) =>
+    hasVerifiedProductIdentity({
+      officialUrl: row.official_url as string | null,
+      productUrl: row.product_url as string | null,
+      sku: row.sku as string | null,
+      gtin: row.gtin as string | null,
+      modelNumber: row.model_number as string | null,
+    }),
+  ).length;
+  console.info("[world-home] homepage product quality gate", {
+    queryErrorCode: error?.code ?? null,
+    approvedRows: candidateRows.length,
+    rowsWithHttpsImage: candidateRows.filter((row) =>
+      isUsableProductImageUrl(String(row.product_image_url ?? "")),
+    ).length,
+    rowsWithPositivePrice: candidateRows.filter((row) => {
+      const price = Number(row.price);
+      return row.price != null && Number.isFinite(price) && price > 0;
+    }).length,
+    rowsWithVerifiedIdentity: rowsWithVerifiedIdentity,
+    rowsWithEligibleConfidence: candidateRows.filter((row) =>
+      isHomepageProductConfidenceEligible(
+        row.confidence_score as number | string | null,
+        hasVerifiedProductIdentity({
+          officialUrl: row.official_url as string | null,
+          productUrl: row.product_url as string | null,
+          sku: row.sku as string | null,
+          gtin: row.gtin as string | null,
+          modelNumber: row.model_number as string | null,
+        }),
+      ),
+    ).length,
+  });
+
   if (!error && data?.length) {
     const eligible = data.filter((row) => {
       if (

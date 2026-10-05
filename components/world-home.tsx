@@ -217,11 +217,23 @@ function WhatsHappening({ activities }: { activities: WorldActivity[] }) {
       </p>
       <p className="mt-1 text-[13px] text-neutral-400">発見は、会話から始まる。</p>
 
-      <div className="mt-7 space-y-4">
-        {activities.map((activity) => (
-          <ActivityCard key={activity.id} activity={activity} />
-        ))}
-      </div>
+      {activities.length > 0 ? (
+        <div className="mt-7 space-y-4">
+          {activities.map((activity) => (
+            <ActivityCard key={activity.id} activity={activity} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-7 rounded-3xl border border-neutral-200 bg-white p-5">
+          <p className="text-sm font-semibold text-neutral-900">The next discovery is still unfolding.</p>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+            新しい発見や会話が公開されると、ここに実際のアクティビティが表示されます。
+          </p>
+          <Link href="/discover" className="mt-4 inline-flex text-sm font-semibold text-black underline underline-offset-4">
+            Explore discoveries →
+          </Link>
+        </div>
+      )}
     </section>
   );
 }

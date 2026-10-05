@@ -140,34 +140,33 @@ function compactFgSvg() {
 }
 
 function androidVector() {
-  const scale = 108 / MASTER;
-  const a = { x: C1.x * scale, y: C1.y * scale };
-  const b = { x: C2.x * scale, y: C2.y * scale };
-  const r = RADIUS * scale;
-  const stroke = STROKE * scale;
+  const ring = circlePath({ x: 448, y: 448 }, 248);
+  const star = "M 626 242 L 665 326 L 749 365 L 665 404 L 626 488 L 587 404 L 503 365 L 587 326 Z";
+  const handle = "M 625 625 L 824 824";
+  const center = circlePath({ x: 448, y: 448 }, 104);
+  const core = circlePath({ x: 448, y: 448 }, 43);
 
   return `<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <group>
-        <clip-path android:pathData="${circlePath(a, r)}"/>
-        <path
-            android:fillColor="${LIME}"
-            android:pathData="${circlePath(b, r)}"/>
-    </group>
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
     <path
         android:fillColor="#00000000"
+        android:pathData="${ring}"
         android:strokeColor="${LIME}"
-        android:strokeWidth="${round(stroke)}"
-        android:pathData="${circlePath(a, r)}"/>
+        android:strokeWidth="66"/>
     <path
         android:fillColor="#00000000"
+        android:pathData="${handle}"
         android:strokeColor="${LIME}"
-        android:strokeWidth="${round(stroke)}"
-        android:pathData="${circlePath(b, r)}"/>
+        android:strokeWidth="82"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <path android:fillColor="${LIME}" android:pathData="${star}"/>
+    <path android:fillColor="${BLACK}" android:pathData="${center}"/>
+    <path android:fillColor="${LIME}" android:pathData="${core}"/>
 </vector>
 `;
 }

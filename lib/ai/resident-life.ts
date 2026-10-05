@@ -1012,7 +1012,17 @@ async function gatherPostSubjects(
       if (dispatch.decision !== "POST") continue;
       if (dispatch.infoKind === "PRODUCT") continue;
       if (!isHttpUrl(dispatch.url)) continue;
-      if (!isUsableProductImage(dispatch.imageUrl ?? null)) continue;
+      const personaBeat = [
+        persona.resident_role,
+        ...(persona.expertise ?? []),
+        ...(persona.interests ?? []),
+        ...(persona.preferred_categories ?? []),
+      ].join(" ").toLowerCase();
+      const beautyBeat = /beauty|fragrance|skincare|cosmetic|perfume|makeup/.test(personaBeat);
+      // Beauty/lifestyle product coverage keeps its image bar. Research and
+      // technology dispatches are allowed to be text-first: arXiv papers and
+      // conference announcements often have no social image at all.
+      if (beautyBeat && !isUsableProductImage(dispatch.imageUrl ?? null)) continue;
       if (
         !isBeautyCorrespondentWorldSubject(persona, {
           title: dispatch.title,

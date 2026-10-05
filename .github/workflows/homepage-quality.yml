@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "lib/world/home-data.ts"
+      - "lib/discovery/db.ts"
       - "lib/ai/control-tower/world-headline-quality.ts"
       - "app/api/world/today/route.ts"
       - "scripts/test-world-headline-quality.ts"
@@ -32,4 +33,4 @@ jobs:
       - name: World headline quality regression
         run: npm run test:world-headlines
       - name: Lint changed quality code
-        run: npx eslint lib/world/home-data.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts
+        run: npx eslint lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts

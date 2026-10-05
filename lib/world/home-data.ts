@@ -449,6 +449,14 @@ function isUsableProductImageUrl(value: string): boolean {
   }
 }
 
+export function normalizeHomepageProductPrice(value: unknown): number | null {
+  if (value == null || (typeof value === "string" && !value.trim())) return null;
+  const normalized = typeof value === "string"
+    ? Number(value.trim().replace(/,/g, ""))
+    : Number(value);
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : null;
+}
+
 export function isHomepageProductConfidenceEligible(
   confidenceScore: number | string | null | undefined,
   hasVerifiedIdentity: boolean,
@@ -589,7 +597,7 @@ async function loadProducts(
           brand: String(row.brand ?? ""),
           name: String(row.product_name ?? ""),
           imageUrl: (row.product_image_url as string | null) ?? null,
-          price: typeof row.price === "number" ? row.price : null,
+          price: normalizeHomepageProductPrice(row.price),
           description: (row.description as string | null) ?? null,
         })
       ) {

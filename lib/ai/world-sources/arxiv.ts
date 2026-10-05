@@ -147,7 +147,7 @@ function parseArxivFeed(xml: string): ArxivEntry[] {
 
 export const ARXIV_FUTURE_TECH_QUERY_GROUPS = [
   // AI, robotics, vision, machine learning, and human-computer interaction.
-  "cat:cs.AI OR cat:cs.RO OR cat:cs.CV OR cat:cs.LG OR cat:cs.HC OR cat:cs.HRI",
+  "cat:cs.AI OR cat:cs.RO OR cat:cs.CV OR cat:cs.LG OR cat:cs.HC",
   // Computer architecture, chips, systems, electronics, quantum, materials, and energy.
   "cat:cs.AR OR cat:cs.DC OR cat:cs.ET OR cat:cs.NI OR cat:eess.SY OR cat:eess.SP OR cat:quant-ph OR cat:cond-mat.mtrl-sci OR cat:physics.app-ph",
 ] as const;
@@ -166,7 +166,8 @@ export function diversifyArxivEntries(
     for (const group of groups) {
       const entry = group[index];
       if (!entry || result.length >= max) continue;
-      const key = String(entry.id ?? "").trim().replace(/\\/$/, "").toLowerCase();
+      const rawKey = String(entry.id ?? "").trim().toLowerCase();
+      const key = rawKey.endsWith("/") ? rawKey.slice(0, -1) : rawKey;
       if (!key || seen.has(key)) continue;
       seen.add(key);
       result.push(entry);

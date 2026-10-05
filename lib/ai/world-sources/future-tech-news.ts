@@ -1,4 +1,5 @@
 import type { WorldSearchResult } from "@/lib/ai/world-search";
+import type { WorldSourceCollector, WorldSourceItem } from "./types";
 
 type FeedSource = {
   name: string;
@@ -18,6 +19,8 @@ export const FUTURE_TECH_FEEDS: FeedSource[] = [
   { name: "The Robot Report", url: "https://www.therobotreport.com/feed/", focus: "robotics" },
   { name: "IEEE Spectrum — Robotics", url: "https://spectrum.ieee.org/feeds/topic/robotics.rss", focus: "robotics" },
   { name: "Google Research", url: "https://blog.research.google/feeds/posts/default?alt=rss", focus: "research" },
+  { name: "TechCrunch — AI", url: "https://techcrunch.com/category/artificial-intelligence/feed/", focus: "ai" },
+  { name: "NASA Technology", url: "https://www.nasa.gov/feed/", focus: "research" },
 ];
 
 function decodeXml(value: string): string {
@@ -77,7 +80,7 @@ export function parseFutureTechFeed(xml: string): FeedEntry[] {
   return entries;
 }
 
-async function collectFeed(source: FeedSource, limit: number): Promise<WorldSearchResult[]> {
+async function collectFeed(source: FeedSource, limit: number): Promise<WorldSourceItem[]> {
   const response = await fetch(source.url, {
     headers: {
       Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
@@ -110,6 +113,10 @@ async function collectFeed(source: FeedSource, limit: number): Promise<WorldSear
       sourceReliability: "publisher_feed",
       retrievedAt: new Date().toISOString(),
       classificationReason: "future-tech-feed:" + source.focus,
+      sourceName: "future_tech_news" as const,
+      sourceRef: entry.link,
+      signalType: "technology" as const,
+      metadata: { feed: source.name, focus: source.focus },
     };
   });
 }
@@ -118,7 +125,7 @@ async function collectFeed(source: FeedSource, limit: number): Promise<WorldSear
  * Collect independent reporting and lab updates for the future-tech desk.
  * Each feed is isolated so a single publisher outage never blocks the others.
  */
-export async function collectFutureTechNews(limit = 4): Promise<WorldSearchResult[]> {
+export async function collectFutureTechNews(limit = 4): Promise<WorldSourceItem[]> {
   const boundedLimit = Math.min(Math.max(Math.floor(limit), 1), 8);
   const results = await Promise.allSettled(
     FUTURE_TECH_FEEDS.map((source) => collectFeed(source, boundedLimit)),
@@ -147,3 +154,12 @@ export async function collectFutureTechNews(limit = 4): Promise<WorldSearchResul
     })
     .slice(0, boundedLimit * 3);
 }
+
+
+/** Official lab updates and independent technology reporting for the future-tech desk. */
+export const futureTechNewsWorldSourceCollector: WorldSourceCollector = {
+  source: "future_tech_news",
+  collect(context = {}) {
+    return collectFutureTechNews(context.limit ?? 8);
+  },
+};

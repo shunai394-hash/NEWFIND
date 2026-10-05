@@ -516,6 +516,14 @@ export function isHomepageProductEligible(
   if (/^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)) {
     return false;
   }
+
+  // A brand name repeated as the product name is not a meaningful discovery.
+  // This catches catalog rows where ingestion copied the manufacturer into both
+  // fields (for example, "Young Solutions" / "young solutions").
+  const normalizeLabel = (value: string) =>
+    value.toLocaleLowerCase().normalize("NFKC").replace(/[^\\p{L}\\p{N}]+/gu, "");
+  if (normalizeLabel(name) === normalizeLabel(brand)) return false;
+
   if (
     options.requireVerifiedFields !== false &&
     (product.price == null || !Number.isFinite(product.price) || product.price <= 0)

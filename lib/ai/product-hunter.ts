@@ -1,3 +1,4 @@
+import { isDecorativeCraftObject } from "@/lib/ai/craft-object";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { canonicalProductUrl } from "@/lib/discovery/rules";
 import { generateAIText } from "./groq";
@@ -296,7 +297,10 @@ const REJECT_PRODUCT_PATTERNS = [
 ];
 
 export function isRejectedProductType(text: string): boolean {
-  return REJECT_PRODUCT_PATTERNS.some((pattern) => pattern.test(text));
+  return (
+    isDecorativeCraftObject(text) ||
+    REJECT_PRODUCT_PATTERNS.some((pattern) => pattern.test(text))
+  );
 }
 
 export function sourceIdentityMatches(

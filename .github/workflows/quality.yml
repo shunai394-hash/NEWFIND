@@ -53,3 +53,9 @@ jobs:
 
       - name: Marketplace pipeline regression tests
         run: npm run test:marketplace
+
+      - name: Craft-object repetition regression
+        run: npm run test:craft-repeat
+
+      - name: AI patrol execution path
+        run: npm run test:hunter-ops

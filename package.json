@@ -16,6 +16,8 @@
         "test:home-quality": "tsx scripts/test-home-quality.ts",
         "test:world-headlines": "tsx scripts/test-world-headline-quality.ts",
         "test:future-tech-feed": "tsx scripts/test-future-tech-feed.ts",
+        "test:craft-repeat": "tsx --test scripts/test-craft-repeat.ts",
+        "test:hunter-ops": "tsx scripts/test-hunter-ops.ts",
         "test:tracer-integration": "tsx scripts/test-tracer-integration.ts",
         "test:auth": "tsx --test scripts/test-auth-flow.ts",
         "test:security": "tsx --test scripts/test-account-security.ts",

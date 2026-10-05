@@ -23,6 +23,10 @@ on:
       - "lib/ai/world-sources/arxiv.ts"
       - "lib/ai/world-sources/future-tech-news.ts"
       - "lib/ai/post-quality.ts"
+      - "lib/ai/craft-object.ts"
+      - "lib/ai/product-hunter.ts"
+      - "lib/world/home-data.ts"
+      - "scripts/test-craft-repeat.ts"
       - "lib/ai/brain.ts"
       - "scripts/test-future-tech-feed.ts"
       - "lib/ai/agent-os/quality.ts"
@@ -65,6 +69,8 @@ jobs:
         run: npm run test:world-headlines
       - name: Future-tech feed and editorial quality regression
         run: npm run test:future-tech-feed
+      - name: Craft-object repetition regression
+        run: npm run test:craft-repeat
       - name: AI correspondent research quality
         run: npm run test:ai-correspondent
       - name: Daily exploration query quality

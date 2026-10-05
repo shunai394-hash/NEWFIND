@@ -1,3 +1,5 @@
+import { canonicalizeSourceUrl } from "@/lib/ai/agent-os/hash";
+import { isDecorativeCraftObject } from "@/lib/ai/craft-object";
 import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
 import { siteUrl } from "@/lib/config";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -150,7 +152,7 @@ export type ResidentLifeCycleResult = {
   };
 };
 
-type PostSubject = {
+export type PostSubject = {
   id: string;
   kind: "hunter" | "catalog" | "discovery" | "world" | "feed" | "news";
   label: string;
@@ -1133,7 +1135,8 @@ type RecentOwnPostContext = {
   brandCounts: Map<string, number>;
 };
 
-function subjectVisualArchetypes(subject: {
+/** Exported for regression tests. */
+export function subjectVisualArchetypes(subject: {
   label?: string | null;
   productName?: string | null;
   brand?: string | null;
@@ -1168,9 +1171,24 @@ function subjectVisualArchetypes(subject: {
     ["gadget", /\b(?:phone|headphone|earbud|camera|keyboard|mouse|gadget)\b/],
   ];
 
-  return rules
-    .filter(([, pattern]) => pattern.test(text))
-    .map(([name]) => name);
+  // Captions are mostly Japanese, where \b never matches; count the same
+  // themes there too so the community caps see Japanese posts.
+  const japaneseRules: Array<[string, RegExp]> = [
+    ["bottle", /ボトル|香水|フレグランス|(?<!瓶詰)瓶(?!詰)/],
+    ["vessel", /陶器|陶芸|うつわ|器(?![具械材])|花瓶|花器/],
+    ["craft_object", /クラフト(?!ビール)|ハンドメイド|手作り|手づくり|手仕事|手吹き|工芸|陶芸|花瓶|一輪挿し|オブジェ|置物/],
+    ["shoe", /スニーカー|シューズ|ブーツ|ローファー/],
+    ["bag", /バッグ|トート|ポーチ|リュック/],
+    ["gadget", /イヤホン|ヘッドホン|カメラ|キーボード|ガジェット/],
+  ];
+
+  return [
+    ...new Set(
+      [...rules, ...japaneseRules]
+        .filter(([, pattern]) => pattern.test(text))
+        .map(([name]) => name),
+    ),
+  ];
 }
 
 function dropRepeatedSubjects(
@@ -1184,7 +1202,8 @@ function dropRepeatedSubjects(
 ) {
   return subjects.filter((subject) => {
     if (subjectLooksRepeated(subject, avoidEntities)) return false;
-    const urlKey = (subject.productUrl || subject.sourceUrl || "").trim().replace(/\/$/, "").toLowerCase();
+    const rawUrl = (subject.productUrl || subject.sourceUrl || "").trim();
+    const urlKey = rawUrl ? canonicalizeSourceUrl(rawUrl) : "";
     if (urlKey && recent.keys.has(`url:${urlKey}`)) return false;
     if (subject.discoveryProductId && recent.keys.has(`discovery:${subject.discoveryProductId}`)) return false;
 
@@ -1236,7 +1255,8 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<Rec
         if (fallback.error) throw new Error(fallback.error.message);
         const context = { ...empty, keys: new Set<string>() };
         for (const row of fallback.data ?? []) {
-          const url = String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase();
+          const rawUrl = String(row.product_url ?? "").trim();
+          const url = rawUrl ? canonicalizeSourceUrl(rawUrl) : "";
           if (url) context.keys.add(`url:${url}`);
           for (const archetype of subjectVisualArchetypes({
             productName: String(row.caption ?? ""),
@@ -1254,7 +1274,8 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<Rec
     }
 
     for (const row of data ?? []) {
-      const url = String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase();
+      const rawUrl = String(row.product_url ?? "").trim();
+      const url = rawUrl ? canonicalizeSourceUrl(rawUrl) : "";
       if (url) empty.keys.add(`url:${url}`);
       const discoveryId = String(row.discovery_product_id ?? "").trim();
       if (discoveryId) empty.keys.add(`discovery:${discoveryId}`);
@@ -1290,7 +1311,7 @@ function personaSafeName() {
   return "AI resident";
 }
 
-type CommunityPostContext = {
+export type CommunityPostContext = {
   keys: Set<string>;
   domainCounts: Map<string, number>;
   captions: string[];
@@ -1329,7 +1350,7 @@ async function loadRecentCommunityPostKeys(hours = 24): Promise<CommunityPostCon
     for (const row of data ?? []) {
       const productUrl = String(row.product_url ?? "").trim();
       const sourceUrl = productUrl;
-      const url = productUrl.replace(/\/$/, "").toLowerCase();
+      const url = productUrl ? canonicalizeSourceUrl(productUrl) : "";
       if (url) empty.keys.add(`url:${url}`);
 
       const discoveryId = String(row.discovery_product_id ?? "").trim();
@@ -1361,22 +1382,51 @@ async function loadRecentCommunityPostKeys(hours = 24): Promise<CommunityPostCon
   return empty;
 }
 
-function dropCommunityRepeatedSubjects(
+/** Exported for regression tests. */
+export function dropCommunityRepeatedSubjects(
   subjects: PostSubject[],
   recentCommunity: CommunityPostContext,
 ) {
   return subjects.filter((subject) => {
-    // Craft/vessel objects were repeatedly leaking into the world feed.
-    // Treat them as a hard stop at the final community gate, including assigned
-    // discoveries, so an assignment cannot bypass the repetition/editorial rule.
+    // Decorative craft objects (craft bottles, vases, pottery) kept leaking into
+    // the world feed. They are a hard stop at the final community gate, in any
+    // language and including assigned discoveries, so an assignment cannot
+    // bypass the editorial rule.
+    if (
+      isDecorativeCraftObject(
+        [
+          subject.label,
+          subject.productName,
+          subject.brand,
+          subject.category,
+          subject.sourceTitle,
+          subject.sourceSummary,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      )
+    ) {
+      return false;
+    }
+
+    // Other craft-flavoured subjects (craft tools, "Italian craftsmanship"
+    // jackets, handmade wallets) are real products. Keep them, but cap the
+    // theme so it cannot dominate the shared feed.
     const subjectArchetypes = subjectVisualArchetypes(subject);
-    if (subjectArchetypes.includes("craft_object")) return false;
+    if (
+      subjectArchetypes.includes("craft_object") &&
+      (recentCommunity.visualArchetypes.get("craft_object") ?? 0) >= 2
+    ) {
+      return false;
+    }
 
     // Assigned World Scout handoffs are deliberate cross-resident assignments.
     if (subject.assigned) return true;
 
     const productUrl = (subject.productUrl || "").trim();
-    const url = productUrl.replace(/\/$/, "").toLowerCase();
+    // Same canonical form as the recent-post keys: tracking parameters, www
+    // and a trailing slash must not let one product URL count as new.
+    const url = productUrl ? canonicalizeSourceUrl(productUrl) : "";
     if (url && recentCommunity.keys.has(`url:${url}`)) return false;
 
     if (

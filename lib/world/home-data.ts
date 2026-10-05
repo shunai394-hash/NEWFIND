@@ -1,3 +1,4 @@
+import { isDecorativeCraftObject } from "@/lib/ai/craft-object";
 import { createClient as createSupabaseJsClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/config";
 import { profilePath } from "@/lib/username";
@@ -542,6 +543,7 @@ export function isHomepageProductEligible(
     /\bartisan(?:al)?\s+(?:glass\s+)?bottles?\b/,
     /\bcraft\s+vessels?\b/,
   ];
+  if (isDecorativeCraftObject(text)) return false;
   return !rejectPatterns.some((pattern) => pattern.test(text));
 }
 

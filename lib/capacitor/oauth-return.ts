@@ -8,6 +8,7 @@ import {
 } from "@/lib/terms/consent";
 
 const processedCodes = new Set<string>();
+const receivedCallbackUrls = new Set<string>();
 let inFlightCode: string | null = null;
 let started = false;
 
@@ -142,18 +143,25 @@ export async function startNativeOAuthReturnListener(): Promise<() => void> {
   const { App } = await import("@capacitor/app");
 
   const onUrl = (raw: string | undefined) => {
-    if (!raw) return;
+    if (!raw || receivedCallbackUrls.has(raw)) return;
+    receivedCallbackUrls.add(raw);
+    if (receivedCallbackUrls.size > 32) {
+      const oldest = receivedCallbackUrls.values().next().value;
+      if (oldest) receivedCallbackUrls.delete(oldest);
+    }
     void handleOAuthReturnUrl(raw).catch((err) => {
       console.error("[oauth-return] handle failed", err);
     });
   };
 
-  const launch = await App.getLaunchUrl().catch(() => undefined);
-  onUrl(launch?.url);
-
+  // Subscribe before reading the launch URL so an OAuth return cannot fall
+  // between the initial URL check and appUrlOpen listener registration.
   const handle = await App.addListener("appUrlOpen", (event) => {
     onUrl(event.url);
   });
+
+  const launch = await App.getLaunchUrl().catch(() => undefined);
+  onUrl(launch?.url);
 
   return () => {
     started = false;

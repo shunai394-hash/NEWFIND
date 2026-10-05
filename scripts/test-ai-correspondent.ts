@@ -131,10 +131,10 @@ function main() {
   });
 
   assert(
-    ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => /cat:cs\\.RO/.test(query)) &&
-      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => /cat:cs\\.AR/.test(query)) &&
-      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => /cat:quant-ph/.test(query)) &&
-      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => /cat:cond-mat\\.mtrl-sci/.test(query)),
+    ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:cs.RO")) &&
+      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:cs.AR")) &&
+      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:quant-ph")) &&
+      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:cond-mat.mtrl-sci")),
     "research intake must cover robotics, computer architecture, quantum, and advanced materials",
   );
   const diversified = diversifyArxivEntries(

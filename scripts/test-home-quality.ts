@@ -30,6 +30,13 @@ function main() {
     "unknown brand must fail the homepage quality gate",
   );
   assert(
+    !isHomepageProductEligible(
+      { ...verified, brand: "Discovery" },
+      { requireVerifiedFields: false },
+    ),
+    "placeholder brand must fail even when optional verification fields are relaxed",
+  );
+  assert(
     !isHomepageProductEligible({ ...verified, imageUrl: null }),
     "product without image must fail",
   );

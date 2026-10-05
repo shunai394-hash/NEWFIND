@@ -579,7 +579,6 @@ export function isHomepageProductEligible(
     /ceramic\s+tea\s+whisk/,
     /\bpottery\b/,
     /\bhandmade\s+(?:decor|ornament|object|craft)/,
-    /\bhandcrafted\b/,
     /\bcraft\s+(?:object|decor|ornament)/,
     /\bfigurine\b/,
     /\bornament\b/,

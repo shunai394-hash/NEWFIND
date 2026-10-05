@@ -219,7 +219,6 @@ export function AuthForm() {
           placeholder="パスワード"
           required
           minLength={6}
-          aria-invalid={Boolean(error)}
           className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
         />
         {mode === "signup" ? (
@@ -236,9 +235,10 @@ export function AuthForm() {
         <button
           type="submit"
           disabled={busy || (mode === "signup" && !termsAccepted)}
+          aria-busy={busy}
           className="w-full rounded-lg bg-[#C6FF00] py-2.5 text-sm font-semibold text-black transition-colors hover:bg-[#b5e800] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:opacity-50"
         >
-          {mode === "signup" ? "登録する" : "ログイン"}
+          {busy ? "処理中..." : mode === "signup" ? "登録する" : "ログイン"}
         </button>
       </form>
 

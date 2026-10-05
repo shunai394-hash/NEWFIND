@@ -18,6 +18,10 @@ export type WorldDiscoveryReport = {
     kind: string;
     dispatch: string;
     title: string;
+    sourceUrl?: string | null;
+    sourceTitle?: string | null;
+    confidence?: number | null;
+    evidenceCount?: number | null;
   }>;
 };
 
@@ -73,6 +77,12 @@ export async function loadWorldDiscoveryReport(): Promise<WorldDiscoveryReport> 
             kind,
             dispatch: String(meta.dispatchKind ?? ""),
             title: String(meta.title ?? row.detail ?? "").slice(0, 120),
+            sourceUrl: typeof meta.url === "string" ? meta.url : null,
+            sourceTitle: typeof meta.sourceTitle === "string" ? meta.sourceTitle : null,
+            confidence: typeof (meta.scores as Record<string, unknown> | undefined)?.total === "number"
+              ? Number((meta.scores as Record<string, unknown>).total)
+              : null,
+            evidenceCount: typeof meta.evidenceCount === "number" ? meta.evidenceCount : null,
           });
         }
       }

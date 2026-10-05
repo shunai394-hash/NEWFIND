@@ -14,26 +14,10 @@ type FeedEntry = {
 };
 
 export const FUTURE_TECH_FEEDS: FeedSource[] = [
-  {
-    name: "MIT News — Artificial Intelligence",
-    url: "https://news.mit.edu/rss/topic/artificial-intelligence2",
-    focus: "ai",
-  },
-  {
-    name: "The Robot Report",
-    url: "https://www.therobotreport.com/feed/",
-    focus: "robotics",
-  },
-  {
-    name: "IEEE Spectrum — Robotics",
-    url: "https://spectrum.ieee.org/feeds/topic/robotics.rss",
-    focus: "robotics",
-  },
-  {
-    name: "Google Research",
-    url: "https://blog.research.google/feeds/posts/default?alt=rss",
-    focus: "research",
-  },
+  { name: "MIT News — Artificial Intelligence", url: "https://news.mit.edu/rss/topic/artificial-intelligence2", focus: "ai" },
+  { name: "The Robot Report", url: "https://www.therobotreport.com/feed/", focus: "robotics" },
+  { name: "IEEE Spectrum — Robotics", url: "https://spectrum.ieee.org/feeds/topic/robotics.rss", focus: "robotics" },
+  { name: "Google Research", url: "https://blog.research.google/feeds/posts/default?alt=rss", focus: "research" },
 ];
 
 function decodeXml(value: string): string {
@@ -49,30 +33,42 @@ function decodeXml(value: string): string {
 }
 
 function tagValue(block: string, tag: string): string {
-  const match = block.match(new RegExp(
-    `<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`,
-    "i",
-  ));
-  return decodeXml(match?.[1] ?? "").replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim();
+  const pattern = "<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)</" + tag + ">";
+  const match = block.match(new RegExp(pattern, "i"));
+  return decodeXml(match?.[1] ?? "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function parseFutureTechFeed(xml: string): FeedEntry[] {
-  const blocks = xml.match(/<(?:item|entry)(?:\\s[^>]*)?>[\\s\\S]*?<\\/(?:item|entry)>/gi) ?? [];
+  const blocks = xml.match(/<(?:item|entry)(?:\s[^>]*)?>[\s\S]*?<\/(?:item|entry)>/gi) ?? [];
   const entries: FeedEntry[] = [];
 
   for (const block of blocks) {
     const title = tagValue(block, "title");
-    const linkTag = block.match(/<link\\b([^>]*)>([\\s\\S]*?)<\\/link>/i);
-    const href = block.match(/<link\\b[^>]*href=["']([^"']+)["'][^>]*\\/?\s*>/i)?.[1];
+    const linkTag = block.match(/<link\b([^>]*)>([\s\S]*?)<\/link>/i);
+    const href = block.match(/<link\b[^>]*href=["']([^"']+)["'][^>]*\/?\s*>/i)?.[1];
     const link = decodeXml((href || linkTag?.[2] || "").trim());
-    const description = tagValue(block, "description") || tagValue(block, "summary") || tagValue(block, "content");
-    const publishedAt = tagValue(block, "pubDate") || tagValue(block, "published") || tagValue(block, "updated");
+    const description =
+      tagValue(block, "description") ||
+      tagValue(block, "summary") ||
+      tagValue(block, "content");
+    const publishedAt =
+      tagValue(block, "pubDate") ||
+      tagValue(block, "published") ||
+      tagValue(block, "updated");
 
     if (!title || !link || !description) continue;
     try {
       const parsed = new URL(link);
       if (parsed.protocol !== "https:" || !parsed.hostname.includes(".")) continue;
-      entries.push({ title, link: parsed.toString(), description: description.slice(0, 1800), publishedAt: publishedAt || null });
+      entries.push({
+        title,
+        link: parsed.toString(),
+        description: description.slice(0, 1800),
+        publishedAt: publishedAt || null,
+      });
     } catch {
       // Malformed feed entries are discarded; other entries remain usable.
     }
@@ -90,12 +86,16 @@ async function collectFeed(source: FeedSource, limit: number): Promise<WorldSear
     signal: AbortSignal.timeout(8_000),
     cache: "no-store",
   });
-  if (!response.ok) throw new Error(`${source.name} returned HTTP ${response.status}`);
+  if (!response.ok) throw new Error(source.name + " returned HTTP " + response.status);
 
   const entries = parseFutureTechFeed(await response.text());
   return entries.slice(0, limit).map((entry) => {
     let domain = "";
-    try { domain = new URL(entry.link).hostname.replace(/^www\\./, "").toLowerCase(); } catch {}
+    try {
+      domain = new URL(entry.link).hostname.replace(/^www\./, "").toLowerCase();
+    } catch {
+      // parseFutureTechFeed already rejects malformed URLs.
+    }
     return {
       title: entry.title,
       url: entry.link,
@@ -109,7 +109,7 @@ async function collectFeed(source: FeedSource, limit: number): Promise<WorldSear
       rawContent: entry.description,
       sourceReliability: "publisher_feed",
       retrievedAt: new Date().toISOString(),
-      classificationReason: `future-tech-feed:${source.focus}`,
+      classificationReason: "future-tech-feed:" + source.focus,
     };
   });
 }
@@ -139,9 +139,11 @@ export async function collectFutureTechNews(limit = 4): Promise<WorldSearchResul
     }
   }
 
-  return items.sort((a, b) => {
-    const aDate = Date.parse(a.publishedAt || "") || 0;
-    const bDate = Date.parse(b.publishedAt || "") || 0;
-    return bDate - aDate;
-  }).slice(0, boundedLimit * 3);
+  return items
+    .sort((a, b) => {
+      const aDate = Date.parse(a.publishedAt || "") || 0;
+      const bDate = Date.parse(b.publishedAt || "") || 0;
+      return bDate - aDate;
+    })
+    .slice(0, boundedLimit * 3);
 }

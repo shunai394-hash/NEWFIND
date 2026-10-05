@@ -1,4 +1,4 @@
-import { hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible } from "../lib/world/home-data";
+import { hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice } from "../lib/world/home-data";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -14,6 +14,23 @@ function main() {
   };
 
   assert(isHomepageProductEligible(verified), "verified product should pass");
+  assert(
+    normalizeHomepageProductPrice(1299) === 1299,
+    "numeric product prices should be preserved",
+  );
+  assert(
+    normalizeHomepageProductPrice("1,299.50") === 1299.5,
+    "numeric database prices serialized as strings should be normalized",
+  );
+  assert(
+    normalizeHomepageProductPrice("unknown") === null,
+    "non-numeric product prices must be rejected",
+  );
+  assert(
+    normalizeHomepageProductPrice(0) === null &&
+      normalizeHomepageProductPrice(-5) === null,
+    "zero and negative product prices must be rejected",
+  );
   assert(
     hasVerifiedProductIdentity({ productUrl: "https://brand.example/products/item" }),
     "canonical product URL should count as source identity evidence",

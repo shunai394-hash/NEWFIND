@@ -15,6 +15,7 @@ import type { WorldSearchResult } from "@/lib/ai/world-search";
 import { listAssignedDiscoveryResidentIds } from "@/lib/ai/discovery-handoff";
 
 // Keep the daily cron bounded: resident life is intentionally sequential because\n// each turn can perform several AI/network operations. Six turns per run\n// preserves rotation while leaving enough headroom for the 300s Vercel budget.\nconst DEFAULT_ACT_LIMIT = 6;
+const PRODUCT_HUNTER_PATROL_TARGET = 3;
 
 export type AiEngineMode = "ai_engine" | "world_scout" | "product_hunter";
 
@@ -90,24 +91,7 @@ function pickResidentsToAct(
     return hunters.slice(0, Math.max(1, Math.min(limit, 6)));
   }
 
-  // Every due resident must get a fair turn. Previously featured residents
-  // were always inserted first, which could starve ordinary residents when
-  // the engine limit was smaller than the active population.
-  const due = personas
-    .filter((persona) => isDue(persona))
-    .sort((a, b) => {
-      const dueDelta = dueStamp(a) - dueStamp(b);
-      if (dueDelta !== 0) return dueDelta;
-
-      // Keep role diversity when residents become due at the same instant.
-      const aRole = a.resident_role || "general_user";
-      const bRole = b.resident_role || "general_user";
-      if (aRole !== bRole) return aRole.localeCompare(bRole);
-
-      return a.persona_name.localeCompare(b.persona_name);
-    });
-
-  return due.slice(0, limit);
+  // Product discovery gets a reserved slice of the daily patrol. Without this,\n  // social residents can consume the entire limit while product hunters wait.\n  const due = personas\n    .filter((persona) => isDue(persona))\n    .sort((a, b) => {\n      const dueDelta = dueStamp(a) - dueStamp(b);\n      if (dueDelta !== 0) return dueDelta;\n\n      const aRole = a.resident_role || "general_user";\n      const bRole = b.resident_role || "general_user";\n      if (aRole !== bRole) return aRole.localeCompare(bRole);\n\n      return a.persona_name.localeCompare(b.persona_name);\n    });\n\n  const hunterTarget = Math.min(PRODUCT_HUNTER_PATROL_TARGET, limit);\n  const hunters = due\n    .filter((persona) => persona.resident_role === "product_hunter")\n    .slice(0, hunterTarget);\n  const selectedIds = new Set(hunters.map((persona) => persona.id));\n  const remainder = due\n    .filter((persona) => !selectedIds.has(persona.id))\n    .slice(0, Math.max(0, limit - hunters.length));\n\n  return [...hunters, ...remainder];
 }
 
 function summarizeResults(results: unknown[]) {

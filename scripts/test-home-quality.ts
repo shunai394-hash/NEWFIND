@@ -35,6 +35,26 @@ function main() {
     "missing source and structured identity must fail",
   );
   assert(
+    isHomepageProductConfidenceEligible(72, true),
+    "strong confidence with identity should pass",
+  );
+  assert(
+    !isHomepageProductConfidenceEligible(42, true),
+    "low confidence should fail even with identity",
+  );
+  assert(
+    isHomepageProductConfidenceEligible(null, true),
+    "legacy approved product with verifiable identity should not be hidden only because its confidence score is absent",
+  );
+  assert(
+    !isHomepageProductConfidenceEligible(null, false),
+    "missing confidence and identity must fail",
+  );
+  assert(
+    isHomepageProductConfidenceEligible("61", true),
+    "numeric confidence values returned as strings should be handled",
+  );
+  assert(
     !isHomepageProductEligible(
       { brand: "Discovery", name: "Discovery", imageUrl: "https://example.com/product.jpg" },
       { requireVerifiedFields: false },

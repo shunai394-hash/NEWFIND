@@ -152,39 +152,6 @@ function androidVector() {
 `;
 }
 
-function androidVector() {
-  const scale = 108 / MASTER;
-  const a = { x: C1.x * scale, y: C1.y * scale };
-  const b = { x: C2.x * scale, y: C2.y * scale };
-  const r = RADIUS * scale;
-  const stroke = STROKE * scale;
-
-  return `<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <group>
-        <clip-path android:pathData="${circlePath(a, r)}"/>
-        <path
-            android:fillColor="${LIME}"
-            android:pathData="${circlePath(b, r)}"/>
-    </group>
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="${LIME}"
-        android:strokeWidth="${round(stroke)}"
-        android:pathData="${circlePath(a, r)}"/>
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="${LIME}"
-        android:strokeWidth="${round(stroke)}"
-        android:pathData="${circlePath(b, r)}"/>
-</vector>
-`;
-}
-
 async function pngFromSvg(
   svg,
   size,

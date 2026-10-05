@@ -11,14 +11,16 @@ const rss = `<?xml version="1.0"?>
 <rss><channel>
   <item><title>Robot learns new manipulation task</title><link>https://robotics.example.org/story?id=7</link><description><![CDATA[A robot learned a new task &amp; reduced setup time.]]></description><pubDate>Mon, 05 Oct 2026 10:00:00 GMT</pubDate></item>
   <item><title>Unsafe source</title><link>http://example.org/story</link><description>Must be excluded.</description></item>
+  <item><title>Older robot report</title><link>https://robotics.example.org/older</link><description>Earlier published.</description><pubDate>Sun, 04 Oct 2026 10:00:00 GMT</pubDate></item>
   <item><title>Missing description</title><link>https://example.org/no-description</link></item>
 </channel></rss>`;
 
 const rssItems = parseFutureTechFeed(rss);
-assert(rssItems.length === 1, "RSS parser should keep only complete HTTPS items");
+assert(rssItems.length === 2, "RSS parser should keep complete HTTPS items");
 assert(rssItems[0].title === "Robot learns new manipulation task", "RSS title should be preserved");
 assert(rssItems[0].link === "https://robotics.example.org/story?id=7", "RSS source URL should be preserved");
 assert(rssItems[0].description.includes("reduced setup time"), "RSS summary should be decoded");
+assert(rssItems[1].title === "Older robot report", "RSS entries should be ordered newest first before batch limits are applied");
 
 const diversified = diversifyFutureTechItems(
   [

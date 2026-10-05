@@ -3,6 +3,7 @@ import { ARXIV_FUTURE_TECH_QUERY_GROUPS } from "../lib/ai/world-sources/arxiv";
 import { evaluateCaptionQuality } from "../lib/ai/post-quality";
 import { worldSourceCollectors } from "../lib/ai/world-sources";
 import { canonicalizeSourceUrl } from "../lib/ai/agent-os/hash";
+import { dedupeWorldSourceItems, type WorldSourceItem } from "../lib/ai/world-sources/types";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -22,6 +23,30 @@ assert(
   canonicalizeSourceUrl("https://www.example.org/article?id=7&utm_source=rss#section") ===
     "https://example.org/article?id=7",
   "canonicalization should remove www, tracking parameters and fragments while preserving article identifiers",
+);
+
+const sourceItem = (
+  url: string,
+  sourceName: WorldSourceItem["sourceName"],
+  sourceRef: string,
+): WorldSourceItem => ({
+  title: "Case-sensitive source",
+  url,
+  snippet: "A sourced technology report.",
+  sourceType: "news",
+  domain: new URL(url).hostname,
+  sourceName,
+  sourceRef,
+  signalType: "technology",
+});
+const sourceDeduped = dedupeWorldSourceItems([
+  sourceItem("https://www.example.org/Story?id=7&utm_source=feed", "future_tech_news", "feed-story"),
+  sourceItem("https://example.org/Story?id=7#details", "arxiv", "arxiv-story"),
+  sourceItem("https://example.org/story?id=7", "arxiv", "other-story"),
+]);
+assert(
+  sourceDeduped.length === 2,
+  "world-source deduplication should collapse syndicated tracking variants across collectors but preserve case-sensitive distinct URLs",
 );
 
 const rss = `<?xml version="1.0"?>

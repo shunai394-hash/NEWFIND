@@ -29,7 +29,7 @@
     "cap:ios": "npx cap open ios",
     "eas-build-pre-install": "bash ./eas-build-pre-install.sh",
     "icons:finalize": "node scripts/render-app-icon.mjs && node scripts/check-app-icons.mjs",
-    "prebuild": "npm run icons:finalize"
+    "prebuild": "npm run icons:finalize && npm run test:home-quality && npm run test:world-headlines"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

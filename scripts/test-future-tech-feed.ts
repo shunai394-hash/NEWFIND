@@ -33,7 +33,7 @@ const diversified = diversifyFutureTechItems(
       { url: "https://shared.example.org/story", publishedAt: "2026-10-04T09:00:00Z" },
     ],
   ],
-  4,
+  6,
 );
 assert(
   diversified.map((item) => new URL(item.url).hostname).join(",") ===

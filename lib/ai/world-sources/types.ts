@@ -8,7 +8,8 @@ export type WorldSourceName =
   | "nasa"
   | "kickstarter"
   | "indiegogo"
-  | "google_trends";
+  | "google_trends"
+  | "future_tech_news";
 
 export type WorldSourceItem = WorldSearchResult & {
   sourceName: WorldSourceName;

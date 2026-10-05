@@ -22,6 +22,17 @@ function main() {
     !isPresentableWorldHeadline({ ...good, dispatch: "EXPIRED" }),
     "expired investigations must not appear as current discoveries",
   );
+  assert(
+    !isPresentableWorldHeadline({
+      ...good,
+      title: "A global report: Trend signal 2000+ mixed unrelated headlines",
+    }),
+    "synthetic trend-signal aggregates must be rejected even when buried in plausible prose",
+  );
+  assert(
+    !isPresentableWorldHeadline({ ...good, dispatch: "ARCHIVED" }),
+    "archived investigations must not appear as current discoveries",
+  );
 
   const curated = curateWorldHeadlines([
     good,

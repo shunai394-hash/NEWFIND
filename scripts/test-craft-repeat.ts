@@ -48,6 +48,7 @@ const USEFUL = [
   "クラフト瓶詰めジャム",
   "陶器のマグカップ",
   "オブジェクト指向プログラミングの設計ツール",
+  "アートオブジェクト指向のUIライブラリ",
 ];
 
 test("decorative craft objects are detected in English and Japanese", () => {
@@ -100,6 +101,10 @@ test("Japanese captions are counted toward community theme caps", () => {
   assert.ok(themes.includes("bottle"));
   assert.deepEqual(
     subjectVisualArchetypes({ label: "クラフトビールの新作" }).includes("craft_object"),
+    false,
+  );
+  assert.equal(
+    subjectVisualArchetypes({ label: "オブジェクト指向の設計ツール" }).includes("craft_object"),
     false,
   );
   // Each theme is counted once per caption even when both languages match.

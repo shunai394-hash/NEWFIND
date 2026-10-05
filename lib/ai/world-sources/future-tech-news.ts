@@ -1,3 +1,4 @@
+import { canonicalizeSourceUrl } from "@/lib/ai/agent-os/hash";
 import type { WorldSourceCollector, WorldSourceItem } from "./types";
 
 type FeedSource = {
@@ -88,7 +89,8 @@ export function parseFutureTechFeed(xml: string): FeedEntry[] {
 /**
  * Keep the intelligence stream genuinely multi-source: sort each publisher's
  * feed by recency, then interleave publishers instead of letting one prolific
- * RSS feed occupy the whole batch. URLs are deduplicated across feeds.
+ * RSS feed occupy the whole batch. URLs are deduplicated across feeds,
+ * ignoring tracking parameters, fragments, case and a trailing slash.
  */
 export function diversifyFutureTechItems<T extends { url: string; publishedAt?: string | null }>(
   groups: T[][],
@@ -110,7 +112,10 @@ export function diversifyFutureTechItems<T extends { url: string; publishedAt?: 
     for (const group of sortedGroups) {
       const item = group[index];
       if (!item || result.length >= max) continue;
-      const key = item.url.replace(/[?#].*$/, "").replace(/\/$/, "").toLowerCase();
+      // Strip only tracking parameters: many publishers identify the article
+      // itself with a query string (e.g. story?id=7), so dropping the whole
+      // query would merge distinct articles.
+      const key = canonicalizeSourceUrl(item.url);
       if (!key || seen.has(key)) continue;
       seen.add(key);
       result.push(item);

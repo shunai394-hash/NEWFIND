@@ -46,6 +46,40 @@ assert(
   new Set(diversified.map((item) => item.url.replace(/[?#].*$/, ""))).size === diversified.length,
   "future-tech intake should deduplicate the same article across feeds",
 );
+assert(
+  diversified.length === 5 &&
+    diversified.filter((item) => new URL(item.url).hostname === "shared.example.org").length === 1,
+  "the story syndicated by both feeds should be kept exactly once (5 unique items out of 6)",
+);
+assert(
+  diversifyFutureTechItems(
+    [
+      [{ url: "https://ai.example.org/a" }, { url: "https://ai.example.org/b" }],
+      [{ url: "https://robot.example.org/a" }, { url: "https://robot.example.org/b" }],
+    ],
+    3,
+  ).length === 3,
+  "future-tech intake should stop at the requested limit",
+);
+assert(
+  diversifyFutureTechItems([[{ url: "https://ai.example.org/a" }]], 0).length === 0,
+  "a zero limit should return nothing",
+);
+const queryIdentified = diversifyFutureTechItems(
+  [
+    [
+      { url: "https://news.example.org/story?id=7" },
+      { url: "https://news.example.org/story?id=8" },
+    ],
+    [{ url: "https://www.news.example.org/story?id=7&utm_source=rss#comments" }],
+  ],
+  10,
+);
+assert(
+  queryIdentified.map((item) => item.url).join(",") ===
+    "https://news.example.org/story?id=7,https://news.example.org/story?id=8",
+  "articles identified by a query string must stay distinct, while tracking parameters and www are ignored",
+);
 
 const atom = `<feed><entry><title>Research on holographic displays</title><link rel="alternate" type="text/html" href="https://lab.example.org/holography"/><summary>Researchers report a new optical approach.</summary><published>2026-10-05T08:00:00Z</published></entry></feed>`;
 const atomItems = parseFutureTechFeed(atom);

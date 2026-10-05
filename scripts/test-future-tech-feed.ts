@@ -2,10 +2,27 @@ import { diversifyFutureTechItems, parseFutureTechFeed } from "../lib/ai/world-s
 import { ARXIV_FUTURE_TECH_QUERY_GROUPS } from "../lib/ai/world-sources/arxiv";
 import { evaluateCaptionQuality } from "../lib/ai/post-quality";
 import { worldSourceCollectors } from "../lib/ai/world-sources";
+import { canonicalizeSourceUrl } from "../lib/ai/agent-os/hash";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
 }
+
+const upperCasePath = canonicalizeSourceUrl("https://EXAMPLE.org/Story/ID?ref=Main&utm_source=rss#comments");
+const lowerCasePath = canonicalizeSourceUrl("https://example.org/story/id?ref=Main");
+assert(
+  upperCasePath === "https://example.org/Story/ID?ref=Main",
+  "source URL canonicalization should remove tracking parameters without lowercasing the path or query values",
+);
+assert(
+  upperCasePath !== lowerCasePath,
+  "case-sensitive URL paths must not be merged into one source",
+);
+assert(
+  canonicalizeSourceUrl("https://www.example.org/article?id=7&utm_source=rss#section") ===
+    "https://example.org/article?id=7",
+  "canonicalization should remove www, tracking parameters and fragments while preserving article identifiers",
+);
 
 const rss = `<?xml version="1.0"?>
 <rss><channel>

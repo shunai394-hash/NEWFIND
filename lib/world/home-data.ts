@@ -513,31 +513,42 @@ async function loadProducts(
     .limit(100);
 
   if (!error && data?.length) {
-    const eligible = data
-      .filter((row) =>
-        isHomepageProductEligible({
+    const eligible = data.filter((row) => {
+      if (
+        !isHomepageProductEligible({
           brand: String(row.brand ?? ""),
           name: String(row.product_name ?? ""),
           imageUrl: (row.product_image_url as string | null) ?? null,
           price: typeof row.price === "number" ? row.price : null,
           description: (row.description as string | null) ?? null,
-        }),
-      )
-      .filter((row) => {
-        const verifiedIdentity = Boolean(
-          String(row.official_url ?? "").trim() ||
-            String(row.sku ?? "").trim() ||
-            String(row.gtin ?? "").trim() ||
-            String(row.model_number ?? "").trim(),
-        );
-        return Number(row.confidence_score ?? 0) >= 55 && verifiedIdentity;
-      })
-      .slice(0, 8);
+        })
+      ) {
+        return false;
+      }
+
+      // An actual product/source URL is useful identity evidence too; requiring
+      // only SKU/GTIN/model fields can hide every approved item in catalogs
+      // whose trusted source URL is already the canonical product reference.
+      const hasSourceUrl = [row.official_url, row.product_url].some((value) => {
+        try {
+          const url = new URL(String(value ?? ""));
+          return url.protocol === "https:" && Boolean(url.hostname);
+        } catch {
+          return false;
+        }
+      });
+      const hasStructuredIdentity = [row.sku, row.gtin, row.model_number].some(
+        (value) => Boolean(String(value ?? "").trim()),
+      );
+
+      return Number(row.confidence_score ?? 0) >= 55 &&
+        (hasSourceUrl || hasStructuredIdentity);
+    });
 
     if (eligible.length) {
       const seen = new Set<string>();
       const distinct = eligible.filter((row) => {
-        const key = `${String(row.brand ?? "").trim().toLowerCase()}::${String(row.product_name ?? "").trim().toLowerCase()}`;
+        const key = `${String(row.brand ?? "").trim().toLocaleLowerCase()}::${String(row.product_name ?? "").trim().toLocaleLowerCase()}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;

@@ -1,4 +1,4 @@
-import { hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice } from "../lib/world/home-data";
+import { featuredFromResidents, hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice } from "../lib/world/home-data";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -14,6 +14,10 @@ function main() {
   };
 
   assert(isHomepageProductEligible(verified), "verified product should pass");
+  assert(
+    featuredFromResidents([]).length === 0,
+    "the homepage must not present static resident blueprints as real active residents when no active persona records exist",
+  );
   assert(
     normalizeHomepageProductPrice(1299) === 1299,
     "numeric product prices should be preserved",

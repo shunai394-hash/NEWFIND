@@ -644,11 +644,6 @@ export const supabaseStore: Store = {
       },
     });
 
-    if (!error && isCapacitorNative() && data?.url) {
-      await openNativeOAuthUrl(data.url);
-      return;
-    }
-
     if (error) {
       if (/provider is not enabled/i.test(error.message)) {
         throw new Error(
@@ -658,6 +653,21 @@ export const supabaseStore: Store = {
         );
       }
       throw new Error(error.message);
+    }
+
+    // A successful response must contain the authorization URL. Otherwise the
+    // UI can remain in its "connecting" state forever without opening a browser.
+    if (!data?.url) {
+      throw new Error(
+        provider === "google"
+          ? "Google ログインを開始できませんでした。通信状態を確認して再試行してください。"
+          : "ログインを開始できませんでした。通信状態を確認して再試行してください。",
+      );
+    }
+
+    if (isCapacitorNative()) {
+      await openNativeOAuthUrl(data.url);
+      return;
     }
   },
 

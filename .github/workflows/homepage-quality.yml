@@ -1,6 +1,8 @@
 name: Homepage quality regression
 
 on:
+  push:
+    branches: [fix/quality-loop-award-bar]
   pull_request:
     branches: [main]
     paths:

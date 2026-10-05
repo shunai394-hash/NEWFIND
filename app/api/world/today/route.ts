@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadWorldDiscoveryReport } from "@/lib/ai/control-tower/world-report";
 import { loadRecentInvestigations } from "@/lib/ai/investigations";
+import { curateWorldHeadlines } from "@/lib/ai/control-tower/world-headline-quality";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,12 @@ export async function GET() {
     status: item.status,
   }));
 
-  const headlines = [...investigationHeadlines, ...report.headlines].slice(0, 8);
+  // Keep the public world pulse distinct and evidence-shaped: never surface
+  // synthetic "Trend signal" aggregates, expired investigations, or duplicates.
+  const headlines = curateWorldHeadlines(
+    [...investigationHeadlines, ...report.headlines],
+    8,
+  );
 
   return NextResponse.json({
     residents: report.residents,

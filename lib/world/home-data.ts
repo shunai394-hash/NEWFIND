@@ -176,7 +176,7 @@ function emptyHome(): WorldHomeData {
   return {
     metrics: { aiResidents: null, discoveries: null, countries: null },
     residents: [],
-    featured: FEATURED_BLUEPRINTS,
+    featured: [],
     activities: [],
     products: [],
   };
@@ -250,12 +250,6 @@ function featuredFromResidents(residents: WorldResident[]): WorldResidentCard[] 
     if (used.has(resident.id)) continue;
     used.add(resident.id);
     cards.push(cardFromResident(resident));
-  }
-
-  for (const blueprint of FEATURED_BLUEPRINTS) {
-    if (cards.length >= 4) break;
-    if (cards.some((card) => card.name === blueprint.name)) continue;
-    cards.push(blueprint);
   }
 
   return cards.slice(0, 4);

@@ -41,6 +41,26 @@ function main() {
     "product without image must fail",
   );
   assert(
+    !isHomepageProductEligible({ ...verified, imageUrl: "not-a-url" }),
+    "invalid image URL must fail",
+  );
+  assert(
+    !isHomepageProductEligible({ ...verified, imageUrl: "http://example.com/product.jpg" }),
+    "insecure image URL must fail",
+  );
+  assert(
+    !isHomepageProductEligible({ ...verified, imageUrl: "https://example.com/placeholder-product.jpg" }),
+    "placeholder image must fail",
+  );
+  assert(
+    !isHomepageProductEligible({ ...verified, price: 0 }),
+    "zero-price placeholder must fail",
+  );
+  assert(
+    !isHomepageProductEligible({ ...verified, price: -12 }),
+    "negative price must fail",
+  );
+  assert(
     !isHomepageProductEligible({ ...verified, price: null }),
     "unpriced product must fail",
   );

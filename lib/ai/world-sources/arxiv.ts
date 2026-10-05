@@ -148,8 +148,8 @@ function parseArxivFeed(xml: string): ArxivEntry[] {
 export const ARXIV_FUTURE_TECH_QUERY_GROUPS = [
   // AI, robotics, vision, machine learning, and human-computer interaction.
   "cat:cs.AI OR cat:cs.RO OR cat:cs.CV OR cat:cs.LG OR cat:cs.HC",
-  // Computer architecture, chips, systems, electronics, quantum, materials, and energy.
-  "cat:cs.AR OR cat:cs.DC OR cat:cs.ET OR cat:cs.NI OR cat:eess.SY OR cat:eess.SP OR cat:quant-ph OR cat:cond-mat.mtrl-sci OR cat:physics.app-ph",
+  // Next-generation PCs/chips, systems, graphics/spatial computing, imaging/optics (including holography), electronics, quantum, materials, and energy.
+  "cat:cs.AR OR cat:cs.DC OR cat:cs.ET OR cat:cs.NI OR cat:cs.GR OR cat:eess.IV OR cat:eess.SY OR cat:eess.SP OR cat:quant-ph OR cat:cond-mat.mtrl-sci OR cat:physics.optics OR cat:physics.app-ph",
 ] as const;
 
 /** Interleave research areas so a fast-moving AI category cannot crowd out hardware or materials. */

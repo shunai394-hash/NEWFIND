@@ -237,6 +237,16 @@ export function pickNextAxis(input: {
     return "local_media";
   }
 
+  // Future-facing technology is a core NEWFIND beat, not a rare edge case.
+  // After the first two exploration turns, reserve at least every third turn
+  // for AI, robotics, next-gen computing, and research-backed prototypes.
+  if (
+    recent.length >= 2 &&
+    !recent.slice(0, 2).includes("future_technology")
+  ) {
+    return "future_technology";
+  }
+
   const unused = EXPLORATION_AXES.find((axis) => !recent.includes(axis));
   if (unused) return unused;
   const nextIndex =

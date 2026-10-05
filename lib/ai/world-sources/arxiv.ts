@@ -193,7 +193,7 @@ export const arxivWorldSourceCollector: WorldSourceCollector = {
     return entries
       .filter((entry) => entry.id && entry.title)
       .map((entry) => {
-        const id = String(entry.id);
+        const id = String(entry.id).replace(/^http:/i, "https:");
         const title = cleanText(entry.title);
         const summary = cleanText(entry.summary);
 

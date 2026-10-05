@@ -15,6 +15,7 @@
     "test:discovery-quality": "tsx scripts/test-discovery-quality.ts",
     "test:home-quality": "tsx scripts/test-home-quality.ts",
     "test:world-headlines": "tsx scripts/test-world-headline-quality.ts",
+    "test:future-tech-feed": "tsx scripts/test-future-tech-feed.ts",
     "test:tracer-integration": "tsx scripts/test-tracer-integration.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "seed:demo:apply": "tsx scripts/seed-demo.ts --jp-only --apply",
@@ -29,7 +30,7 @@
     "cap:ios": "npx cap open ios",
     "eas-build-pre-install": "bash ./eas-build-pre-install.sh",
     "icons:finalize": "node scripts/render-app-icon.mjs && node scripts/check-app-icons.mjs",
-    "prebuild": "npm run icons:finalize && npm run test:home-quality && npm run test:world-headlines"
+    "prebuild": "npm run icons:finalize && npm run test:home-quality && npm run test:world-headlines && npm run test:future-tech-feed"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

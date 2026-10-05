@@ -1,5 +1,6 @@
 import {
   beatForPersona,
+  beatForExploration,
   classifyWorldInfo,
   correspondentQuery,
   decideWorldDispatch,
@@ -229,6 +230,24 @@ function main() {
     countryCode: "US",
   });
   assert(futureTechBeat.primary === "tech", "robotics, AI, chips and computing must map to the tech beat");
+  const futureDispatchBeat = beatForExploration(yunaBeat, "future_technology");
+  const freeAiEditor = result({
+    title: "Open-source AI image editor offers a free Photoshop-like workflow",
+    url: "https://tech.example.org/open-source-ai-image-editor",
+    snippet: "A new AI image editing tool could change the economics of creative software and ad-supported SaaS.",
+    sourceType: "news",
+    sourceRole: "news",
+    domain: "tech.example.org",
+    publishedAt: new Date().toISOString(),
+  });
+  const futureScores = scoreWorldSignal({
+    result: freeAiEditor,
+    infoKind: classifyWorldInfo(freeAiEditor),
+    beat: futureDispatchBeat,
+    knownKeys: new Set(),
+  });
+  assert(futureDispatchBeat.primary === "technology", "future-tech exploration must temporarily switch the scoring lens");
+  assert(futureScores.relevance > 0, "future-tech discoveries must not be rejected only because the resident's usual specialty is fashion or beauty");
 
   const clusters = detectTrendClusters([
     { title: "niacinamide serum launch korea", url: "https://a.test/1" },

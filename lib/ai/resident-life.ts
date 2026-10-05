@@ -1979,8 +1979,16 @@ export async function runResidentLifeCycle(
       ? worldNews
           .slice(0, 5)
           .filter((article) => isHttpUrl(article.url))
-          .map((article) => `- ${article.title}`)
-          .join("\n")
+          .map((article) =>
+            [
+              `見出し: ${article.title}`,
+              `媒体: ${article.domain || article.sourceType}`,
+              `公開日: ${article.publishedAt || "未確認"}`,
+              `原文URL: ${article.url}`,
+              `要点: ${(article.snippet || "").replace(/\\s+/g, " ").slice(0, 420) || "本文要約なし。タイトルだけで詳細を断定しない"}`,
+            ].join("\n"),
+          )
+          .join("\n\n")
       : playbook.sources.includes("world_news")
         ? "いま使える世界ニュース信号はありません"
         : "この役割では世界ニュースは主情報源ではない。";

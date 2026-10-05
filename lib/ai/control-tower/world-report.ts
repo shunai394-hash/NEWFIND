@@ -79,9 +79,11 @@ export async function loadWorldDiscoveryReport(): Promise<WorldDiscoveryReport> 
             title: String(meta.title ?? row.detail ?? "").slice(0, 120),
             sourceUrl: typeof meta.url === "string" ? meta.url : null,
             sourceTitle: typeof meta.sourceTitle === "string" ? meta.sourceTitle : null,
-            confidence: typeof (meta.scores as Record<string, unknown> | undefined)?.total === "number"
-              ? Number((meta.scores as Record<string, unknown>).total)
-              : null,
+            confidence: typeof meta.confidence === "number"
+              ? meta.confidence
+              : typeof (meta.scores as Record<string, unknown> | undefined)?.total === "number"
+                ? Number((meta.scores as Record<string, unknown>).total)
+                : null,
             evidenceCount: typeof meta.evidenceCount === "number" ? meta.evidenceCount : null,
           });
         }

@@ -438,6 +438,17 @@ async function loadFeaturedResidents(
   );
 }
 
+function isUsableProductImageUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return false;
+    if (/placeholder|no[-_]?image|default[-_]?product|missing[-_]?image/i.test(url.pathname)) return false;
+    return Boolean(url.hostname && url.hostname.includes("."));
+  } catch {
+    return false;
+  }
+}
+
 export function isHomepageProductEligible(
   product: {
     brand: string;
@@ -455,7 +466,7 @@ export function isHomepageProductEligible(
 
   // The homepage is the first quality impression. Never let weak, anonymous,
   // craft/decor objects or unverified catalog noise become the hero discovery.
-  if (!brand || !name || !imageUrl) return false;
+  if (!brand || !name || !isUsableProductImageUrl(imageUrl)) return false;
   if (/^(?:unknown|discovery|product|untitled|new discovery|n\/?a|none|null)$/i.test(name)) {
     return false;
   }
@@ -464,7 +475,7 @@ export function isHomepageProductEligible(
   }
   if (
     options.requireVerifiedFields !== false &&
-    (product.price == null || !Number.isFinite(product.price))
+    (product.price == null || !Number.isFinite(product.price) || product.price <= 0)
   ) {
     return false;
   }

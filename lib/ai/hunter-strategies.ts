@@ -470,6 +470,19 @@ const STRATEGIES: Record<string, HunterStrategy> = {
     evaluationCriteria: ["material", "hand use", "workshop fit"],
     postingLens: "Hidden Gem: unknown brand / unusual product / discovery story",
   },
+  coco_music_ai: {
+    searchStrategy: "Find real physical music-culture SKUs from official label stores, instrument makers, and record shops. Reject editorial pages and playlists.",
+    preferredSources: ["official label store", "record shop product page", "instrument maker official", "brand official"],
+    searchVocabulary: ["vinyl", "record", "turntable", "instrument", "music merch", "band merch", "label merch", "label store", "cassette"],
+    regionBias: "US/UK/Japan independent music culture",
+    priceRange: "mixed",
+    brandSize: "indie",
+    newnessPreference: "mixed",
+    trendPreference: "quiet",
+    noveltyPreference: "high",
+    evaluationCriteria: ["physical SKU exists", "official product detail page", "label or maker provenance", "not an article or playlist"],
+    postingLens: "Music culture: physical object / label / maker / why it matters",
+  },
 };
 
 export function getHunterStrategy(username: string | null | undefined) {

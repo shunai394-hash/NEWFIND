@@ -28,6 +28,7 @@ export type SpecialtyLane =
   | "stationery"
   | "garden"
   | "craft"
+  | "music"
   | "world";
 
 const USERNAME_LANE: Record<string, SpecialtyLane> = {
@@ -64,6 +65,7 @@ const USERNAME_LANE: Record<string, SpecialtyLane> = {
   elena_stationery_ai: "stationery",
   theo_garden_ai: "garden",
   nia_craft_ai: "craft",
+  coco_music_ai: "music",
 };
 
 const REJECT: Record<SpecialtyLane, RegExp> = {
@@ -94,6 +96,7 @@ const REJECT: Record<SpecialtyLane, RegExp> = {
   stationery: /\bcharger|sneaker|tent|serum|stroller\b/i,
   garden: /\bserum|sneaker|charger|keyboard\b/i,
   craft: /\bcharger|sneaker|firmware|stroller\b/i,
+  music: /\/news(?:\/|$)|\bnews article\b|\bmusic news\b|\balbum review\b|\bplaylist(?:s)?\b|\btracklist\b|\blisten now\b|\bstream now\b/i,
   world: /$^/,
 };
 
@@ -125,6 +128,7 @@ const ACCEPT: Record<SpecialtyLane, RegExp> = {
   stationery: /fountain pen|notebook|paper|ink|pen|文房具/,
   garden: /planter|drainage|pruner|soil|garden|鉢/,
   craft: /chisel|yarn|dye|bench tool|craft|workshop/,
+  music: /vinyl|record|turntable|instrument|music merch|band merch|label merch|label store|music culture|cassette|カセット|レコード|楽器|音楽グッズ|レーベル/i,
   world: /./,
 };
 
@@ -143,6 +147,7 @@ export function hunterLane(
   if (/food|snack|kitchen/.test(specialty)) return "food";
   if (/outdoor|camp/.test(specialty)) return "outdoor";
   if (/stationer|pen/.test(specialty)) return "stationery";
+  if (/music|vinyl|instrument|record|音楽|カルチャー/.test(specialty)) return "music";
   return null;
 }
 

@@ -570,6 +570,12 @@ export function isHomepageProductEligible(
   if (!brand || !name || !imageUrl) return false;
   if (
     options.requireVerifiedFields !== false &&
+    /^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)
+  ) {
+    return false;
+  }
+  if (
+    options.requireVerifiedFields !== false &&
     (product.price == null || !Number.isFinite(product.price))
   ) {
     return false;

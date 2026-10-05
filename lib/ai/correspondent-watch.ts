@@ -28,6 +28,7 @@ import {
 } from "@/lib/ai/correspondent-identity";
 import type { ExplorationQuest } from "@/lib/ai/today-exploration";
 import { upsertInvestigation } from "@/lib/ai/investigations";
+import { collectFutureTechNews } from "@/lib/ai/world-sources/future-tech-news";
 
 export type CorrespondentWatchResult = {
   beat: CorrespondentBeat;
@@ -241,8 +242,19 @@ export async function watchWorldForResident(
     }
   }
 
+  // On future-technology quests, add direct publisher feeds to the same evidence
+  // pipeline as search results. The normal quality, novelty and resident-fit gates
+  // still decide whether anything is posted; feed ingestion alone never publishes.
+  const futureTechNews = input.exploration?.axis === "future_technology"
+    ? await collectFutureTechNews(4).catch((error) => {
+        console.warn("[Future Tech Desk] intake failed for resident", persona.username, error);
+        return [];
+      })
+    : [];
+
   const pool = [
     ...input.worldNews,
+    ...futureTechNews,
     ...input.googleTrends.slice(0, 8).map(trendToWorldResult),
     ...extra,
   ];

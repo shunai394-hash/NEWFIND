@@ -1,4 +1,5 @@
 ﻿import type { WorldSearchResult } from "@/lib/ai/world-search";
+import { canonicalizeSourceUrl } from "@/lib/ai/agent-os/hash";
 
 export type WorldSourceName =
   | "product_hunt"
@@ -62,14 +63,26 @@ export function dedupeWorldSourceItems(
   const seen = new Set<string>();
   const result: WorldSourceItem[] = [];
 
-  for (const item of items) {
-    const key =
-      item.sourceRef ||
-      `${item.sourceName}:${item.url}`.toLowerCase();
+  for (const rawItem of items) {
+    const item = normalizeWorldSourceItem(rawItem);
+    let key = "";
+
+    // The URL identifies the actual article/release/product and can dedupe a
+    // syndicated story across collectors. sourceRef may be a non-URL ID (e.g.
+    // an arXiv id), so it is only the fallback when the item URL is invalid.
+    try {
+      const parsed = new URL(item.url);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        key = `url:${canonicalizeSourceUrl(item.url)}`;
+      }
+    } catch {
+      // Use the source-specific reference below for non-URL items.
+    }
+    if (!key) key = `${item.sourceName}:${item.sourceRef || item.url}`;
 
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push(normalizeWorldSourceItem(item));
+    result.push(item);
   }
 
   return result;

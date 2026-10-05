@@ -607,7 +607,7 @@ async function loadProducts(
           imageUrl: (row.product_image_url as string | null) ?? null,
           price: normalizeHomepageProductPrice(row.price),
           description: (row.description as string | null) ?? null,
-        })
+        }, { requireVerifiedFields: false })
       ) {
         return false;
       }

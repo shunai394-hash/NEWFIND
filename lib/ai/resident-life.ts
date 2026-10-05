@@ -314,6 +314,7 @@ async function polishCaption(input: {
       role: input.persona.resident_role,
       recentCaptions: input.recentCaptions,
       subjectLabel: input.subject?.label ?? null,
+      isEditorial: input.subject?.kind === "world" || input.subject?.kind === "news",
     });
     if (quality.ok) return caption;
     try {
@@ -355,6 +356,7 @@ async function polishCaption(input: {
     role: input.persona.resident_role,
     recentCaptions: input.recentCaptions,
     subjectLabel: input.subject?.label ?? null,
+    isEditorial: input.subject?.kind === "world" || input.subject?.kind === "news",
   });
   return finalQuality.ok ? caption : null;
 }
@@ -1718,6 +1720,7 @@ async function generateCadencePostFallback(input: {
       role: persona.resident_role,
       recentCaptions: [],
       subjectLabel: subject.label,
+      isEditorial: subject.kind === "world" || subject.kind === "news",
     });
     return quality.ok ? caption : null;
   } catch (error) {

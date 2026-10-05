@@ -15,6 +15,13 @@ function main() {
 
   assert(isHomepageProductEligible(verified), "verified product should pass");
   assert(
+    !isHomepageProductEligible(
+      { brand: "Discovery", name: "Discovery", imageUrl: "https://example.com/product.jpg" },
+      { requireVerifiedFields: false },
+    ),
+    "fallback must not render placeholder discovery labels as products",
+  );
+  assert(
     !isHomepageProductEligible({ ...verified, brand: "" }),
     "anonymous product must fail",
   );

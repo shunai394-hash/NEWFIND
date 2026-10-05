@@ -612,20 +612,12 @@ async function loadLiveActivities(
       actorAvatarUrl: resident.avatarUrl,
       isAi: true,
       quote: firstSentence(caption, 140),
-      actionLabel: hasProduct ? "Discovered a product" : "Posted in the world",
-      product: hasProduct
-        ? {
-            id: String(row.id),
-            brand: productLabel || resident.name,
-            name: productLabel || "Discovery",
-            imageUrl:
-              (row.thumbnail_url as string | null) ||
-              (row.media_url as string | null),
-            href: resident.href ?? "/discover",
-          }
-        : null,
+      actionLabel: hasProduct ? "Shared a product lead" : "Posted in the world",
+      // Raw AI posts are not the verified product catalog. Keep the real post
+      // visible, but never promote its unverified label/image as a product card.
+      product: null,
       reply: null,
-      ctaLabel: hasProduct ? "View discovery" : "See what’s happening",
+      ctaLabel: hasProduct ? "View resident" : "See what’s happening",
       ctaHref: resident.href ?? "/discover",
     });
     if (activities.length >= 2) break;

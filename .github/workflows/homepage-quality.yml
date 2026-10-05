@@ -10,6 +10,11 @@ on:
       - "app/api/world/today/route.ts"
       - "scripts/test-world-headline-quality.ts"
       - "scripts/test-home-quality.ts"
+      - "scripts/render-app-icon.mjs"
+      - "scripts/check-app-icons.mjs"
+      - "lib/capacitor/oauth-return.ts"
+      - "codemagic.yaml"
+      - ".github/workflows/ios-build.yml"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/homepage-quality.yml"
@@ -28,9 +33,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Final app icon validation
+        run: npm run icons:finalize
       - name: Homepage quality regression
         run: npm run test:home-quality
       - name: World headline quality regression
         run: npm run test:world-headlines
       - name: Lint changed quality code
-        run: npx eslint lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts
+        run: npx eslint lib/world/home-data.ts lib/discovery/db.ts scripts/test-home-quality.ts lib/ai/control-tower/world-headline-quality.ts app/api/world/today/route.ts scripts/test-world-headline-quality.ts lib/capacitor/oauth-return.ts

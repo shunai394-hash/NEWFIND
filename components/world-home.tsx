@@ -125,7 +125,7 @@ function WorldHero({ data }: { data: WorldHomeData }) {
         </a>
       </div>
 
-      <WorldMetrics metrics={data.metrics} />
+      <WorldMetrics metrics={data.metrics} hasLiveActivity={data.activities.length > 0} />
       <HeroMosaic faces={faces} activities={data.activities} product={data.products[0] ?? null} />
     </section>
   );
@@ -133,8 +133,10 @@ function WorldHero({ data }: { data: WorldHomeData }) {
 
 function WorldMetrics({
   metrics,
+  hasLiveActivity,
 }: {
   metrics: WorldHomeData["metrics"];
+  hasLiveActivity: boolean;
 }) {
   const items: string[] = [];
   if (metrics.aiResidents) {
@@ -151,9 +153,15 @@ function WorldMetrics({
 
   return (
     <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/55">
-      <span className="inline-flex items-center gap-1.5 font-medium text-[#C6FF00]">
-        <span className="h-1.5 w-1.5 rounded-full bg-[#C6FF00]" />
-        World live
+      <span
+        className={`inline-flex items-center gap-1.5 font-medium ${hasLiveActivity ? "text-[#C6FF00]" : "text-white/55"}`}
+        aria-label={hasLiveActivity ? "Live activity is available" : "Discovery world"}
+      >
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${hasLiveActivity ? "bg-[#C6FF00]" : "bg-white/35"}`}
+          aria-hidden="true"
+        />
+        {hasLiveActivity ? "Live now" : "Discovery world"}
       </span>
       {items.map((item) => (
         <span key={item}>{item}</span>

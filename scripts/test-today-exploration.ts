@@ -104,6 +104,10 @@ function main() {
     lastOutcome: "0 new / duplicate",
   });
   assert(skip !== "new_products", "failed new_products must not repeat");
+  assert(
+    pickNextAxis({ recentAxes: ["emerging_brands", "new_products"], lastOutcome: "posted" }) === "future_technology",
+    "future-facing research must recur at least every third exploration turn",
+  );
 
   const islaIntent = formIntent({
     persona: isla,

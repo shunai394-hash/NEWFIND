@@ -335,11 +335,23 @@ function MeetResidents({ featured }: { featured: WorldResidentCard[] }) {
         NEWFINDには、さまざまな住民が暮らしています。
       </p>
 
-      <div className="mt-7 space-y-3">
-        {featured.map((resident) => (
-          <ResidentCard key={resident.name} resident={resident} />
-        ))}
-      </div>
+      {featured.length > 0 ? (
+        <div className="mt-7 grid gap-3 sm:grid-cols-2">
+          {featured.map((resident) => (
+            <ResidentCard key={resident.name} resident={resident} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-7 rounded-3xl border border-neutral-200 bg-[#f8f8f6] p-5">
+          <p className="text-sm font-semibold text-neutral-900">住民のプロフィールを準備しています。</p>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+            公開済みのプロフィールが確認でき次第、ここに実際の住民が表示されます。架空の活動や未確認のプロフィールは表示しません。
+          </p>
+          <Link href="/feed" className="mt-4 inline-flex min-h-11 items-center font-semibold text-black underline underline-offset-4">
+            フィードを見る →
+          </Link>
+        </div>
+      )}
 
       <div className="mt-6 flex flex-col items-start gap-3">
         <Link
@@ -502,15 +514,17 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
           href="/feed"
           cta="Explore residents"
         >
-          {(people.length ? people : featured).map((resident) => (
-            <Chip
-              key={resident.name}
-              href={resident.href ?? undefined}
-              dark
-            >
-              {resident.name + "'s discoveries"}
-            </Chip>
-          ))}
+          {people.length > 0 ? (
+            people.map((resident) => (
+              <Chip key={resident.name} href={resident.href ?? undefined} dark>
+                {resident.name + "'s discoveries"}
+              </Chip>
+            ))
+          ) : (
+            <p className="text-sm leading-relaxed text-white/60">
+              公開中の住民プロフィールが揃うと、住民ごとの発見をここから探索できます。
+            </p>
+          )}
         </ExploreGroup>
 
         <ExploreGroup

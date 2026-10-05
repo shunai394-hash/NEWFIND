@@ -11,9 +11,27 @@ function main() {
     kind: "NEWS",
     dispatch: "DISCOVERY",
     title: "A new independent label is rethinking recycled nylon outerwear",
+    sourceUrl: "https://www.example.org/research/independent-nylon",
+    sourceTitle: "Independent nylon research",
   };
 
-  assert(isPresentableWorldHeadline(good), "specific grounded headline should pass");
+  assert(isPresentableWorldHeadline(good), "specific headline with an attributable HTTPS source should pass");
+  assert(
+    !isPresentableWorldHeadline({ ...good, sourceUrl: null }),
+    "unsourced claims must not be presented as reported discoveries",
+  );
+  assert(
+    !isPresentableWorldHeadline({ ...good, sourceUrl: "http://example.org/story" }),
+    "public source links must use HTTPS",
+  );
+  assert(
+    !isPresentableWorldHeadline({ ...good, sourceUrl: "https://localhost/private" }),
+    "local and non-public source hosts must be rejected",
+  );
+  assert(
+    !isPresentableWorldHeadline({ ...good, sourceUrl: "https://user:pass@example.org/story" }),
+    "source URLs containing credentials must be rejected",
+  );
   assert(
     !isPresentableWorldHeadline({ ...good, title: "Trend signal 2000+ mixed unrelated headlines" }),
     "synthetic trend-signal aggregates must not appear as discoveries",
@@ -38,10 +56,11 @@ function main() {
     good,
     { ...good, actor: "Camille", beat: "beauty" },
     { ...good, title: "Trend signal 1000+ unrelated news aggregation" },
-    { ...good, title: "A verified product launch from a small Tokyo studio" },
+    { ...good, title: "A verified product launch from a small Tokyo studio", sourceUrl: "https://tokyo.example.org/launch" },
+    { ...good, title: "A promising launch without a source link", sourceUrl: null },
   ]);
 
-  assert(curated.length === 2, "duplicate and low-quality headlines should be removed");
+  assert(curated.length === 2, "duplicates, unsourced and low-quality headlines should be removed");
   assert(curated[0].actor === "Isla", "first grounded discovery should retain its author");
   assert(
     curated[1].title === "A verified product launch from a small Tokyo studio",

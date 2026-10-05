@@ -148,6 +148,38 @@ function sourceTypeFromDomain(
     return "sns";
   }
 
+  // Peer-reviewed research, standards bodies, science agencies, and
+  // technical societies are specialist evidence sources, not unknown blogs.
+  if (
+    d.includes("arxiv.org") ||
+    d.includes("ieee.org") ||
+    d.includes("ieeexplore.ieee.org") ||
+    d.includes("acm.org") ||
+    d.includes("dl.acm.org") ||
+    d.includes("nature.com") ||
+    d.includes("science.org") ||
+    d.includes("robotics.org") ||
+    d.includes("agu.org") ||
+    d.includes("noaa.gov") ||
+    d.includes("nasa.gov") ||
+    d.includes("usgs.gov") ||
+    d.includes("computer.org")
+  ) {
+    return "editorial";
+  }
+
+  // Official research and engineering announcements remain attributable to
+  // the organization publishing them; they are not treated as unverified blogs.
+  if (
+    d.includes("deepmind.google") ||
+    d.includes("research.google") ||
+    d.includes("ai.googleblog.com") ||
+    d.includes("nvidia.com") ||
+    d.includes("blogs.microsoft.com")
+  ) {
+    return "brand_official";
+  }
+
   if (
     d.includes("reuters.com") ||
     d.includes("apnews.com") ||

@@ -64,6 +64,9 @@ export async function handleOAuthReturnUrl(rawUrl: string): Promise<boolean> {
 
   if (!isOAuthCallbackUrl(url)) return false;
 
+  // Let the login screen distinguish an app return from a user closing the browser.
+  window.dispatchEvent(new Event("newfind:oauth-return"));
+
   // Close the Capacitor Safari View Controller when OAuth returns to the app.
   await Browser.close().catch(() => {});
 

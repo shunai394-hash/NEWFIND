@@ -40,9 +40,9 @@ const sourceItem = (
   signalType: "technology",
 });
 const sourceDeduped = dedupeWorldSourceItems([
-  sourceItem("https://www.example.org/Story?id=7&utm_source=feed", "future_tech_news", "feed-story"),
-  sourceItem("https://example.org/Story?id=7#details", "arxiv", "arxiv-story"),
-  sourceItem("https://example.org/story?id=7", "arxiv", "other-story"),
+  sourceItem("https://www.example.org/Story?id=7&utm_source=feed", "future_tech_news", "https://www.example.org/Story?id=7&utm_source=feed"),
+  sourceItem("https://example.org/Story?id=7#details", "arxiv", "https://example.org/Story?id=7#details"),
+  sourceItem("https://example.org/story?id=7", "arxiv", "https://example.org/story?id=7"),
 ]);
 assert(
   sourceDeduped.length === 2,

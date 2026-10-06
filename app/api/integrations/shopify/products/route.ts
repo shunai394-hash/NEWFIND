@@ -63,10 +63,6 @@ export async function POST(request: Request) {
   const topic = request.headers.get("x-shopify-topic")?.trim().toLowerCase() ?? "";
   const signature = request.headers.get("x-shopify-hmac-sha256")?.trim() ?? "";
   const webhookId = request.headers.get("x-shopify-webhook-id")?.trim() ?? "";
-  const triggeredAtHeader = request.headers.get("x-shopify-triggered-at");
-  const triggeredAt = triggeredAtHeader && Number.isFinite(Date.parse(triggeredAtHeader))
-    ? new Date(triggeredAtHeader).toISOString()
-    : null;
 
   if (!shopDomain || shopDomain !== allowedShop) {
     return Response.json({ ok: false, error: "Shop is not allowed" }, { status: 401 });
@@ -97,6 +93,12 @@ export async function POST(request: Request) {
   if (product.id == null) {
     return Response.json({ ok: false, error: "Missing product id" }, { status: 400 });
   }
+  const sourceUpdatedAt = typeof product.updated_at === "string" && Number.isFinite(Date.parse(product.updated_at))
+    ? new Date(product.updated_at).toISOString()
+    : null;
+  if (!sourceUpdatedAt) {
+    return Response.json({ ok: false, error: "Missing or invalid signed product updated_at" }, { status: 400 });
+  }
 
   const productId = String(product.id);
   const archived = topic === "products/delete" || product.status === "archived";
@@ -121,7 +123,7 @@ export async function POST(request: Request) {
     product_url: productUrl,
     price_min: prices.length ? Math.min(...prices) : null,
     price_max: prices.length ? Math.max(...prices) : null,
-    source_updated_at: triggeredAt ?? product.updated_at ?? new Date().toISOString(),
+    source_updated_at: sourceUpdatedAt,
     source_status: archived ? "archived" : (product.status ?? "unknown"),
     published_to_store: published,
     review_status: archived || !published ? "blocked" : "pending_review",

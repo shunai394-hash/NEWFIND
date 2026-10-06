@@ -12,6 +12,8 @@ import {
   type IntegrationEnvelope,
   type AckResponse,
 } from "@/lib/integration";
+import { canonicalProductUrl } from "@/lib/discovery/rules";
+import { recordTracerPromotion } from "@/lib/integration/tracer-promotion";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,7 +72,11 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
   let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(rawBody) as Record<string, unknown>;
+    const value: unknown = JSON.parse(rawBody);
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return NextResponse.json({ ok: false, error: "invalid payload" }, { status: 400 });
+    }
+    parsed = value as Record<string, unknown>;
   } catch {
     return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 });
   }
@@ -167,6 +173,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: result.detail }, { status: 400 });
   }
 
+  // A product_candidate has already passed the TRACER attestation and the
+  // NEWFIND publication gate above. Resolve its stored discovery row and
+  // create exactly one resident/timeline promotion record.
+  let promotion = null;
+  if (envelope.event_type === "product_candidate") {
+    const productUrl =
+      (typeof envelope.payload.product_url === "string" && envelope.payload.product_url) ||
+      (typeof envelope.payload.sales_url === "string" && envelope.payload.sales_url) ||
+      null;
+    if (productUrl) {
+      const canonical = canonicalProductUrl(productUrl) || productUrl;
+      const admin = (await import("@/lib/supabase/admin")).createAdminClient();
+      const { data: discoveryProduct, error: discoveryError } = await admin
+        .from("discovery_products")
+        .select("id")
+        .eq("product_url", canonical)
+        .maybeSingle();
+      if (discoveryError) {
+        await markInboxFailed(inbox.row.id, discoveryError.message);
+        return NextResponse.json({ ok: false, error: "discovery product lookup failed" }, { status: 500 });
+      }
+      if (!discoveryProduct?.id) {
+        await markInboxFailed(inbox.row.id, "discovery product missing after accepted TRACER event");
+        return NextResponse.json({ ok: false, error: "discovery product missing" }, { status: 500 });
+      }
+      promotion = await recordTracerPromotion({
+        eventId: envelope.event_id,
+        payload: envelope.payload,
+        discoveryProductId: String(discoveryProduct.id),
+      });
+      if (!promotion.ok) {
+        await markInboxFailed(inbox.row.id, promotion.detail);
+        return NextResponse.json({ ok: false, error: promotion.detail }, { status: 500 });
+      }
+    }
+  }
+
   try {
     await markInboxProcessed(inbox.row.id);
   } catch (err) {
@@ -183,7 +226,7 @@ export async function POST(request: Request) {
     event_id: envelope.event_id,
     inbox_id: inbox.row.id,
     status: inbox.duplicate ? "duplicate" : "processed",
-    detail: result.detail,
+    detail: promotion?.detail || result.detail,
   };
   return NextResponse.json(ack);
 }

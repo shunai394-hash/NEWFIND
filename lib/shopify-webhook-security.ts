@@ -1,12 +1,12 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
- * Validate Shopify's Base64-encoded HMAC-SHA256 header.
+ * Verify Shopify's Base64-encoded HMAC-SHA256 over the exact raw request body.
  * Reject non-canonical Base64 and values that are not exactly 32 bytes.
  */
-export function safeEqualShopifyHmac(expectedBase64: string, received: string): boolean {
+export function verifyShopifyWebhookHmac(rawBody: string, secret: string, received: string): boolean {
   const supplied = Buffer.from(received, "base64");
   if (supplied.length !== 32 || supplied.toString("base64") !== received) return false;
-  const expected = Buffer.from(expectedBase64, "base64");
+  const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest();
   return expected.length === supplied.length && timingSafeEqual(expected, supplied);
 }

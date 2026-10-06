@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readBoundedWebhookBody } from "../lib/shopify-webhook-body";
-import { normalizeShopifyProductId, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
+import { normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "../lib/shopify-webhook-security";
 
 test("accepts a valid Shopify Base64 HMAC for the exact raw body", () => {
@@ -98,4 +98,16 @@ test("normalizes only positive integer Shopify product IDs", () => {
   assert.equal(normalizeShopifyProductId(-1), null);
   assert.equal(normalizeShopifyProductId(1.5), null);
   assert.equal(normalizeShopifyProductId("1e3"), null);
+});
+
+test("does not turn missing or malformed Shopify prices into zero", () => {
+  assert.equal(normalizeShopifyPrice("0.00"), 0);
+  assert.equal(normalizeShopifyPrice("123.45"), 123.45);
+  assert.equal(normalizeShopifyPrice(null), null);
+  assert.equal(normalizeShopifyPrice(""), null);
+  assert.equal(normalizeShopifyPrice("   "), null);
+  assert.equal(normalizeShopifyPrice("1e3"), null);
+  assert.equal(normalizeShopifyPrice("-1.00"), null);
+  assert.equal(normalizeShopifyPrice("10000000000.00"), null);
+  assert.equal(normalizeShopifyPrice("12.345"), null);
 });

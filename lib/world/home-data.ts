@@ -482,12 +482,38 @@ async function loadFeaturedResidents(
   );
 }
 
-function isUsableProductImageUrl(value: string): boolean {
+function isPublicHttpsUrl(value: string | null | undefined): boolean {
+  if (!value?.trim()) return false;
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:") return false;
+    if (url.protocol !== "https:" || url.username || url.password) return false;
+    const host = url.hostname.toLowerCase().replace(/\.$/, "");
+    if (
+      !host ||
+      host === "localhost" ||
+      host.endsWith(".localhost") ||
+      host.endsWith(".local") ||
+      host === "::1" ||
+      host === "[::1]" ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(?:1[6-9]|2\d|3[01])\./.test(host) ||
+      /^\[(?:fc|fd|fe80)/i.test(host)
+    ) return false;
+    return host.includes(".");
+  } catch {
+    return false;
+  }
+}
+
+function isUsableProductImageUrl(value: string): boolean {
+  if (!isPublicHttpsUrl(value)) return false;
+  try {
+    const url = new URL(value);
     if (/placeholder|no[-_]?image|default[-_]?product|missing[-_]?image/i.test(url.pathname)) return false;
-    return Boolean(url.hostname && url.hostname.includes("."));
+    return true;
   } catch {
     return false;
   }
@@ -522,14 +548,9 @@ export function hasVerifiedProductIdentity(product: {
   gtin?: string | null;
   modelNumber?: string | null;
 }): boolean {
-  const hasSourceUrl = [product.officialUrl, product.productUrl].some((value) => {
-    try {
-      const url = new URL(String(value ?? ""));
-      return url.protocol === "https:" && Boolean(url.hostname);
-    } catch {
-      return false;
-    }
-  });
+  const hasSourceUrl = [product.officialUrl, product.productUrl].some((value) =>
+    isPublicHttpsUrl(value),
+  );
   const hasStructuredIdentity = [product.sku, product.gtin, product.modelNumber].some(
     (value) => Boolean(String(value ?? "").trim()),
   );

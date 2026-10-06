@@ -156,5 +156,17 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  return Response.json({ ok: true, integration: "shopify-product-webhook", mode: "signed-webhook" });
+  const configured = Boolean(
+    process.env.SHOPIFY_WEBHOOK_SECRET?.trim() &&
+    process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN?.trim(),
+  );
+  return Response.json(
+    {
+      ok: configured,
+      integration: "shopify-product-webhook",
+      mode: "signed-webhook",
+      readiness: configured ? "configured" : "missing_environment",
+    },
+    { status: configured ? 200 : 503 },
+  );
 }

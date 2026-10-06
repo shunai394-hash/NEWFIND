@@ -28,3 +28,17 @@ export function normalizeShopifyProductId(value: unknown): string | null {
   if (normalized === "0") return null;
   return normalized;
 }
+
+/** Parse only explicit, non-negative monetary values within numeric(12,2). */
+export function normalizeShopifyPrice(value: unknown): number | null {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (!/^\d{1,10}(?:\.\d{1,2})?$/.test(normalized)) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 9_999_999_999.99) {
+    return null;
+  }
+  return Math.round(value * 100) / 100 === value ? value : null;
+}

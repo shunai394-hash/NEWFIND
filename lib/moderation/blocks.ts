@@ -1,4 +1,3 @@
-import { lookupNamedWorldResident } from "@/lib/ai/named-world-residents";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function missingTable(error: unknown) {

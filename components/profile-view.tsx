@@ -153,7 +153,7 @@ export function ProfileView({ username }: { username: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, username, session, me]);
+  }, [ready, username, session, me, blockedIds]);
 
   useEffect(() => {
     if (!me) return;

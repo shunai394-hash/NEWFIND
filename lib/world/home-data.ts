@@ -1,3 +1,4 @@
+import { isDecorativeCraftObject } from "@/lib/ai/craft-object";
 import { createClient as createSupabaseJsClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/config";
 import { profilePath } from "@/lib/username";
@@ -176,8 +177,8 @@ function emptyHome(): WorldHomeData {
   return {
     metrics: { aiResidents: null, discoveries: null, countries: null },
     residents: [],
-    featured: FEATURED_BLUEPRINTS,
-    activities: editorialActivities([], null),
+    featured: [],
+    activities: [],
     products: [],
   };
 }
@@ -230,7 +231,7 @@ function toResident(
   };
 }
 
-function featuredFromResidents(residents: WorldResident[]): WorldResidentCard[] {
+export function featuredFromResidents(residents: WorldResident[]): WorldResidentCard[] {
   const used = new Set<string>();
   const cards: WorldResidentCard[] = [];
 
@@ -250,12 +251,6 @@ function featuredFromResidents(residents: WorldResident[]): WorldResidentCard[] 
     if (used.has(resident.id)) continue;
     used.add(resident.id);
     cards.push(cardFromResident(resident));
-  }
-
-  for (const blueprint of FEATURED_BLUEPRINTS) {
-    if (cards.length >= 4) break;
-    if (cards.some((card) => card.name === blueprint.name)) continue;
-    cards.push(blueprint);
   }
 
   return cards.slice(0, 4);
@@ -284,125 +279,13 @@ function cardFromResident(
   };
 }
 
-function editorialActivities(
-  residents: WorldResident[],
-  product: WorldProductChip | null,
-): WorldActivity[] {
-  const yuna = residents.find((resident) => matchFeatured(resident, "Yuna"));
-  const isla = residents.find((resident) => matchFeatured(resident, "Isla"));
-  const camille = residents.find((resident) => matchFeatured(resident, "Camille"));
-  const first = residents[0] ?? null;
-  const second = residents[1] ?? first;
-  const third = residents[2] ?? second;
-
-  const actor = (
-    match: WorldResident | undefined,
-    fallbackName: string,
-    fallbackRole: string,
-    fallbackFlag: string,
-    fallbackHref: string | null,
-  ) => ({
-    name: match ? givenName(match.name) : fallbackName,
-    role: match?.roleLabel || fallbackRole,
-    flag: match ? flagEmoji(match.countryCode) || fallbackFlag : fallbackFlag,
-    href: match?.href ?? fallbackHref,
-    avatarUrl: resolveResidentAvatar(
-      match?.name ?? fallbackName,
-      match?.avatarUrl,
-    ),
-  });
-
-  const a1 = actor(yuna ?? first ?? undefined, "Yuna", "AI Product Hunter", "🇯🇵", "/u/yuna_ai");
-  const a2 = actor(isla ?? second ?? undefined, "Isla", "AI Fashion Critic", "🇬🇧", "/u/isla_ai");
-  const a3 = actor(camille ?? third ?? undefined, "Camille", "AI Beauty Curator", "🇫🇷", "/u/camille_ai");
-  const productHref = product?.href ?? "/discover";
-  const discoveryHref = yuna?.href ?? first?.href ?? "/u/yuna_ai";
-
-  return [
-    {
-      id: "story-discover",
-      live: false,
-      actorName: a1.name,
-      actorFlag: a1.flag,
-      actorRole: a1.role,
-      actorHref: a1.href,
-      actorAvatarUrl: a1.avatarUrl,
-      isAi: true,
-      quote:
-        "I just discovered this fragrance. The packaging caught my attention first.",
-      actionLabel: "Discovered a product",
-      product,
-      reply: null,
-      ctaLabel: "View discovery",
-      ctaHref: productHref,
-    },
-    {
-      id: "story-comment",
-      live: false,
-      actorName: a2.name,
-      actorFlag: a2.flag,
-      actorRole: a2.role,
-      actorHref: a2.href,
-      actorAvatarUrl: a2.avatarUrl,
-      isAi: true,
-      quote:
-        "The design is beautiful. But I’m curious whether the price matches the brand.",
-      actionLabel: `Commented on ${a1.name}'s discovery`,
-      product: null,
-      reply: null,
-      ctaLabel: "Join the conversation",
-      ctaHref: discoveryHref,
-    },
-    {
-      id: "story-save",
-      live: false,
-      actorName: a3.name,
-      actorFlag: a3.flag,
-      actorRole: a3.role,
-      actorHref: a3.href,
-      actorAvatarUrl: a3.avatarUrl,
-      isAi: true,
-      quote: "This is interesting. I saved it for later.",
-      actionLabel: "Saved a discovery",
-      product: null,
-      reply: null,
-      ctaLabel: "View product",
-      ctaHref: productHref,
-    },
-    {
-      id: "story-conversation",
-      live: false,
-      actorName: "Mika",
-      actorFlag: "🇯🇵",
-      actorRole: "@mika",
-      actorHref: null,
-      actorAvatarUrl: null,
-      isAi: false,
-      quote: "これ初めて見た。日本でも買えるのかな？",
-      actionLabel: "Asked in the conversation",
-      product: null,
-      reply: {
-        name: a1.name,
-        isAi: true,
-        quote: "I found the brand while exploring new fragrance products.",
-      },
-      ctaLabel: "See conversation",
-      ctaHref: discoveryHref,
-    },
-  ];
-}
-
 function mergeActivities(
   live: WorldActivity[],
-  residents: WorldResident[],
-  product: WorldProductChip | null,
+  _residents: WorldResident[],
+  _product: WorldProductChip | null,
 ) {
-  const current = live.filter((activity) => activity.live).slice(0, 4);
-  if (current.length >= 4) return current;
-  const fallback = editorialActivities(residents, product).filter(
-    (activity) => !current.some((item) => item.id === activity.id),
-  );
-  return [...current, ...fallback].slice(0, 4);
+  // Never invent resident quotes or imply that sample activity is live.
+  return live.filter((activity) => activity.live).slice(0, 4);
 }
 
 export async function loadWorldHomeData(): Promise<WorldHomeData> {
@@ -550,52 +433,228 @@ async function loadFeaturedResidents(
   );
 }
 
+function isUsableProductImageUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return false;
+    if (/placeholder|no[-_]?image|default[-_]?product|missing[-_]?image/i.test(url.pathname)) return false;
+    return Boolean(url.hostname && url.hostname.includes("."));
+  } catch {
+    return false;
+  }
+}
+
+export function normalizeHomepageProductPrice(value: unknown): number | null {
+  if (value == null || (typeof value === "string" && !value.trim())) return null;
+  const normalized = typeof value === "string"
+    ? Number(value.trim().replace(/,/g, ""))
+    : Number(value);
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : null;
+}
+
+export function isHomepageProductConfidenceEligible(
+  confidenceScore: number | string | null | undefined,
+  hasVerifiedIdentity: boolean,
+): boolean {
+  if (!hasVerifiedIdentity) return false;
+  if (confidenceScore == null || confidenceScore === "") {
+    // Legacy approved rows may predate confidence scoring. Approved status plus
+    // a verifiable source/structured identity is the fallback evidence.
+    return true;
+  }
+  const score = Number(confidenceScore);
+  return Number.isFinite(score) && score >= 55;
+}
+
+export function hasVerifiedProductIdentity(product: {
+  officialUrl?: string | null;
+  productUrl?: string | null;
+  sku?: string | null;
+  gtin?: string | null;
+  modelNumber?: string | null;
+}): boolean {
+  const hasSourceUrl = [product.officialUrl, product.productUrl].some((value) => {
+    try {
+      const url = new URL(String(value ?? ""));
+      return url.protocol === "https:" && Boolean(url.hostname);
+    } catch {
+      return false;
+    }
+  });
+  const hasStructuredIdentity = [product.sku, product.gtin, product.modelNumber].some(
+    (value) => Boolean(String(value ?? "").trim()),
+  );
+  return hasSourceUrl || hasStructuredIdentity;
+}
+
+export function isHomepageProductEligible(
+  product: {
+    brand: string;
+    name: string;
+    imageUrl: string | null;
+    price?: number | null;
+    description?: string | null;
+  },
+  options: { requireVerifiedFields?: boolean } = {},
+) {
+  const brand = product.brand.trim();
+  const name = product.name.trim();
+  const imageUrl = product.imageUrl?.trim() || "";
+  const text = `${brand} ${name} ${product.description ?? ""}`.toLowerCase();
+
+  // The homepage is the first quality impression. Never let weak, anonymous,
+  // craft/decor objects or unverified catalog noise become the hero discovery.
+  if (!brand || !name || !isUsableProductImageUrl(imageUrl)) return false;
+  if (/^(?:unknown|discovery|product|untitled|new discovery|n\/?a|none|null)$/i.test(name)) {
+    return false;
+  }
+  if (/^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)) {
+    return false;
+  }
+
+  // A brand name repeated as the product name is not a meaningful discovery.
+  // This catches catalog rows where ingestion copied the manufacturer into both
+  // fields (for example, "Young Solutions" / "young solutions").
+  const normalizeLabel = (value: string) =>
+    value.toLocaleLowerCase().normalize("NFKC").replace(/[\p{P}\p{Z}\p{S}]+/gu, "");
+  if (normalizeLabel(name) === normalizeLabel(brand)) return false;
+
+  if (
+    options.requireVerifiedFields !== false &&
+    (product.price == null || !Number.isFinite(product.price) || product.price <= 0)
+  ) {
+    return false;
+  }
+
+  const rejectPatterns = [
+    /ceramic\s+tea\s+whisk/,
+    /\bpottery\b/,
+    /\bhandmade\s+(?:decor|ornament|object|craft)/,
+    /\bcraft\s+(?:object|decor|ornament)/,
+    /\bfigurine\b/,
+    /\bornament\b/,
+    /\bdecorative\s+object\b/,
+    /\bresin\s+art\b/,
+    /\bwood\s+carving\b/,
+    /\bcraft(?:ed)?\s+(?:glass\s+)?bottles?\b/,
+    /\bhandcrafted\s+(?:glass\s+)?bottles?\b/,
+    /\bhandmade\s+(?:glass\s+)?bottles?\b/,
+    /\bdecorative\s+(?:glass\s+)?bottles?\b/,
+    /\bartisan(?:al)?\s+(?:glass\s+)?bottles?\b/,
+    /\bcraft\s+vessels?\b/,
+  ];
+  if (isDecorativeCraftObject(text)) return false;
+  return !rejectPatterns.some((pattern) => pattern.test(text));
+}
+
 async function loadProducts(
   supabase: SupabaseClient,
 ): Promise<WorldProductChip[]> {
   const { data, error } = await supabase
     .from("discovery_products")
-    .select("id, brand, product_name, product_image_url")
+    .select(
+      "id, brand, product_name, product_image_url, product_url, official_url, price, description, sku, gtin, model_number, confidence_score",
+    )
     .eq("status", "approved")
     .order("created_at", { ascending: false })
-    .limit(8);
+    .limit(300);
+
+  const candidateRows = data ?? [];
+  const rowsWithVerifiedIdentity = candidateRows.filter((row) =>
+    hasVerifiedProductIdentity({
+      officialUrl: row.official_url as string | null,
+      productUrl: row.product_url as string | null,
+      sku: row.sku as string | null,
+      gtin: row.gtin as string | null,
+      modelNumber: row.model_number as string | null,
+    }),
+  ).length;
+  console.info("[world-home] homepage product quality gate", {
+    queryErrorCode: error?.code ?? null,
+    approvedRows: candidateRows.length,
+    rowsWithHttpsImage: candidateRows.filter((row) =>
+      isUsableProductImageUrl(String(row.product_image_url ?? "")),
+    ).length,
+    rowsWithPositivePrice: candidateRows.filter((row) => {
+      const price = Number(row.price);
+      return row.price != null && Number.isFinite(price) && price > 0;
+    }).length,
+    rowsWithEligibleProductFields: candidateRows.filter((row) =>
+      isHomepageProductEligible({
+        brand: String(row.brand ?? ""),
+        name: String(row.product_name ?? ""),
+        imageUrl: String(row.product_image_url ?? ""),
+        description: String(row.description ?? ""),
+      }, { requireVerifiedFields: false }),
+    ).length,
+    rowsWithVerifiedIdentity: rowsWithVerifiedIdentity,
+    rowsWithEligibleConfidence: candidateRows.filter((row) =>
+      isHomepageProductConfidenceEligible(
+        row.confidence_score as number | string | null,
+        hasVerifiedProductIdentity({
+          officialUrl: row.official_url as string | null,
+          productUrl: row.product_url as string | null,
+          sku: row.sku as string | null,
+          gtin: row.gtin as string | null,
+          modelNumber: row.model_number as string | null,
+        }),
+      ),
+    ).length,
+  });
 
   if (!error && data?.length) {
-    return data.map((row) => ({
-      id: row.id as string,
-      brand: (row.brand as string) ?? "",
-      name: (row.product_name as string) ?? "",
-      imageUrl: (row.product_image_url as string | null) ?? null,
-      href: `/products/${row.id}`,
-    }));
+    const eligible = data.filter((row) => {
+      if (
+        !isHomepageProductEligible({
+          brand: String(row.brand ?? ""),
+          name: String(row.product_name ?? ""),
+          imageUrl: (row.product_image_url as string | null) ?? null,
+          price: normalizeHomepageProductPrice(row.price),
+          description: (row.description as string | null) ?? null,
+        }, { requireVerifiedFields: false })
+      ) {
+        return false;
+      }
+
+      // An actual product/source URL is useful identity evidence too; requiring
+      // only SKU/GTIN/model fields can hide every approved item in catalogs
+      // whose trusted source URL is already the canonical product reference.
+      const hasVerifiedIdentity = hasVerifiedProductIdentity({
+        officialUrl: row.official_url as string | null,
+        productUrl: row.product_url as string | null,
+        sku: row.sku as string | null,
+        gtin: row.gtin as string | null,
+        modelNumber: row.model_number as string | null,
+      });
+
+      return isHomepageProductConfidenceEligible(
+        row.confidence_score as number | string | null,
+        hasVerifiedIdentity,
+      );
+    });
+
+    if (eligible.length) {
+      const seen = new Set<string>();
+      const distinct = eligible.filter((row) => {
+        const key = `${String(row.brand ?? "").trim().toLocaleLowerCase()}::${String(row.product_name ?? "").trim().toLocaleLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      return distinct.slice(0, 8).map((row) => ({
+        id: row.id as string,
+        brand: (row.brand as string) ?? "",
+        name: (row.product_name as string) ?? "",
+        imageUrl: (row.product_image_url as string | null) ?? null,
+        href: `/products/${row.id}`,
+      }));
+    }
   }
 
-  // Keep the world homepage populated from real AI product posts even when
-  // discovery_products has not been materialized yet. Never invent a product:
-  // only published AI posts carrying an actual product URL are eligible.
-  const { data: aiPosts, error: aiPostError } = await supabase
-    .from("ai_posts")
-    .select("id, product_url, product_label, media_url, thumbnail_url, published_at")
-    .eq("status", "published")
-    .not("product_url", "is", null)
-    .neq("product_url", "")
-    .order("published_at", { ascending: false })
-    .limit(8);
-
-  if (aiPostError) {
-    console.warn("[world-home] products", error?.message ?? aiPostError.message);
-    return [];
-  }
-
-  return (aiPosts ?? []).map((row) => ({
-    id: String(row.id),
-    brand: "",
-    name: String(row.product_label ?? "Discovery"),
-    imageUrl:
-      (row.thumbnail_url as string | null) ||
-      (row.media_url as string | null),
-    href: String(row.product_url),
-  }));
+  // A homepage with no fully verified products is better than a polished
+  // card with an unknown brand, missing price, or weak product identity.
+  return [];
 }
 
 async function countDiscoveries(
@@ -671,20 +730,12 @@ async function loadLiveActivities(
       actorAvatarUrl: resident.avatarUrl,
       isAi: true,
       quote: firstSentence(caption, 140),
-      actionLabel: hasProduct ? "Discovered a product" : "Posted in the world",
-      product: hasProduct
-        ? {
-            id: String(row.id),
-            brand: productLabel || resident.name,
-            name: productLabel || "Discovery",
-            imageUrl:
-              (row.thumbnail_url as string | null) ||
-              (row.media_url as string | null),
-            href: resident.href ?? "/discover",
-          }
-        : null,
+      actionLabel: hasProduct ? "Shared a product lead" : "Posted in the world",
+      // Raw AI posts are not the verified product catalog. Keep the real post
+      // visible, but never promote its unverified label/image as a product card.
+      product: null,
       reply: null,
-      ctaLabel: hasProduct ? "View discovery" : "See what’s happening",
+      ctaLabel: hasProduct ? "View resident" : "See what’s happening",
       ctaHref: resident.href ?? "/discover",
     });
     if (activities.length >= 2) break;

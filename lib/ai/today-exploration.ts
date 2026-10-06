@@ -29,6 +29,8 @@ export const SOURCE_CLASSES = [
   "local_retail",
   "local_media",
   "specialist_media",
+  "academic",
+  "conference",
   "community",
   "trend",
   "startup",
@@ -74,7 +76,7 @@ const AXIS_SOURCES: Record<ExplorationAxis, SourceClass[]> = {
   trend_signals: ["trend", "specialist_media", "community"],
   independent_creators: ["indie_brand", "community", "startup"],
   cross_region: ["specialist_media", "official", "local_media"],
-  future_technology: ["specialist_media", "startup", "official"],
+  future_technology: ["academic", "conference", "specialist_media", "startup", "official"],
   earth_science: ["specialist_media", "official", "community"],
 };
 
@@ -133,7 +135,7 @@ const AXIS_GOALS: Record<ExplorationAxis, (city: string, beat: string) => string
   cross_region: (city, beat) =>
     `Compare how ${beat} from ${city} is landing in a neighboring market`,
   future_technology: (_city, beat) =>
-    `Find credible future-facing products, prototypes, materials, robotics, energy and technology around ${beat}`,
+    `Investigate what comes next in AI, humanoid and industrial robotics, next-generation PCs and chips, spatial computing, quantum technology, energy and advanced materials around ${beat}; prioritize primary research, conference proceedings, working prototypes and dated announcements over speculation`,
   earth_science: (city, beat) =>
     `Find new earth-science discoveries about oceans, climate, geology, space-earth systems and natural phenomena relevant to ${city}`,
 };
@@ -235,6 +237,14 @@ export function pickNextAxis(input: {
     return "local_media";
   }
 
+  // Future-facing reporting is a core NEWFIND promise, not an occasional edge case.
+  // Unless the previous turn already covered it, schedule AI, robotics, next-gen
+  // PCs/chips, holography, spatial computing, quantum, energy and materials now.
+  // This makes research/news exploration recur at least every other successful turn.
+  if (recent[0] !== "future_technology") {
+    return "future_technology";
+  }
+
   const unused = EXPLORATION_AXES.find((axis) => !recent.includes(axis));
   if (unused) return unused;
   const nextIndex =
@@ -269,12 +279,13 @@ function axisSpecificQuery(
 ): string | null {
   if (axis === "future_technology") {
     return [
-      "future technology",
-      "prototype OR emerging product OR new device",
+      "AI robotics humanoid robot next-generation PC semiconductor on-device AI",
+      "research paper OR conference OR prototype OR official announcement",
+      "arXiv IEEE ACM Nature Science ICRA IROS NeurIPS CES Computex",
       beat,
       city,
       "2026",
-      language === "ja" ? "日本語" : "",
+      language === "ja" ? "日本語 OR 技術発表 OR 学会 OR 論文" : "",
     ].filter(Boolean).join(" ");
   }
   if (axis === "earth_science") {
@@ -307,7 +318,13 @@ function queryForSource(
     case "local_media":
       return `${city} ${beat} magazine news ${newWord}`;
     case "specialist_media":
-      return `${beat} ${city} specialist review launch`;
+      return axis === "future_technology"
+        ? `AI robotics next-generation PC semiconductor ${city} specialist news analysis 2026`
+        : `${beat} ${city} specialist review launch`;
+    case "academic":
+      return `site:arxiv.org OR site:ieeexplore.ieee.org OR site:dl.acm.org ${axis === "earth_science" ? "climate ocean geology earth science" : "AI robotics humanoid robot computer architecture semiconductor on-device AI"} research paper 2026`;
+    case "conference":
+      return `AI robotics next-generation computing academic conference proceedings 2026 ICRA IROS NeurIPS ICML CVPR SIGGRAPH ISCA Hot Chips`;
     case "community":
       return `${city} ${beat} independent maker forum`;
     case "trend":
@@ -323,8 +340,19 @@ function queryForSource(
   }
 }
 
-function domainsFor(city: string, sources: SourceClass[]) {
+function domainsFor(city: string, sources: SourceClass[], axis?: ExplorationAxis, date = new Date().toISOString().slice(0, 10)) {
   const include: string[] = [];
+  if (axis === "future_technology" || axis === "earth_science") {
+    // Rotate primary-source domains deterministically by day so the desk does not
+    // get trapped in one publisher or repeat the same conference/news outlet.
+    const researchDomains = axis === "earth_science"
+      ? ["nature.com", "science.org", "agu.org", "noaa.gov", "nasa.gov", "usgs.gov", "arxiv.org", "ieee.org"]
+      : ["arxiv.org", "spectrum.ieee.org", "ieee.org", "dl.acm.org", "nature.com", "science.org", "deepmind.google", "research.google", "robotics.org", "nvidia.com", "blogs.microsoft.com", "computer.org"];
+    const day = Math.max(0, Math.floor(Date.parse(`${date}T00:00:00Z`) / 86400000) || 0);
+    for (let offset = 0; offset < 4; offset += 1) {
+      include.push(researchDomains[(day + offset * 3) % researchDomains.length]);
+    }
+  }
   if (sources.includes("local_media") || sources.includes("specialist_media")) {
     include.push(...(LOCAL_MEDIA[city] ?? []));
   }
@@ -407,7 +435,7 @@ export function planTodayExploration(input: {
   ]).slice(0, 3);
 
   const includeDomains =
-    axis === "cross_region" ? [] : domainsFor(city, sources);
+    axis === "cross_region" ? [] : domainsFor(city, sources, axis, date);
   const excludeDomains = unique([
     ...SPAM_DOMAINS,
     ...OTHER_CITIES.filter((place) => compact(place) !== compact(city)).flatMap(

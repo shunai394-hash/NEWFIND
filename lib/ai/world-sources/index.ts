@@ -1,7 +1,8 @@
-﻿import type {
-  WorldSourceCollector,
-  WorldSourceCollectorContext,
-  WorldSourceItem,
+﻿import {
+  dedupeWorldSourceItems,
+  type WorldSourceCollector,
+  type WorldSourceCollectorContext,
+  type WorldSourceItem,
 } from "./types";
 import { productHuntWorldSourceCollector } from "./product-hunt";
 import { huggingFaceWorldSourceCollector } from "./hugging-face";
@@ -11,6 +12,7 @@ import { nasaWorldSourceCollector } from "./nasa";
 import { kickstarterWorldSourceCollector } from "./kickstarter";
 import { indiegogoWorldSourceCollector } from "./indiegogo";
 import { googleTrendsWorldSourceCollector } from "./google-trends";
+import { futureTechNewsWorldSourceCollector } from "./future-tech-news";
 
 export const worldSourceCollectors: WorldSourceCollector[] = [
   productHuntWorldSourceCollector,
@@ -21,6 +23,7 @@ export const worldSourceCollectors: WorldSourceCollector[] = [
   kickstarterWorldSourceCollector,
   indiegogoWorldSourceCollector,
   googleTrendsWorldSourceCollector,
+  futureTechNewsWorldSourceCollector,
 ];
 
 export async function collectWorldIntelligence(
@@ -48,24 +51,5 @@ export async function collectWorldIntelligence(
     );
   }
 
-  const normalized = items.map((item) => ({
-    ...item,
-    title: item.title.trim(),
-    url: item.url.trim(),
-    snippet: item.snippet.trim().slice(0, 2000),
-    domain: item.domain.trim().toLowerCase(),
-    sourceRef: item.sourceRef.trim(),
-  }));
-
-  const seen = new Set<string>();
-
-  return normalized.filter((item) => {
-    const key =
-      `${item.sourceName}:${item.sourceRef}`.toLowerCase();
-
-    if (seen.has(key)) return false;
-
-    seen.add(key);
-    return true;
-  });
+  return dedupeWorldSourceItems(items);
 }

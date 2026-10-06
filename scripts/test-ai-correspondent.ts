@@ -1,5 +1,6 @@
 import {
   beatForPersona,
+  beatForExploration,
   classifyWorldInfo,
   correspondentQuery,
   decideWorldDispatch,
@@ -15,7 +16,11 @@ import {
   namedCorrespondentIdentity,
 } from "../lib/ai/correspondent-identity";
 import { applyExperience, buildSelfState, formIntent } from "../lib/ai/self-model";
-import type { WorldSearchResult } from "../lib/ai/world-search";
+import { sourceTypeFromDomain, type WorldSearchResult } from "../lib/ai/world-search";
+import {
+  ARXIV_FUTURE_TECH_QUERY_GROUPS,
+  diversifyArxivEntries,
+} from "../lib/ai/world-sources/arxiv";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -126,6 +131,62 @@ function main() {
     domain: "aesop.com",
   });
 
+  assert(
+    ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:cs.RO")) &&
+      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:cs.AR")) &&
+      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:quant-ph")) &&
+      ARXIV_FUTURE_TECH_QUERY_GROUPS.some((query) => query.includes("cat:cond-mat.mtrl-sci")),
+    "research intake must cover robotics, computer architecture, quantum, and advanced materials",
+  );
+  const diversified = diversifyArxivEntries(
+    [
+      [
+        { id: "https://arxiv.org/abs/ai-1", title: "AI paper 1" },
+        { id: "https://arxiv.org/abs/ai-2", title: "AI paper 2" },
+        { id: "https://arxiv.org/abs/shared", title: "Shared paper" },
+      ],
+      [
+        { id: "https://arxiv.org/abs/hardware-1", title: "Hardware paper 1" },
+        { id: "https://arxiv.org/abs/materials-1", title: "Materials paper 1" },
+        { id: "https://arxiv.org/abs/shared", title: "Duplicate shared paper" },
+      ],
+    ],
+    5,
+  );
+  assert(diversified.length === 5, "research diversification should fill the requested limit");
+  assert(
+    diversified[0]?.id?.includes("ai-1") && diversified[1]?.id?.includes("hardware-1"),
+    "research intake should alternate AI and hardware/materials instead of letting one category dominate",
+  );
+  assert(
+    new Set(diversified.map((entry) => entry.id)).size === diversified.length,
+    "research intake should deduplicate identical source URLs across query groups",
+  );
+
+  const arxivResearch = result({
+    title: "A new study demonstrates more efficient on-device language model inference",
+    url: "https://arxiv.org/abs/2601.12345",
+    snippet: "Research paper evaluating inference latency, memory use, and energy consumption.",
+    sourceType: sourceTypeFromDomain("arxiv.org"),
+    sourceRole: "general",
+    publishedAt: new Date().toISOString(),
+    domain: "arxiv.org",
+  });
+  assert(arxivResearch.sourceType === "editorial", "arXiv must be recognized as a specialist research source");
+  assert(classifyWorldInfo(arxivResearch) === "RESEARCH", "research papers must be classified as RESEARCH");
+  assert(worldQualityGate({ result: arxivResearch, infoKind: "RESEARCH" }).ok, "peer-reviewed/preprint sources must pass source quality gating");
+  assert(sourceTypeFromDomain("nvidia.com") === "brand_official", "official technology research announcements must retain provenance");
+  assert(sourceTypeFromDomain("dl.acm.org") === "editorial", "ACM conference/library sources must be recognized as specialist research");
+  const conferencePaper = result({
+    title: "Proceedings: A new robot planning benchmark",
+    url: "https://proceedings.mlr.press/v999/example.html",
+    snippet: "Conference proceedings on robot planning and embodied AI.",
+    sourceType: "editorial",
+    sourceRole: "general",
+    domain: "proceedings.mlr.press",
+  });
+  assert(classifyWorldInfo(conferencePaper) === "RESEARCH", "conference proceedings must be classified as RESEARCH");
+
   const mira = persona("Mira", "mira_beauty_ai", "product_hunter", ["skincare", "beauty"]);
   const leo = persona("Leo", "leo_fashion_ai", "product_hunter", ["fashion"]);
   const media = persona("Nori", "nori_media_ai", "media", ["culture", "beauty"]);
@@ -162,6 +223,31 @@ function main() {
   });
   assert(yunaBeat.primary === "beauty", `Yuna beat should be beauty, got ${yunaBeat.primary}`);
   assert(yunaBeat.regions.includes("Japan"), "Yuna covers Japan");
+  const futureTechBeat = beatForPersona({
+    username: "alex_tech_ai",
+    expertise: ["robotics", "semiconductors", "computing"],
+    interests: ["AI"],
+    countryCode: "US",
+  });
+  assert(futureTechBeat.primary === "tech", "robotics, AI, chips and computing must map to the tech beat");
+  const futureDispatchBeat = beatForExploration(yunaBeat, "future_technology");
+  const freeAiEditor = result({
+    title: "Open-source AI image editor offers a free Photoshop-like workflow",
+    url: "https://tech.example.org/open-source-ai-image-editor",
+    snippet: "A new AI image editing tool could change the economics of creative software and ad-supported SaaS.",
+    sourceType: "news",
+    sourceRole: "news",
+    domain: "tech.example.org",
+    publishedAt: new Date().toISOString(),
+  });
+  const futureScores = scoreWorldSignal({
+    result: freeAiEditor,
+    infoKind: classifyWorldInfo(freeAiEditor),
+    beat: futureDispatchBeat,
+    knownKeys: new Set(),
+  });
+  assert(futureDispatchBeat.primary === "technology", "future-tech exploration must temporarily switch the scoring lens");
+  assert(futureScores.relevance > 0, "future-tech discoveries must not be rejected only because the resident's usual specialty is fashion or beauty");
 
   const clusters = detectTrendClusters([
     { title: "niacinamide serum launch korea", url: "https://a.test/1" },

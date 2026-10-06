@@ -1,3 +1,5 @@
+import { canonicalizeSourceUrl } from "@/lib/ai/agent-os/hash";
+import { isDecorativeCraftObject } from "@/lib/ai/craft-object";
 import { CATALOG_PRODUCTS } from "@/lib/products/catalog";
 import { siteUrl } from "@/lib/config";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -150,7 +152,7 @@ export type ResidentLifeCycleResult = {
   };
 };
 
-type PostSubject = {
+export type PostSubject = {
   id: string;
   kind: "hunter" | "catalog" | "discovery" | "world" | "feed" | "news";
   label: string;
@@ -161,6 +163,10 @@ type PostSubject = {
   category?: string;
   sourceUrl?: string | null;
   sourceRef?: string | null;
+  sourceTitle?: string | null;
+  sourceSummary?: string | null;
+  confidence?: number | null;
+  dispatchKind?: string | null;
   discoveryProductId?: string | null;
   hunterIndex?: number;
   /** World Scout → specialist handoff (listAssignedDiscoveries). */
@@ -254,7 +260,7 @@ function fallbackLifePost(
   return { type: "SKIP_POST", reason: "quality-first skip instead of template post" };
 }
 
-function fallbackLifeTweet(_persona: AiPersona): ResidentLifeDecision {
+function fallbackLifeTweet(): ResidentLifeDecision {
   return { type: "SKIP_POST", reason: "no template tweet on API fallback" };
 }
 
@@ -310,13 +316,16 @@ async function polishCaption(input: {
       role: input.persona.resident_role,
       recentCaptions: input.recentCaptions,
       subjectLabel: input.subject?.label ?? null,
+      isEditorial: input.subject?.kind === "world" || input.subject?.kind === "news",
     });
     if (quality.ok) return caption;
     try {
       caption = (
         await generateAIText(
           [
-            `Rewrite this NEWFIND resident caption. Keep 1-3 sentences.`,
+            input.subject?.kind === "world" || input.subject?.kind === "news"
+              ? "Rewrite this sourced NEWFIND future-tech explainer. Preserve its factual detail and structured sections; aim for 350-800 Japanese characters when the supplied evidence supports it."
+              : "Rewrite this NEWFIND resident caption. Keep 1-3 sentences.",
             roleCaptionLens(input.persona.resident_role),
             `Resident: ${input.persona.persona_name}`,
             `Personality: ${input.persona.personality}`,
@@ -324,12 +333,17 @@ async function polishCaption(input: {
             input.subject
               ? `Subject: ${input.subject.brand ?? ""} ${input.subject.productName ?? input.subject.label}`
               : "No product subject.",
+            input.subject?.sourceSummary ? `Source summary: ${input.subject.sourceSummary.slice(0, 1000)}` : "",
+            input.subject?.sourceUrl ? `Exact source URL: ${input.subject.sourceUrl}` : "",
+            input.subject?.kind === "world" || input.subject?.kind === "news"
+              ? "Keep claims within the supplied source summary. Separate demonstrated results from future possibilities; do not invent numbers. Keep the exact source URL as a source line. Do not compress the explainer into a generic reaction."
+              : "",
             "Do not copy recent captions.",
             `Recent: ${input.recentCaptions.slice(0, 5).join(" | ") || "none"}`,
             `Original: ${caption}`,
             "Return the rewritten caption only.",
           ].join("\n"),
-          { temperature: 0.9, maxTokens: 220 },
+          { temperature: 0.78, maxTokens: input.subject?.kind === "world" || input.subject?.kind === "news" ? 1000 : 220 },
         )
       )
         .trim()
@@ -344,6 +358,7 @@ async function polishCaption(input: {
     role: input.persona.resident_role,
     recentCaptions: input.recentCaptions,
     subjectLabel: input.subject?.label ?? null,
+    isEditorial: input.subject?.kind === "world" || input.subject?.kind === "news",
   });
   return finalQuality.ok ? caption : null;
 }
@@ -383,21 +398,28 @@ async function rewriteSubjectCaption(input: {
   subject: PostSubject;
 }): Promise<ResidentLifeDecision> {
   const { persona, playbook, subject } = input;
+  const isWorldSubject = subject.kind === "world" || subject.kind === "news";
   const rewriteContext = `
 ${personaVoiceBlock(persona, playbook)}
 
 この投稿文は題材の本文をコピーしているため使用できません。
-以下の商品について、自分自身の視点で短い投稿文を1つ書いてください。
-商品: ${subject.productName || subject.label}
+${isWorldSubject
+    ? "以下の実在する技術ニュース・研究について、初心者にも価値がある解説投稿を書いてください。根拠がある範囲で、何が新しいか・何が変わるか・活用や新業態の可能性・制約を整理します。"
+    : "以下の商品について、自分自身の視点で短い投稿文を1つ書いてください。"}
+題材: ${subject.productName || subject.label}
 ブランド: ${subject.brand || "不明"}
 カテゴリ: ${subject.category || "other"}
 商品URL: ${subject.productUrl || "なし"}
+情報源URL: ${subject.sourceUrl || "なし"}
+情報源の要点: ${subject.sourceSummary || "提供された要約なし。タイトルだけで詳細を断定しない"}
 元の文章を言い換えるだけではなく、自分の視点を加えてください。
-商品名・ブランド・URLは捏造しないでください。
+商品名・ブランド・URL・技術仕様・性能・費用を捏造しないでください。
 
 ルール:
 - 必ず subjectId "${subject.id}" を使って POST してください。
-- captionは1〜3文。その住民がスマホで書く口調。
+- ${isWorldSubject
+    ? "captionは根拠に応じて350〜800字を目安に、読みやすい見出しを使ってください。研究段階と実用化済みを区別し、事業案は仮説と明記。情報源URLは正確なまま末尾に残す。"
+    : "captionは1〜3文。その住民がスマホで書く口調。"}
 - 題材の本文のコピー・ほぼ同じ言い換えは禁止。
 - 有効な投稿文が書けない場合のみ SKIP_POST。
 `;
@@ -1012,7 +1034,17 @@ async function gatherPostSubjects(
       if (dispatch.decision !== "POST") continue;
       if (dispatch.infoKind === "PRODUCT") continue;
       if (!isHttpUrl(dispatch.url)) continue;
-      if (!isUsableProductImage(dispatch.imageUrl ?? null)) continue;
+      const personaBeat = [
+        persona.resident_role,
+        ...(persona.expertise ?? []),
+        ...(persona.interests ?? []),
+        ...(persona.preferred_categories ?? []),
+      ].join(" ").toLowerCase();
+      const beautyBeat = /beauty|fragrance|skincare|cosmetic|perfume|makeup/.test(personaBeat);
+      // Beauty/lifestyle product coverage keeps its image bar. Research and
+      // technology dispatches are allowed to be text-first: arXiv papers and
+      // conference announcements often have no social image at all.
+      if (beautyBeat && !isUsableProductImage(dispatch.imageUrl ?? null)) continue;
       if (
         !isBeautyCorrespondentWorldSubject(persona, {
           title: dispatch.title,
@@ -1026,7 +1058,11 @@ async function gatherPostSubjects(
       subjects.push({
         id: String(n++),
         kind: "world",
-        label: `${dispatch.dispatchKind} ${dispatch.title}`.slice(0, 80),
+        label: dispatch.title.slice(0, 120),
+        sourceTitle: dispatch.title,
+        sourceSummary: dispatch.snippet,
+        confidence: dispatch.scores.total,
+        dispatchKind: dispatch.dispatchKind,
         category: dispatch.infoKind.toLowerCase(),
         mediaUrl: dispatch.imageUrl ?? null,
         sourceUrl: dispatch.url,
@@ -1099,7 +1135,8 @@ type RecentOwnPostContext = {
   brandCounts: Map<string, number>;
 };
 
-function subjectVisualArchetypes(subject: {
+/** Exported for regression tests. */
+export function subjectVisualArchetypes(subject: {
   label?: string | null;
   productName?: string | null;
   brand?: string | null;
@@ -1121,7 +1158,7 @@ function subjectVisualArchetypes(subject: {
     ["bottle", /\b(?:bottle|flacon|vial|ampoule|perfume|parfum|fragrance)\b/],
     ["jar", /\b(?:jar|pot|balm|cream|ointment)\b/],
     ["vessel", /\b(?:vessel|ceramic|pottery|potter|stoneware|tableware|container)\b/],
-    ["craft_object", /\b(?:craft|crafted|craftsmanship|ceramic|pottery|potter|vessel|artisan|handmade|maker)\b/],
+    ["craft_object", /\b(?:craft|crafted|craftsmanship|ceramic|pottery|potter|vessel|artisan|handmade|hand-blown|handblown|glassblowing|vase)\b/],
     ["lip", /\b(?:lipstick|lip gloss|lip balm|lip tint|lip liner)\b/],
     ["eye", /\b(?:mascara|eyeliner|eye shadow|eyeshadow)\b/],
     ["shoe", /\b(?:shoe|sneaker|trainer|loafer|boot|heel)\b/],
@@ -1134,9 +1171,24 @@ function subjectVisualArchetypes(subject: {
     ["gadget", /\b(?:phone|headphone|earbud|camera|keyboard|mouse|gadget)\b/],
   ];
 
-  return rules
-    .filter(([, pattern]) => pattern.test(text))
-    .map(([name]) => name);
+  // Captions are mostly Japanese, where \b never matches; count the same
+  // themes there too so the community caps see Japanese posts.
+  const japaneseRules: Array<[string, RegExp]> = [
+    ["bottle", /ボトル|香水|フレグランス|(?<!瓶詰)瓶(?!詰)/],
+    ["vessel", /陶器|陶芸|うつわ|器(?![具械材])|花瓶|花器/],
+    ["craft_object", /クラフト(?!ビール)|ハンドメイド|手作り|手づくり|手仕事|手吹き|工芸|陶芸|花瓶|一輪挿し|オブジェ(?!クト)|置物/],
+    ["shoe", /スニーカー|シューズ|ブーツ|ローファー/],
+    ["bag", /バッグ|トート|ポーチ|リュック/],
+    ["gadget", /イヤホン|ヘッドホン|カメラ|キーボード|ガジェット/],
+  ];
+
+  return [
+    ...new Set(
+      [...rules, ...japaneseRules]
+        .filter(([, pattern]) => pattern.test(text))
+        .map(([name]) => name),
+    ),
+  ];
 }
 
 function dropRepeatedSubjects(
@@ -1150,7 +1202,8 @@ function dropRepeatedSubjects(
 ) {
   return subjects.filter((subject) => {
     if (subjectLooksRepeated(subject, avoidEntities)) return false;
-    const urlKey = (subject.productUrl || subject.sourceUrl || "").trim().replace(/\/$/, "").toLowerCase();
+    const rawUrl = (subject.productUrl || subject.sourceUrl || "").trim();
+    const urlKey = rawUrl ? canonicalizeSourceUrl(rawUrl) : "";
     if (urlKey && recent.keys.has(`url:${urlKey}`)) return false;
     if (subject.discoveryProductId && recent.keys.has(`discovery:${subject.discoveryProductId}`)) return false;
 
@@ -1202,7 +1255,8 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<Rec
         if (fallback.error) throw new Error(fallback.error.message);
         const context = { ...empty, keys: new Set<string>() };
         for (const row of fallback.data ?? []) {
-          const url = String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase();
+          const rawUrl = String(row.product_url ?? "").trim();
+          const url = rawUrl ? canonicalizeSourceUrl(rawUrl) : "";
           if (url) context.keys.add(`url:${url}`);
           for (const archetype of subjectVisualArchetypes({
             productName: String(row.caption ?? ""),
@@ -1220,7 +1274,8 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<Rec
     }
 
     for (const row of data ?? []) {
-      const url = String(row.product_url ?? "").trim().replace(/\/$/, "").toLowerCase();
+      const rawUrl = String(row.product_url ?? "").trim();
+      const url = rawUrl ? canonicalizeSourceUrl(rawUrl) : "";
       if (url) empty.keys.add(`url:${url}`);
       const discoveryId = String(row.discovery_product_id ?? "").trim();
       if (discoveryId) empty.keys.add(`discovery:${discoveryId}`);
@@ -1247,20 +1302,22 @@ async function loadRecentOwnPostKeys(profileId: string, hours = 72): Promise<Rec
     }
     return empty;
   } catch (error) {
-    console.error("loadRecentOwnPostKeys failed", personaSafeName(profileId), error);
+    console.error("loadRecentOwnPostKeys failed", personaSafeName(), error);
     return empty;
   }
 }
 
-function personaSafeName(_profileId: string) {
+function personaSafeName() {
   return "AI resident";
 }
 
-type CommunityPostContext = {
+export type CommunityPostContext = {
   keys: Set<string>;
   domainCounts: Map<string, number>;
   captions: string[];
   visualArchetypes: Map<string, number>;
+  /** Recent posts per canonical news/source URL (news posts have no product URL). */
+  sourceCounts?: Map<string, number>;
 };
 
 function normalizeHost(value: string | null | undefined): string | null {
@@ -1279,13 +1336,14 @@ async function loadRecentCommunityPostKeys(hours = 24): Promise<CommunityPostCon
     domainCounts: new Map<string, number>(),
     captions: [],
     visualArchetypes: new Map<string, number>(),
+    sourceCounts: new Map<string, number>(),
   };
 
   try {
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("posts")
-      .select("author_id, product_url, discovery_product_id, caption")
+      .select("author_id, product_url, source_url, discovery_product_id, caption")
       .gte("created_at", new Date(Date.now() - hours * 36e5).toISOString())
       .order("created_at", { ascending: false })
       .limit(300);
@@ -1295,11 +1353,17 @@ async function loadRecentCommunityPostKeys(hours = 24): Promise<CommunityPostCon
     for (const row of data ?? []) {
       const productUrl = String(row.product_url ?? "").trim();
       const sourceUrl = productUrl;
-      const url = productUrl.replace(/\/$/, "").toLowerCase();
+      const url = productUrl ? canonicalizeSourceUrl(productUrl) : "";
       if (url) empty.keys.add(`url:${url}`);
 
       const discoveryId = String(row.discovery_product_id ?? "").trim();
       if (discoveryId) empty.keys.add(`discovery:${discoveryId}`);
+
+      const rawSource = String(row.source_url ?? "").trim();
+      const sourceKey = rawSource ? canonicalizeSourceUrl(rawSource) : "";
+      if (sourceKey) {
+        empty.sourceCounts!.set(sourceKey, (empty.sourceCounts!.get(sourceKey) ?? 0) + 1);
+      }
 
       const host = normalizeHost(sourceUrl);
       if (host) {
@@ -1327,28 +1391,70 @@ async function loadRecentCommunityPostKeys(hours = 24): Promise<CommunityPostCon
   return empty;
 }
 
-function dropCommunityRepeatedSubjects(
+/** Exported for regression tests. */
+export function dropCommunityRepeatedSubjects(
   subjects: PostSubject[],
   recentCommunity: CommunityPostContext,
 ) {
   return subjects.filter((subject) => {
-    // Craft/vessel objects were repeatedly leaking into the world feed.
-    // Treat them as a hard stop at the final community gate, including assigned
-    // discoveries, so an assignment cannot bypass the repetition/editorial rule.
+    // Decorative craft objects (craft bottles, vases, pottery) kept leaking into
+    // the world feed. They are a hard stop at the final community gate, in any
+    // language and including assigned discoveries, so an assignment cannot
+    // bypass the editorial rule.
+    if (
+      isDecorativeCraftObject(
+        [
+          subject.label,
+          subject.productName,
+          subject.brand,
+          subject.category,
+          subject.sourceTitle,
+          subject.sourceSummary,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      )
+    ) {
+      return false;
+    }
+
+    // Other craft-flavoured subjects (craft tools, "Italian craftsmanship"
+    // jackets, handmade wallets) are real products. Keep them, but cap the
+    // theme so it cannot dominate the shared feed.
     const subjectArchetypes = subjectVisualArchetypes(subject);
-    if (subjectArchetypes.includes("craft_object")) return false;
+    if (
+      subjectArchetypes.includes("craft_object") &&
+      (recentCommunity.visualArchetypes.get("craft_object") ?? 0) >= 2
+    ) {
+      return false;
+    }
 
     // Assigned World Scout handoffs are deliberate cross-resident assignments.
     if (subject.assigned) return true;
 
     const productUrl = (subject.productUrl || "").trim();
-    const url = productUrl.replace(/\/$/, "").toLowerCase();
+    // Same canonical form as the recent-post keys: tracking parameters, www
+    // and a trailing slash must not let one product URL count as new.
+    const url = productUrl ? canonicalizeSourceUrl(productUrl) : "";
     if (url && recentCommunity.keys.has(`url:${url}`)) return false;
 
     if (
       subject.discoveryProductId &&
       recentCommunity.keys.has(`discovery:${subject.discoveryProductId}`)
     ) {
+      return false;
+    }
+
+    // News and world reports carry their article in sourceUrl. One other
+    // resident may add a different angle (see the brain prompt); a third post
+    // on the same article within the window is the "everyone posts the same
+    // story" pattern, so stop it here.
+    // Product subjects use the brand's official URL as sourceUrl, which many
+    // different products share, so only apply this to articles.
+    const isArticle = subject.kind === "news" || subject.kind === "world";
+    const source = isArticle ? (subject.sourceUrl || "").trim() : "";
+    const sourceKey = source ? canonicalizeSourceUrl(source) : "";
+    if (sourceKey && (recentCommunity.sourceCounts?.get(sourceKey) ?? 0) >= 2) {
       return false;
     }
 
@@ -1359,14 +1465,6 @@ function dropCommunityRepeatedSubjects(
       return false;
     }
 
-    // Craft/vessel objects were repeatedly leaking across unrelated residents.
-    // Keep the feed diverse without suppressing ordinary fashion/beauty objects.
-    if (
-      subjectArchetypes.includes("craft_object") &&
-      (recentCommunity.visualArchetypes.get("craft_object") ?? 0) >= 2
-    ) {
-      return false;
-    }
 
     // Brand concentration is softer than URL/domain duplication. Only apply
     // it when the subject has an explicit brand and that brand appears in
@@ -1667,11 +1765,14 @@ async function generateCadencePostFallback(input: {
           `Category: ${subject.category || "other"}`,
           `Source URL: ${subject.sourceUrl || subject.productUrl || ""}`,
           "Use only the supplied facts. Do not invent product details.",
-          "Write 1-3 short sentences from the resident's own perspective.",
+          subject.kind === "world" || subject.kind === "news"
+            ? "Write a useful source-backed future-tech explainer for beginners: what changed, why it matters, plausible uses or new business models, and what remains unverified. Aim for 350-800 Japanese characters only when evidence is sufficient; keep the exact source URL."
+            : "Write 1-3 short sentences from the resident's own perspective.",
+          subject.sourceSummary ? `Source summary: ${subject.sourceSummary.slice(0, 1000)}` : "",
           "Do not copy the subject title or source text.",
           "Return only the post caption.",
         ].join("\n"),
-        { temperature: 0.9, maxTokens: 180 },
+        { temperature: 0.78, maxTokens: subject.kind === "world" || subject.kind === "news" ? 1000 : 180 },
       )
     )
       .trim()
@@ -1683,6 +1784,7 @@ async function generateCadencePostFallback(input: {
       role: persona.resident_role,
       recentCaptions: [],
       subjectLabel: subject.label,
+      isEditorial: subject.kind === "world" || subject.kind === "news",
     });
     return quality.ok ? caption : null;
   } catch (error) {
@@ -1963,8 +2065,16 @@ export async function runResidentLifeCycle(
       ? worldNews
           .slice(0, 5)
           .filter((article) => isHttpUrl(article.url))
-          .map((article) => `- ${article.title}`)
-          .join("\n")
+          .map((article) =>
+            [
+              `見出し: ${article.title}`,
+              `媒体: ${article.domain || article.sourceType}`,
+              `公開日: ${article.publishedAt || "未確認"}`,
+              `原文URL: ${article.url}`,
+              `要点: ${(article.snippet || "").replace(/\\s+/g, " ").slice(0, 420) || "本文要約なし。タイトルだけで詳細を断定しない"}`,
+            ].join("\n"),
+          )
+          .join("\n\n")
       : playbook.sources.includes("world_news")
         ? "いま使える世界ニュース信号はありません"
         : "この役割では世界ニュースは主情報源ではない。";
@@ -2018,6 +2128,7 @@ export async function runResidentLifeCycle(
             subject.brand ? `ブランド: ${subject.brand}` : "",
             subject.productUrl ? `商品URL: ${subject.productUrl}` : "商品URL: なし",
             subject.sourceUrl ? `情報源: ${subject.sourceUrl}` : "",
+            subject.sourceSummary ? `情報源の要点: ${subject.sourceSummary.slice(0, 700)}` : "",
             subject.kind === "world" ? "種類: 世界情報（商品ページではない）" : "",
           ]
             .filter(Boolean)
@@ -2377,7 +2488,7 @@ ${playbook.workBias}
     mayTweet &&
     playbook.allowTrendTweet
   ) {
-    workDecision = fallbackLifeTweet(persona);
+    workDecision = fallbackLifeTweet();
   }
 
   if (workDecision.type === "POST") {
@@ -2474,9 +2585,12 @@ ${playbook.workBias}
             relatedRunId: options?.runId ?? null,
             metadata: {
               world: subject.kind === "world",
-              title: subject.label,
+              title: subject.sourceTitle ?? subject.label,
+              sourceTitle: subject.sourceTitle ?? subject.label,
               url: subject.sourceUrl ?? subject.productUrl,
               infoKind: subject.category,
+              dispatchKind: subject.dispatchKind,
+              confidence: subject.confidence,
             },
           });
           const postedId =

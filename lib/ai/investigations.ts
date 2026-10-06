@@ -385,15 +385,6 @@ export async function upsertInvestigation(
     };
   } catch (error) {
     console.warn("upsert investigation skipped", error);
-    const fallback = nextInvestigationStatus({
-      decision: input.decision,
-      previous: previous?.status ?? null,
-      evidenceCount,
-      scoresTotal: input.confidence ?? 0,
-      qualityOk: input.qualityOk,
-      qualityReason: input.qualityReason,
-      known: input.known,
-    });
     // Persistence failure is not a successful investigation result.
     // Never let a computed VERIFIED/shouldPost decision escape when the
     // database write did not actually succeed; otherwise the resident can

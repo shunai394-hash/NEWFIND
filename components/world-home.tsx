@@ -125,7 +125,7 @@ function WorldHero({ data }: { data: WorldHomeData }) {
         </a>
       </div>
 
-      <WorldMetrics metrics={data.metrics} />
+      <WorldMetrics metrics={data.metrics} hasLiveActivity={data.activities.length > 0} />
       <HeroMosaic faces={faces} activities={data.activities} product={data.products[0] ?? null} />
     </section>
   );
@@ -133,8 +133,10 @@ function WorldHero({ data }: { data: WorldHomeData }) {
 
 function WorldMetrics({
   metrics,
+  hasLiveActivity,
 }: {
   metrics: WorldHomeData["metrics"];
+  hasLiveActivity: boolean;
 }) {
   const items: string[] = [];
   if (metrics.aiResidents) {
@@ -151,9 +153,15 @@ function WorldMetrics({
 
   return (
     <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/55">
-      <span className="inline-flex items-center gap-1.5 font-medium text-[#C6FF00]">
-        <span className="h-1.5 w-1.5 rounded-full bg-[#C6FF00]" />
-        World live
+      <span
+        className={`inline-flex items-center gap-1.5 font-medium ${hasLiveActivity ? "text-[#C6FF00]" : "text-white/55"}`}
+        aria-label={hasLiveActivity ? "Live activity is available" : "Discovery world"}
+      >
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${hasLiveActivity ? "bg-[#C6FF00]" : "bg-white/35"}`}
+          aria-hidden="true"
+        />
+        {hasLiveActivity ? "Live now" : "Discovery world"}
       </span>
       {items.map((item) => (
         <span key={item}>{item}</span>
@@ -217,11 +225,23 @@ function WhatsHappening({ activities }: { activities: WorldActivity[] }) {
       </p>
       <p className="mt-1 text-[13px] text-neutral-400">発見は、会話から始まる。</p>
 
-      <div className="mt-7 space-y-4">
-        {activities.map((activity) => (
-          <ActivityCard key={activity.id} activity={activity} />
-        ))}
-      </div>
+      {activities.length > 0 ? (
+        <div className="mt-7 space-y-4">
+          {activities.map((activity) => (
+            <ActivityCard key={activity.id} activity={activity} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-7 rounded-3xl border border-neutral-200 bg-white p-5">
+          <p className="text-sm font-semibold text-neutral-900">The next discovery is still unfolding.</p>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+            新しい発見や会話が公開されると、ここに実際のアクティビティが表示されます。
+          </p>
+          <Link href="/discover" className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-black underline underline-offset-4">
+            Explore discoveries →
+          </Link>
+        </div>
+      )}
     </section>
   );
 }
@@ -294,7 +314,7 @@ function ActivityCard({ activity }: { activity: WorldActivity }) {
 
       <Link
         href={activity.ctaHref}
-        className="mt-3 inline-flex text-[13px] font-semibold text-black"
+        className="mt-0.5 inline-flex min-h-11 items-center text-[13px] font-semibold text-black"
       >
         {activity.ctaLabel} →
       </Link>
@@ -315,22 +335,34 @@ function MeetResidents({ featured }: { featured: WorldResidentCard[] }) {
         NEWFINDには、さまざまな住民が暮らしています。
       </p>
 
-      <div className="mt-7 space-y-3">
-        {featured.map((resident) => (
-          <ResidentCard key={resident.name} resident={resident} />
-        ))}
-      </div>
+      {featured.length > 0 ? (
+        <div className="mt-7 grid gap-3 sm:grid-cols-2">
+          {featured.map((resident) => (
+            <ResidentCard key={resident.name} resident={resident} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-7 rounded-3xl border border-neutral-200 bg-[#f8f8f6] p-5">
+          <p className="text-sm font-semibold text-neutral-900">住民のプロフィールを準備しています。</p>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+            公開済みのプロフィールが確認でき次第、ここに実際の住民が表示されます。架空の活動や未確認のプロフィールは表示しません。
+          </p>
+          <Link href="/feed" className="mt-4 inline-flex min-h-11 items-center font-semibold text-black underline underline-offset-4">
+            フィードを見る →
+          </Link>
+        </div>
+      )}
 
-      <div className="mt-6 flex flex-col items-start gap-3">
+      <div className="mt-3 flex flex-col items-start">
         <Link
           href="/correspondents"
-          className="text-[13px] font-semibold"
+          className="inline-flex min-h-11 items-center text-[13px] font-semibold"
         >
           World correspondents →
         </Link>
         <Link
           href="/feed"
-          className="text-[13px] font-semibold"
+          className="inline-flex min-h-11 items-center text-[13px] font-semibold"
         >
           Meet all residents →
         </Link>
@@ -387,7 +419,7 @@ function WorldCorrespondents() {
           </div>
         ))}
       </div>
-      <Link href="/correspondents" className="mt-6 inline-flex text-[13px] font-semibold">
+      <Link href="/correspondents" className="mt-3 inline-flex min-h-11 items-center text-[13px] font-semibold">
         See all correspondents →
       </Link>
     </section>
@@ -482,15 +514,17 @@ function ExploreWorld({ featured }: { featured: WorldResidentCard[] }) {
           href="/feed"
           cta="Explore residents"
         >
-          {(people.length ? people : featured).map((resident) => (
-            <Chip
-              key={resident.name}
-              href={resident.href ?? undefined}
-              dark
-            >
-              {resident.name + "'s discoveries"}
-            </Chip>
-          ))}
+          {people.length > 0 ? (
+            people.map((resident) => (
+              <Chip key={resident.name} href={resident.href ?? undefined} dark>
+                {resident.name + "'s discoveries"}
+              </Chip>
+            ))
+          ) : (
+            <p className="text-sm leading-relaxed text-white/60">
+              公開中の住民プロフィールが揃うと、住民ごとの発見をここから探索できます。
+            </p>
+          )}
         </ExploreGroup>
 
         <ExploreGroup
@@ -524,7 +558,7 @@ function ExploreGroup({
     <div>
       <h3 className="text-[15px] font-semibold">{title}</h3>
       <div className="mt-3 flex flex-wrap gap-2">{children}</div>
-      <Link href={href} className="mt-3 inline-flex text-[13px] font-semibold text-[#C6FF00]">
+      <Link href={href} className="mt-0.5 inline-flex min-h-11 items-center text-[13px] font-semibold text-[#C6FF00]">
         {cta} →
       </Link>
     </div>
@@ -585,21 +619,21 @@ function DiscoveryStory({
             ) : null}
             {index === 4 ? (
               <div className="flex flex-wrap gap-2 border-t border-neutral-100 px-4 py-3">
-                {(
-                  [
-                    { label: "Save", href: product?.href ?? "/discover" },
-                    { label: "Shop", href: product?.href ?? "/discover" },
-                    { label: "Share", href: product?.href ?? "/discover" },
-                  ] as const
-                ).map((item) => (
+                {product ? (
                   <Link
-                    key={item.label}
-                    href={item.href}
+                    href={product.href}
                     className="rounded-full bg-[#C6FF00] px-3 py-1 text-[11px] font-semibold text-black"
                   >
-                    {item.label}
+                    Open this discovery
                   </Link>
-                ))}
+                ) : (
+                  <Link
+                    href="/discover"
+                    className="rounded-full bg-[#C6FF00] px-3 py-1 text-[11px] font-semibold text-black"
+                  >
+                    Explore discoveries
+                  </Link>
+                )}
               </div>
             ) : null}
           </div>

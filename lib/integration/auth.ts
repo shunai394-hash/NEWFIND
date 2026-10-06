@@ -112,7 +112,7 @@ export function verifyIntegrationRequest(input: {
       eventId: input.eventId,
       rawBody: input.rawBody,
     });
-    if (expected.toLowerCase() !== sig.trim().toLowerCase()) {
+    if (!safeEqualString(expected.toLowerCase(), sig.trim().toLowerCase())) {
       return { ok: false, status: 401, error: "invalid signature" };
     }
     return { ok: true, mode: "hmac" };

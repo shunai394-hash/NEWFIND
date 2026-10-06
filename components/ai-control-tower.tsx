@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminNav } from "@/components/admin-nav";
 import { authHeaders } from "@/lib/auth/client-headers";
 import { HEALTH_DOT, HEALTH_LABEL, hoursAgoLabel } from "@/lib/ai/control-tower/health";
@@ -25,30 +25,46 @@ export function AiControlTower() {
   const [snapshot, setSnapshot] = useState<ControlTowerSnapshot | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const loadingRef = useRef(false);
 
-  async function load() {
-    const response = await fetch("/api/admin/ai-control", {
-      headers: await authHeaders(),
-      cache: "no-store",
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setError(typeof body.error === "string" ? body.error : "読み込みに失敗しました");
+  const load = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+
+    try {
+      const response = await fetch("/api/admin/ai-control", {
+        headers: await authHeaders(),
+        cache: "no-store",
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(typeof body.error === "string" ? body.error : "読み込みに失敗しました");
+        setSnapshot(null);
+        return;
+      }
+      setError("");
+      setSnapshot(body as ControlTowerSnapshot);
+    } catch {
+      setError("AI制御塔に接続できません。通信状態を確認して再試行してください。");
       setSnapshot(null);
-      return;
+    } finally {
+      loadingRef.current = false;
     }
-    setError("");
-    setSnapshot(body as ControlTowerSnapshot);
-  }
+  }, []);
 
   useEffect(() => {
-    void load();
+    // Defer the initial fetch until after the effect commits; load updates React state.
+    const initialLoad = window.setTimeout(() => {
+      void load();
+    }, 0);
     const timer = window.setInterval(() => {
       void load();
     }, 30000);
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load + poll
-  }, []);
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(timer);
+    };
+  }, [load]);
 
   async function runAction(action: string) {
     setBusy(action);

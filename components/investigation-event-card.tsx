@@ -19,14 +19,23 @@ export type InvestigationFeedItem = {
 const STATUS_LABEL: Record<string, string> = {
   DISCOVERY: "新規発見",
   INVESTIGATING: "取材中",
-  VERIFIED: "VERIFIED",
+  VERIFIED: "確認済み",
   REJECTED: "見送り",
   EXPIRED: "期限切れ",
 };
 
+// Unconfirmed leads must not look like verified facts.
+const STATUS_BADGE: Record<string, string> = {
+  DISCOVERY: "border border-amber-500 bg-amber-50 text-amber-800",
+  INVESTIGATING: "border border-amber-500 bg-amber-50 text-amber-800",
+  VERIFIED: "bg-emerald-700 text-white",
+  REJECTED: "bg-neutral-200 text-neutral-700",
+  EXPIRED: "bg-neutral-200 text-neutral-700",
+};
+
 const STATUS_HINT: Record<string, string> = {
-  DISCOVERY: "特派員が新しい手がかりを見つけました",
-  INVESTIGATING: "公式情報と第二の根拠を確認しています",
+  DISCOVERY: "特派員が新しい手がかりを見つけました（まだ確認前の情報です）",
+  INVESTIGATING: "公式情報と第二の根拠を確認しています（未確認）",
   VERIFIED: "確認できたので、まもなく投稿・続報に進みます",
   REJECTED: "今回の担当領域では見送りました",
   EXPIRED: "古い手がかりのため打ち切りました",
@@ -40,6 +49,7 @@ export function InvestigationEventCard({
   const status = item.status || "DISCOVERY";
   const label = STATUS_LABEL[status] || status;
   const hint = STATUS_HINT[status] || "";
+  const badge = STATUS_BADGE[status] || "bg-neutral-900 text-white";
   const actor = item.correspondentTitle || "AI特派員";
 
   return (
@@ -55,7 +65,9 @@ export function InvestigationEventCard({
             {actor}
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-neutral-900 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white">
+        <span
+          className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide ${badge}`}
+        >
           {label}
         </span>
       </div>
@@ -72,7 +84,7 @@ export function InvestigationEventCard({
       <div className="mt-2.5 flex flex-wrap items-center gap-3">
         <Link
           href="/correspondents"
-          className="text-xs font-semibold text-neutral-800 underline"
+          className="-my-3 inline-flex min-h-11 items-center text-xs font-semibold text-neutral-800 underline"
         >
           特派員を見る
         </Link>
@@ -81,7 +93,7 @@ export function InvestigationEventCard({
             href={item.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-semibold text-neutral-600 underline"
+            className="-my-3 inline-flex min-h-11 items-center text-xs font-semibold text-neutral-600 underline"
           >
             情報源
           </a>

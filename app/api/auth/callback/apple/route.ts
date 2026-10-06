@@ -2,6 +2,7 @@
 import { NATIVE_OAUTH_CALLBACK } from "@/lib/capacitor/platform";
 import { APPLE_SERVICES_ID, appleWebRedirectUri } from "@/lib/apple/config";
 import { findOrCreateAppleUser, issueAppleLoginTicket } from "@/lib/apple/session";
+import { saveAppleRefreshToken } from "@/lib/apple/token-store";
 import { decodeAppleState } from "@/lib/apple/state";
 import {
   exchangeAppleAuthorizationCode,
@@ -127,8 +128,15 @@ async function completeAppleLogin(request: Request) {
     const user = await findOrCreateAppleUser({
       appleUserId: identity.sub,
       email: identity.email,
+      emailVerified: identity.emailVerified,
       isPrivateEmail: identity.isPrivateEmail,
       displayName: displayNameFromAppleUser(form.userJson),
+    });
+    await saveAppleRefreshToken({
+      userId: user.userId,
+      appleUserId: identity.sub,
+      clientId: APPLE_SERVICES_ID,
+      refreshToken: tokens.refresh_token,
     });
     const tokenHash = await issueAppleLoginTicket(user.email);
     const next = safeNextPath(state.next);

@@ -41,10 +41,21 @@ function checkExecutionPath() {
     vercel.crons?.some((item) => item.path === "/api/ai-act"),
     "vercel cron must target /api/ai-act",
   );
-  assert(aiAct.includes("runResidentLifeCycle"), "ai-act must run resident life");
+  // The route delegates to the authenticated handler, which runs the engine.
+  const engine = fs.readFileSync(path.join(root, "lib/ai/engine.ts"), "utf8");
+  const featured = fs.readFileSync(
+    path.join(root, "lib/ai/ensure-featured-residents.ts"),
+    "utf8",
+  );
   assert(
-    aiAct.includes("SPECIALIST_PRODUCT_HUNTERS"),
-    "ai-act must schedule specialist hunters",
+    aiAct.includes("createAiActHandler") && aiAct.includes("executeAiEngine"),
+    "ai-act must run the AI engine behind the cron-secret handler",
+  );
+  assert(engine.includes("runResidentLifeCycle"), "the AI engine must run resident life");
+  assert(
+    engine.includes("ensureFeaturedLivingResidents") &&
+      featured.includes("SPECIALIST_PRODUCT_HUNTERS"),
+    "the AI engine must schedule specialist hunters",
   );
   assert(
     life.includes("runResidentProductHunter"),
@@ -63,7 +74,7 @@ function checkExecutionPath() {
     hunter.includes("buildPrecisionHuntQueries"),
     "hunter must use precision queries",
   );
-  console.log("EXECUTION PATH: cron /api/ai-act -> runResidentLifeCycle -> runResidentProductHunter");
+  console.log("EXECUTION PATH: cron /api/ai-act -> executeAiEngine -> runResidentLifeCycle -> runResidentProductHunter");
   console.log(
     `cron schedule: ${vercel.crons?.find((item) => item.path === "/api/ai-act")?.schedule}`,
   );

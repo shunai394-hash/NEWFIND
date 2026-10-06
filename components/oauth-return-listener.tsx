@@ -11,17 +11,33 @@ export function OAuthReturnListener() {
   useEffect(() => {
     let cancelled = false;
     let stop: (() => void) | undefined;
+    let retryTimer: number | undefined;
+    let retries = 0;
 
-    void startNativeOAuthReturnListener().then((cleanup) => {
-      if (cancelled) {
-        cleanup();
-        return;
-      }
-      stop = cleanup;
-    });
+    const start = () => {
+      void startNativeOAuthReturnListener()
+        .then((cleanup) => {
+          if (cancelled) {
+            cleanup();
+            return;
+          }
+          stop = cleanup;
+        })
+        .catch((error: unknown) => {
+          console.error("[oauth-return] listener setup failed", error);
+          if (cancelled || retries >= 3) return;
+
+          const delay = 1000 * 2 ** retries;
+          retries += 1;
+          retryTimer = window.setTimeout(start, delay);
+        });
+    };
+
+    start();
 
     return () => {
       cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
       stop?.();
     };
   }, []);

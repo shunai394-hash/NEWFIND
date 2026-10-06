@@ -292,16 +292,6 @@ const LIFE_LINKS = [
   { url: "https://www.ikea.com/jp/ja/" },
 ];
 
-const TRAVEL_LINKS = [
-  { url: "https://www.jalan.net/" },
-  { url: "https://www.jreast.co.jp/" },
-];
-
-const TECH_LINKS = [
-  { url: "https://www.apple.com/jp/" },
-  { url: "https://www.sony.jp/" },
-];
-
 const HOME_LINKS = [
   { url: "https://www.muji.com/jp/" },
   { url: "https://www.nitori-net.jp/" },
@@ -465,28 +455,12 @@ const LIFE_THEMES = [
   "大学生活",
 ];
 
-const TRAVEL_THEMES = [
-  "旅行",
-  "週末トリップ",
-  "東京の景色",
-];
-
-const TECH_THEMES = [
-  "ガジェット",
-  "イヤホン",
-  "スマホまわり",
-];
-
 const HOME_THEMES = [
   "部屋づくり",
   "デスク周り",
   "収納",
 ];
 
-const OTHER_THEMES = [
-  "気になったもの",
-  "今日のひとこと",
-];
 function takeUniqueImage(
   used: Set<string>,
   pool: readonly JpImageAsset[],
@@ -1018,7 +992,7 @@ function buildPosts(profiles: Profile[]): Post[] {
       caption = foodCaption(i + def.n * 3, theme, image.note);
       if (i % 10 < 5) {
         productUrl = FOOD_LINKS[i % FOOD_LINKS.length]!.url;
-        productLabel = "蠎苓・繧定ｦ九ｋ";
+        productLabel = "店舗を見る";
       }
     } else if (category === "lifestyle") {
       theme = image.theme || LIFE_THEMES[(i + def.n) % LIFE_THEMES.length]!;
@@ -1029,14 +1003,14 @@ function buildPosts(profiles: Profile[]): Post[] {
         productLabel = formatProductLabel(product);
       } else if (i % 10 < 4) {
         productUrl = LIFE_LINKS[i % LIFE_LINKS.length]!.url;
-        productLabel = "譌･譛ｬ繝悶Λ繝ｳ繝・ﾂｷ 蝠・刀繧定ｦ九ｋ";
+        productLabel = "日本ブランド · 商品を見る";
       }
     } else if (category === "home") {
       theme = image.theme || HOME_THEMES[(i + def.n) % HOME_THEMES.length]!;
       caption = simpleCaption(i + def.n * 3, theme, image.note);
       if (i % 10 < 4) {
         productUrl = HOME_LINKS[i % HOME_LINKS.length]!.url;
-        productLabel = "譌･譛ｬ繝悶Λ繝ｳ繝・ﾂｷ 蝠・刀繧定ｦ九ｋ";
+        productLabel = "日本ブランド · 商品を見る";
       }
     } else {
       theme = image.theme || "險倬鹸";

@@ -69,3 +69,53 @@
     resize: vertical;
   }
 }
+
+
+/* Shared interaction foundations: visible focus, deliberate motion, and stable media. */
+@layer base {
+  :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  :where(button, input, textarea, select) {
+    accent-color: var(--accent);
+  }
+
+  ::selection {
+    color: #0a0a0a;
+    background: #c6ff00;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

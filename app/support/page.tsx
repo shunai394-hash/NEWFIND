@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { SupportForm } from "@/components/support-form";
 
 export const metadata = {
@@ -12,7 +12,7 @@ export default function SupportPage() {
       <div className="mx-auto max-w-2xl px-5 py-10">
         <Link
           href="/"
-          className="mb-8 inline-block text-sm text-gray-500 hover:text-black"
+          className="mb-5 inline-flex min-h-11 items-center text-sm text-gray-500 hover:text-black"
         >
           ← NEWFIND
         </Link>
@@ -35,10 +35,10 @@ export default function SupportPage() {
           </p>
 
           <div className="flex gap-4">
-            <Link href="/privacy" className="underline">
+            <Link href="/privacy" className="inline-flex min-h-11 items-center underline">
               プライバシーポリシー
             </Link>
-            <Link href="/terms" className="underline">
+            <Link href="/terms" className="inline-flex min-h-11 items-center underline">
               利用規約
             </Link>
           </div>

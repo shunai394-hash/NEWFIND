@@ -1,0 +1,82 @@
+name: Quality Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-and-domain-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: AI precision regression tests
+        run: npm run test:ai-precision
+
+      - name: AI mind regression tests
+        run: npm run test:ai-mind
+
+      - name: AI correspondent regression tests
+        run: npm run test:ai-correspondent
+
+      - name: Daily exploration regression tests
+        run: npm run test:today-exploration
+
+      - name: Discovery quality regression tests
+        run: npm run test:discovery-quality
+
+      - name: Marketplace pipeline regression tests
+        run: npm run test:marketplace
+
+      - name: Craft-object repetition regression
+        run: npm run test:craft-repeat
+
+      - name: AI patrol execution path
+        run: npm run test:hunter-ops
+
+      - name: Future-tech feed and source identity regression
+        run: npm run test:future-tech-feed
+
+      - name: Homepage product quality regression
+        run: npm run test:home-quality
+
+      - name: Public world headline quality regression
+        run: npm run test:world-headlines
+
+      - name: Native OAuth and login regression
+        run: npm run test:auth
+
+      - name: Account security and Apple revocation regression
+        run: npm run test:security
+
+      - name: App icon completeness and consistency
+        run: npm run icons:check
+
+      - name: Production build
+        run: npm run build

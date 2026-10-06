@@ -1,12 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { WorldSearchResult } from "@/lib/ai/world-search";
 
-export const GDELT_CACHE_KEY = "gdelt:world:product-signals:v1";
+export const GDELT_CACHE_KEY = "gdelt:world:future-tech-and-discoveries:v2";
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_ARTICLES = 20;
 
 const GDELT_QUERY =
-  '("new product" OR "product launch" OR "new collection" OR sneaker OR fragrance OR makeup OR fashion OR beauty OR luxury)';
+  '("artificial intelligence" OR "AI agent" OR "AI model" OR robotics OR "humanoid robot" OR "computer architecture" OR "quantum computing" OR semiconductor OR "computer chip" OR "next generation PC" OR "brain computer interface" OR "battery technology" OR "research paper" OR "scientific conference" OR "technology breakthrough" OR "new product" OR "product launch" OR "new collection" OR sneaker OR fragrance OR makeup OR fashion OR beauty OR luxury)';
 
 type GdeltArticleRaw = {
   title?: string;

@@ -1,5 +1,7 @@
 ﻿"use client";
 
+/* eslint-disable @next/next/no-img-element -- dynamic media URLs must work in native WebViews. */
+
 import { useState } from "react";
 import { hasDisplayablePostMedia } from "@/lib/products/discovery-filter";
 import type { Post } from "@/lib/types";
@@ -29,7 +31,6 @@ export function MediaThumb({
   if (post.mediaType === "video") {
     if (mediaFailed) {
       if (thumbnailUrl) {
-        // eslint-disable-next-line @next/next/no-img-element
         return (
           <img
             src={thumbnailUrl}
@@ -65,7 +66,6 @@ export function MediaThumb({
   const imageSrc = thumbnailUrl || mediaUrl;
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={imageSrc}
       alt=""

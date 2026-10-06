@@ -1,4 +1,5 @@
 ﻿import type { WorldSearchResult } from "@/lib/ai/world-search";
+import { canonicalizeSourceUrl } from "@/lib/ai/agent-os/hash";
 
 export type WorldSourceName =
   | "product_hunt"
@@ -8,7 +9,8 @@ export type WorldSourceName =
   | "nasa"
   | "kickstarter"
   | "indiegogo"
-  | "google_trends";
+  | "google_trends"
+  | "future_tech_news";
 
 export type WorldSourceItem = WorldSearchResult & {
   sourceName: WorldSourceName;
@@ -61,14 +63,28 @@ export function dedupeWorldSourceItems(
   const seen = new Set<string>();
   const result: WorldSourceItem[] = [];
 
-  for (const item of items) {
-    const key =
-      item.sourceRef ||
-      `${item.sourceName}:${item.url}`.toLowerCase();
+  for (const rawItem of items) {
+    const item = normalizeWorldSourceItem(rawItem);
+    let key = "";
+
+    // Canonicalize URL-shaped source references (e.g. arXiv article URLs)
+    // so tracking variants dedupe. Keep opaque IDs source-scoped: Product Hunt
+    // and GitHub IDs are not URLs, and two entries can legitimately link to a
+    // shared product homepage.
+    const sourceRef = item.sourceRef.trim();
+    try {
+      const parsed = new URL(sourceRef);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        key = `url:${canonicalizeSourceUrl(sourceRef)}`;
+      }
+    } catch {
+      // Opaque source references use the source-specific fallback below.
+    }
+    if (!key) key = `${item.sourceName}:${sourceRef || item.url}`;
 
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push(normalizeWorldSourceItem(item));
+    result.push(item);
   }
 
   return result;

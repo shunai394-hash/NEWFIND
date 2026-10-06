@@ -1,5 +1,5 @@
 ﻿import { fileToStoredUrl } from "@/lib/media";
-import { rankForYouFeed, engagementScore } from "@/lib/feed-rank";
+import { rankForYouFeed } from "@/lib/feed-rank";
 import {
   normalizePostMedia,
   requirePostCaption,
@@ -27,7 +27,6 @@ import type { Store } from "@/lib/store/types";
 import type {
   CategoryId,
   Comment,
-  CommentView,
   CreatePostInput,
   FollowListEntry,
   Post,
@@ -145,7 +144,7 @@ function usernameFromEmail(email: string, taken: Set<string>) {
 function toView(state: LocalState, post: Post, viewerId: string | null): PostView {
   const author = state.profiles.find((p) => p.id === post.authorId);
   if (!author) {
-    throw new Error("謚慕ｨｿ閠・・繝励Ο繝輔ぅ繝ｼ繝ｫ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ");
+    throw new Error("投稿者のプロフィールが見つかりません");
   }
   return {
     ...post,
@@ -164,10 +163,6 @@ function toView(state: LocalState, post: Post, viewerId: string | null): PostVie
       ? state.follows.some((x) => x.followerId === viewerId && x.followeeId === post.authorId)
       : false,
   };
-}
-
-function score(view: PostView) {
-  return engagementScore(view);
 }
 
 export const localStore: Store = {
@@ -226,7 +221,7 @@ export const localStore: Store = {
     });
   },
 
-  async signInOAuth(_provider, _next) {
+  async signInOAuth() {
     throw new Error(
       "Google / Apple ログインは Supabase Auth の設定後に利用できます。",
     );
@@ -310,7 +305,7 @@ export const localStore: Store = {
   async updateProfile(id, patch: UpdateProfileInput) {
     return mutate((state) => {
       const profile = state.profiles.find((p) => p.id === id);
-      if (!profile) throw new Error("繝励Ο繝輔ぅ繝ｼ繝ｫ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ");
+      if (!profile) throw new Error("プロフィールが見つかりません");
       if (patch.username && patch.username !== profile.username) {
         const taken = state.profiles.some(
           (p) =>
@@ -349,7 +344,7 @@ export const localStore: Store = {
     });
   },
 
-  async getAIPosts(_offset = 0, _limit = 24) {
+  async getAIPosts() {
     return [];
   },
   async getFeed(kind, viewerId, offset = 0, limit = 24) {
@@ -425,7 +420,7 @@ export const localStore: Store = {
   async updatePost(postId, userId, patch: UpdatePostInput) {
     return mutate((state) => {
       const post = state.posts.find((item) => item.id === postId);
-      if (!post) throw new Error("謚慕ｨｿ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ");
+      if (!post) throw new Error("投稿が見つかりません");
       if (post.authorId !== userId) throw new Error("forbidden");
       if (patch.caption !== undefined) post.caption = patch.caption;
       if (patch.category !== undefined) post.category = patch.category;
@@ -513,7 +508,7 @@ export const localStore: Store = {
   },
 
   async toggleFollow(followeeId, followerId) {
-    if (followeeId === followerId) throw new Error("閾ｪ蛻・・繝輔か繝ｭ繝ｼ縺ｧ縺阪∪縺帙ｓ");
+    if (followeeId === followerId) throw new Error("自分はフォローできません");
     return mutate((state) => {
       const index = state.follows.findIndex(
         (f) => f.followerId === followerId && f.followeeId === followeeId,

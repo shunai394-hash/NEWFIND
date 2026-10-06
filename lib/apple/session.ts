@@ -4,16 +4,19 @@ type AppleUserInput = {
   appleUserId: string;
   email: string | null;
   isPrivateEmail: boolean;
+  emailVerified: boolean;
   displayName: string | null;
 };
 
 type AuthUserLite = {
   id: string;
   email?: string;
+  email_confirmed_at?: string | null;
+  confirmed_at?: string | null;
   user_metadata?: Record<string, unknown>;
 };
 
-async function lookupAuthUserByEmail(email: string): Promise<AuthUserLite | null> {
+export async function lookupAuthUserByEmail(email: string): Promise<AuthUserLite | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) return null;
@@ -31,12 +34,15 @@ async function lookupAuthUserByEmail(email: string): Promise<AuthUserLite | null
   if (!res.ok) return null;
   const json = (await res.json()) as { users?: AuthUserLite[] };
   const users = json.users ?? [];
-  const lowered = email.toLowerCase();
-  return (
-    users.find((user) => user.email?.toLowerCase() === lowered) ??
-    users[0] ??
-    null
-  );
+  const lowered = email.trim().toLowerCase();
+  // `filter` is a partial match. Only an exact, already-verified email may be
+  // linked: a typo/partial match or an unconfirmed account could attach Apple
+  // sign-in to an account created by someone else.
+  return users.find(
+    (user) =>
+      user.email?.trim().toLowerCase() === lowered &&
+      Boolean(user.email_confirmed_at || user.confirmed_at),
+  ) ?? null;
 }
 
 async function lookupByAppleId(appleUserId: string): Promise<string | null> {
@@ -116,18 +122,31 @@ function fallbackEmail(appleUserId: string) {
   return `apple.${safe}@privaterelay.appleid.com`;
 }
 
+export function trustedAppleEmail(input: {
+  appleUserId: string;
+  email: string | null;
+  emailVerified: boolean;
+}) {
+  return input.emailVerified && input.email?.trim()
+    ? input.email.trim()
+    : fallbackEmail(input.appleUserId);
+}
+
 export async function findOrCreateAppleUser(input: AppleUserInput) {
   const admin = createAdminClient();
   const existingId = await lookupByAppleId(input.appleUserId);
   if (existingId) {
     const existing = await admin.auth.admin.getUserById(existingId);
-    const email = existing.data.user?.email || input.email || fallbackEmail(input.appleUserId);
+    const email = existing.data.user?.email || trustedAppleEmail(input);
     await rememberAppleIdentity(existingId, { ...input, email });
     return { userId: existingId, email, created: false };
   }
 
-  const email = input.email?.trim() || fallbackEmail(input.appleUserId);
-  const byEmail = await lookupAuthUserByEmail(email);
+  // Only Apple's signed, verified email may be used to link an existing
+  // password/Google account. An unverified email must never select the user.
+  const verifiedEmail = input.emailVerified ? input.email?.trim() || null : null;
+  const email = verifiedEmail || fallbackEmail(input.appleUserId);
+  const byEmail = verifiedEmail ? await lookupAuthUserByEmail(verifiedEmail) : null;
   if (byEmail?.id) {
     await rememberAppleIdentity(byEmail.id, { ...input, email: byEmail.email || email });
     return { userId: byEmail.id, email: byEmail.email || email, created: false };

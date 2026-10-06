@@ -104,6 +104,18 @@ function main() {
     lastOutcome: "0 new / duplicate",
   });
   assert(skip !== "new_products", "failed new_products must not repeat");
+  assert(
+    pickNextAxis({ recentAxes: ["emerging_brands", "new_products"], lastOutcome: "posted" }) === "future_technology",
+    "future-facing research must recur at least every third exploration turn",
+  );
+  assert(
+    pickNextAxis({ recentAxes: ["new_products"], lastOutcome: "posted" }) === "future_technology",
+    "future-tech reporting should be prioritized on the next successful exploration turn",
+  );
+  assert(
+    pickNextAxis({ recentAxes: ["future_technology"], lastOutcome: "posted" }) !== "future_technology",
+    "future-tech turns should alternate with other discovery axes rather than repeat consecutively",
+  );
 
   const islaIntent = formIntent({
     persona: isla,
@@ -167,6 +179,45 @@ function main() {
   assert(
     nextExplorationHint(day1, { newCount: 0 }).includes("leave"),
     "empty day must leave the axis",
+  );
+
+  const futureTechQuest = planTodayExploration({
+    persona: {
+      ...isla,
+      name: "Alex",
+      username: "alex_tech_ai",
+      role: "researcher",
+      expertise: ["AI", "robotics", "computing", "semiconductors"],
+      interests: ["technology"],
+      countryCode: "US",
+      region: "US",
+    },
+    recentQuests: [
+      { ...day1, axis: "new_products" },
+      { ...day1, axis: "emerging_brands" },
+      { ...day1, axis: "local_retail" },
+      { ...day1, axis: "local_media" },
+      { ...day1, axis: "trend_signals" },
+      { ...day1, axis: "independent_creators" },
+      { ...day1, axis: "cross_region" },
+      { ...day1, axis: "earth_science" },
+    ],
+    experiences: [],
+    date: "2026-10-06",
+  });
+  assert(futureTechQuest.axis === "future_technology", "uncovered future-tech axis should be selected");
+  assert(
+    /robotics|humanoid|semiconductor|on-device AI/i.test(futureTechQuest.queries.join(" ")),
+    "future-tech research must explicitly cover robotics, chips and next-gen AI",
+  );
+  assert(
+    /arxiv|IEEE|ACM|Nature|Science|ICRA|IROS|NeurIPS/i.test(futureTechQuest.queries.join(" ")),
+    "future-tech research must query primary research and conference sources",
+  );
+  assert(
+    futureTechQuest.includeDomains.length === 4 &&
+      futureTechQuest.includeDomains.some((domain) => /arxiv|ieee|acm|nature|science|google|robotics|nvidia|microsoft|computer\.org/i.test(domain)),
+    "future-tech searches must include a rotating set of credible primary sources",
   );
 
   console.log("test-today-exploration ok");

@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
 
+/**
+ * Canonical URL for source identity.
+ *
+ * Host names are case-insensitive, but URL paths and query values can be
+ * case-sensitive. Never lowercase the full serialized URL: doing so can merge
+ * two distinct articles on case-sensitive publishers. Remove only known
+ * tracking parameters; generic parameters such as "ref" may identify content.
+ */
 export function canonicalizeSourceUrl(url: string) {
   try {
     const parsed = new URL(url.trim());
@@ -11,16 +19,20 @@ export function canonicalizeSourceUrl(url: string) {
         lower.startsWith("utm_") ||
         lower === "fbclid" ||
         lower === "gclid" ||
+        lower === "dclid" ||
+        lower === "msclkid" ||
+        lower === "yclid" ||
+        lower === "igshid" ||
         lower === "mc_cid" ||
-        lower === "mc_eid" ||
-        lower === "ref"
+        lower === "mc_eid"
       ) {
         parsed.searchParams.delete(key);
       }
     }
-    return parsed.toString().replace(/\/$/, "").toLowerCase();
+    const serialized = parsed.toString();
+    return serialized.endsWith("/") ? serialized.slice(0, -1) : serialized;
   } catch {
-    return url.trim().replace(/\/$/, "").toLowerCase();
+    return url.trim().replace(/\/$/, "");
   }
 }
 

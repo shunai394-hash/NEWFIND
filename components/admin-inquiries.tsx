@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { AdminNav } from "@/components/admin-nav";
+import { authHeaders } from "@/lib/auth/client-headers";
 
 type Inquiry = {
   id: string;
@@ -14,8 +15,18 @@ type Inquiry = {
   resolved_at: string | null;
 };
 
-function authHeaders(): HeadersInit {
-  return {};
+
+async function fetchInquiries(): Promise<Inquiry[]> {
+  const response = await fetch("/api/admin/inquiries", {
+    // Bearer token: the native app keeps its session outside cookies.
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "お問い合わせの取得に失敗しました。");
+  }
+  return data.inquiries ?? [];
 }
 
 export function AdminInquiries() {
@@ -23,36 +34,24 @@ export function AdminInquiries() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await fetch("/api/admin/inquiries", {
-        headers: authHeaders(),
-        cache: "no-store",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "お問い合わせの取得に失敗しました。");
-      }
-
-      setInquiries(data.inquiries ?? []);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "お問い合わせの取得に失敗しました。"
-      );
-    } finally {
-      setLoading(false);
-    }
+  const load = useCallback(() => {
+    fetchInquiries()
+      .then((rows) => {
+        setError("");
+        setInquiries(rows);
+      })
+      .catch((error: unknown) => {
+        setError(
+          error instanceof Error
+            ? error.message
+            : "お問い合わせの取得に失敗しました。"
+        );
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    void load();
+    load();
   }, [load]);
 
   async function updateStatus(id: string, status: "open" | "resolved") {
@@ -61,7 +60,7 @@ export function AdminInquiries() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          ...authHeaders(),
+          ...(await authHeaders()),
         },
         body: JSON.stringify({ status }),
       });
@@ -98,7 +97,11 @@ export function AdminInquiries() {
           </div>
 
           <button
-            onClick={() => void load()}
+            onClick={() => {
+              setLoading(true);
+              setError("");
+              load();
+            }}
             className="rounded-lg border border-gray-300 px-4 py-2 text-sm"
           >
             更新

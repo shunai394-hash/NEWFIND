@@ -120,6 +120,7 @@ export function BottomNav() {
 
   return (
     <nav
+      aria-label="メインナビゲーション"
       data-testid="bottom-nav"
       className="pointer-events-auto fixed inset-x-0 bottom-0 z-[200] border-t border-neutral-800 bg-black pb-[env(safe-area-inset-bottom,0px)]"
       style={{ touchAction: "manipulation" }}

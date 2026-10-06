@@ -358,7 +358,7 @@ function CommentThreadItem({
             <button
               type="button"
               onClick={() => onToggleReply(comment.id)}
-              className="text-xs font-semibold text-neutral-500"
+              className="-my-3 inline-flex min-h-11 min-w-11 items-center justify-center text-xs font-semibold text-neutral-500"
             >
               返信
             </button>

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createPublicSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isAiPersonDiscoveryMedia } from "@/lib/products/discovery-filter";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { normalizeBrand, normalizeProductName, sourceDomain } from "@/lib/discovery/normalize";
@@ -98,8 +99,31 @@ function adminDb() {
   return createAdminClient();
 }
 
-function discoveryDb() {
-  return adminDb();
+let publicDiscoveryClient: SupabaseClient | null = null;
+
+function publicDb() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!url || !key) {
+    throw new Error("公開商品を読み込むためのSupabase設定がありません");
+  }
+
+  if (!publicDiscoveryClient) {
+    publicDiscoveryClient = createPublicSupabaseClient(url, key, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+  }
+  return publicDiscoveryClient;
+}
+
+function discoveryDb(admin = false) {
+  // This module is shared by browser and server code. Keep public reads on a
+  // browser-safe anon-key client; elevated writes remain on the admin client.
+  return admin ? adminDb() : publicDb();
 }
 
 function mapSource(row: SourceRow): DiscoverySource {
@@ -268,7 +292,7 @@ export async function listDiscoveryProductsFromDb(options?: {
 }) {
   const admin = Boolean(options?.admin);
   const status = options?.status ?? (admin ? "all" : "approved");
-  const supabase = discoveryDb();
+  const supabase = await discoveryDb(admin);
   let query = supabase
     .from("discovery_products")
     .select("*")
@@ -277,7 +301,7 @@ export async function listDiscoveryProductsFromDb(options?: {
   else if (status !== "all") query = query.eq("status", status);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  const products = await hydrate(discoveryDb(), (data ?? []) as ProductRow[]);
+  const products = await hydrate(supabase, (data ?? []) as ProductRow[]);
   return applyPublicFilter(products, admin).filter((item) => {
     if (admin && status !== "all" && item.status !== status) return false;
     return true;
@@ -285,19 +309,19 @@ export async function listDiscoveryProductsFromDb(options?: {
 }
 
 export async function getDiscoveryProductFromDb(id: string, admin = false) {
-  const supabase = discoveryDb();
+  const supabase = await discoveryDb(admin);
   let query = supabase.from("discovery_products").select("*").eq("id", id);
   if (!admin) query = query.eq("status", "approved");
   const { data, error } = await query.maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const [product] = await hydrate(discoveryDb(), [data as ProductRow]);
+  const [product] = await hydrate(supabase, [data as ProductRow]);
   if (!product) return null;
   return applyPublicFilter([product], admin)[0] ?? null;
 }
 
 export async function saveDiscoveryProductToDb(input: DiscoveryProductInput) {
-  const supabase = discoveryDb();
+  const supabase = await discoveryDb(true);
 
   // AI住民が同じ商品を再発見しても、既存Discovery商品を重複登録しない。
   // product_url の一意制約は維持し、既存商品をそのまま返す。
@@ -512,10 +536,10 @@ export async function listDiscoveryProductsByIdsFromDb(
   if (unique.length === 0) return [];
   const admin = Boolean(options?.admin);
   const requireImage = options?.requireImage !== false;
-  const supabase = discoveryDb();
+  const supabase = await discoveryDb(admin);
   const { data, error } = await supabase.from("discovery_products").select("*").in("id", unique);
   if (error) throw new Error(error.message);
-  const products = await hydrate(discoveryDb(), (data ?? []) as ProductRow[]);
+  const products = await hydrate(supabase, (data ?? []) as ProductRow[]);
   const visible = products.filter((item) => {
     if (!admin && item.status !== "approved") return false;
     if (!admin && requireImage && !isUsableProductImage(item.productImageUrl)) return false;

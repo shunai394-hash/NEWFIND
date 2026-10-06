@@ -19,6 +19,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh bg-black">
+      <a
+        href="#main-content"
+        className="sr-only z-[300] rounded-full bg-[#C6FF00] px-4 py-3 font-semibold text-black focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        コンテンツへスキップ
+      </a>
       <div
         className={`relative mx-auto flex min-h-dvh w-full flex-col overflow-x-clip bg-white text-black ${
           isAdmin ? "max-w-3xl" : "max-w-[430px]"
@@ -39,7 +45,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </header>
         )}
         <main
-          className="relative z-0 flex-1"
+          id="main-content"
+          tabIndex={-1}
+          className="relative z-0 flex-1 outline-none"
           style={
             showNav
               ? {

@@ -84,14 +84,31 @@ extension SignInWithApplePlugin: ASAuthorizationControllerDelegate {
         print("[NEWFIND][Apple] identityToken exists: \(!identityToken.isEmpty)")
         print("[NEWFIND][Apple] authorizationCode exists: \(!authorizationCode.isEmpty)")
 
-        savedCall?.resolve([
+        // Capacitor serializes this dictionary to JavaScript. Do not bridge
+        // Swift Optional.none values as Any: they are not valid JS payload values
+        // and can break sign-in when Apple omits email/name on later sign-ins.
+        guard !identityToken.isEmpty else {
+            savedCall?.reject("Apple identity token を取得できませんでした", "APPLE_AUTH_FAILED")
+            savedCall = nil
+            self.controller = nil
+            return
+        }
+
+        var payload: JSObject = [
             "user": credential.user,
-            "email": credential.email as Any,
-            "givenName": credential.fullName?.givenName as Any,
-            "familyName": credential.fullName?.familyName as Any,
             "identityToken": identityToken,
             "authorizationCode": authorizationCode
-        ])
+        ]
+        if let email = credential.email {
+            payload["email"] = email
+        }
+        if let givenName = credential.fullName?.givenName {
+            payload["givenName"] = givenName
+        }
+        if let familyName = credential.fullName?.familyName {
+            payload["familyName"] = familyName
+        }
+        savedCall?.resolve(payload)
 
         savedCall = nil
         self.controller = nil
@@ -105,7 +122,14 @@ extension SignInWithApplePlugin: ASAuthorizationControllerDelegate {
     ) {
         print("[NEWFIND][Apple] didCompleteWithError: \(error.localizedDescription)")
 
-        savedCall?.reject(error.localizedDescription)
+        // Let the web layer tell a user cancellation apart from a real failure.
+        let code: String
+        if let authError = error as? ASAuthorizationError, authError.code == .canceled {
+            code = "CANCELED"
+        } else {
+            code = "APPLE_AUTH_FAILED"
+        }
+        savedCall?.reject(error.localizedDescription, code, error)
         savedCall = nil
         self.controller = nil
     }

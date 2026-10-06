@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     product_url: productUrl,
     price_min: prices.length ? Math.min(...prices) : null,
     price_max: prices.length ? Math.max(...prices) : null,
-    source_updated_at: product.updated_at ?? triggeredAt ?? new Date().toISOString(),
+    source_updated_at: triggeredAt ?? product.updated_at ?? new Date().toISOString(),
     source_status: archived ? "archived" : (product.status ?? "unknown"),
     published_to_store: published,
     review_status: archived || !published ? "blocked" : "pending_review",

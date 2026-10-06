@@ -107,7 +107,7 @@ export async function loadWorldDiscoveryReport(): Promise<WorldDiscoveryReport> 
     return report;
   } catch (error) {
     console.error("[world-report] activity report failed", {
-      message: error instanceof Error ? error.message : "unknown error",
+      name: error instanceof Error ? error.name.slice(0, 48) : "UnknownError",
     });
     return empty;
   }

@@ -170,10 +170,9 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const configured = Boolean(
-    process.env.SHOPIFY_WEBHOOK_SECRET?.trim() &&
-    process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN?.trim(),
-  );
+  const secret = process.env.SHOPIFY_WEBHOOK_SECRET?.trim();
+  const allowedShop = process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN?.trim().toLowerCase();
+  const configured = Boolean(secret && allowedShop && isShopifyMyshopifyDomain(allowedShop));
   return Response.json(
     {
       ok: configured,

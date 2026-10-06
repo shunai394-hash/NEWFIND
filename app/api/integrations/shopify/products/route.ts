@@ -138,17 +138,27 @@ export async function POST(request: Request) {
 
   try {
     const supabase = createAdminClient();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("shopify_product_promotions")
-      .upsert(row, { onConflict: "shop_domain,shopify_product_id" });
+      .upsert(row, { onConflict: "shop_domain,shopify_product_id" })
+      .select("review_status, last_webhook_id, source_updated_at")
+      .maybeSingle();
     if (error) {
       console.error("[shopify product webhook] persistence failed", error.message);
       return Response.json({ ok: false, error: "Could not persist product event" }, { status: 500 });
     }
+    if (!data) {
+      return Response.json({
+        ok: true,
+        received: true,
+        ignored: "duplicate_or_stale",
+        message: "Duplicate or stale product event was acknowledged without changing stored state.",
+      });
+    }
     return Response.json({
       ok: true,
       received: true,
-      reviewStatus: row.review_status,
+      reviewStatus: data.review_status,
       message: row.review_status === "pending_review"
         ? "Product queued for editorial review; it has not been published to NEWFIND."
         : "Product is not eligible for promotion until it is published and active in Shopify.",

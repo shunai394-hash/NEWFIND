@@ -292,9 +292,10 @@ export function dedupeLiveActivities(
   for (const activity of live) {
     if (!activity.live) continue;
     const actor = activity.actorName.normalize("NFKC").toLocaleLowerCase().trim();
+    const actorIdentity = activity.actorHref?.normalize("NFKC").toLocaleLowerCase().trim() || actor;
     const quote = activity.quote.normalize("NFKC").toLocaleLowerCase().replace(/\s+/g, " ").trim();
     if (!quote) continue;
-    const key = `${actor}:${quote}`;
+    const key = `${actorIdentity}:${quote}`;
     if (seen.has(key)) continue;
     seen.add(key);
     curated.push(activity);

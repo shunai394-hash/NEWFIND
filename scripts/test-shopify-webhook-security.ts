@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readBoundedWebhookBody } from "../lib/shopify-webhook-body";
-import { isMinimalShopifyDeletePayload, isShopifyMyshopifyDomain, normalizeShopifyDescription, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
+import { isMinimalShopifyDeletePayload, isShopifyMyshopifyDomain, normalizeShopifyDescription, normalizeShopifyPrice, normalizeShopifyProductId, parseShopifyWebhookJson, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "../lib/shopify-webhook-security";
 
 test("accepts a valid Shopify Base64 HMAC for the exact raw body", () => {
@@ -92,6 +92,16 @@ test("requires a valid product updated_at for create and update events", () => {
   assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00", "2026-10-06T08:30:00Z"), null);
   assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00.123456789Z", "2026-10-06T08:30:00Z"), "2026-10-06T08:00:00.123Z");
   assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00Z", "2026-10-06T08:30:00Z"), "2026-10-06T08:00:00.000Z");
+});
+
+test("preserves Shopify 64-bit product IDs exactly when parsing webhook JSON", () => {
+  const product = parseShopifyWebhookJson('{"id":788032119674292922,"variants":[{"id":9007199254740993,"price":"12.34"}]}') as {
+    id: string;
+    variants: { id: string; price: string }[];
+  };
+  assert.equal(product.id, "788032119674292922");
+  assert.equal(product.variants[0].id, "9007199254740993");
+  assert.equal(normalizeShopifyProductId(product.id), "788032119674292922");
 });
 
 test("normalizes only positive integer Shopify product IDs", () => {

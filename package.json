@@ -41,7 +41,6 @@
         "@capacitor/android": "^8.5.0",
         "@capacitor/app": "^8.1.1",
         "@capacitor/browser": "^8.0.4",
-        "@capacitor/cli": "^8.5.0",
         "@capacitor/core": "^8.5.0",
         "@capacitor/ios": "^8.5.0",
         "@capacitor/keyboard": "^8.0.5",
@@ -67,6 +66,7 @@
         "playwright": "^1.62.1",
         "tailwindcss": "^4",
         "tsx": "^4.23.12",
-        "typescript": "^5"
+        "typescript": "^5",
+        "@capacitor/cli": "^8.5.0"
     }
 }

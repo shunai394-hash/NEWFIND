@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readBoundedWebhookBody } from "../lib/shopify-webhook-body";
+import { resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "../lib/shopify-webhook-security";
 
 test("accepts a valid Shopify Base64 HMAC for the exact raw body", () => {
@@ -72,4 +73,17 @@ test("Shopify intake contract preserves publication and access gates", async () 
   assert.match(migration, /new\.source_updated_at <= old\.source_updated_at/);
   assert.match(migration, /enable row level security/i);
   assert.match(migration, /revoke all on public\.shopify_product_promotions from anon, authenticated/i);
+});
+
+test("accepts the documented minimal products/delete payload timestamp from Shopify delivery metadata", () => {
+  assert.equal(
+    resolveShopifyEventTimestamp("products/delete", undefined, "2026-10-06T08:30:00.000Z"),
+    "2026-10-06T08:30:00.000Z",
+  );
+});
+
+test("requires a valid product updated_at for create and update events", () => {
+  assert.equal(resolveShopifyEventTimestamp("products/create", undefined, "2026-10-06T08:30:00.000Z"), null);
+  assert.equal(resolveShopifyEventTimestamp("products/update", "invalid", "2026-10-06T08:30:00.000Z"), null);
+  assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00Z", "2026-10-06T08:30:00Z"), "2026-10-06T08:00:00.000Z");
 });

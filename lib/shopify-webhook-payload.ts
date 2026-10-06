@@ -22,6 +22,8 @@ export function resolveShopifyEventTimestamp(
   const timeMatch = /T(\\d{2}):(\\d{2}):(\\d{2})/.exec(normalizedCandidate);
   if (year < 1 || month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1]) return null;
   if (!timeMatch || Number(timeMatch[1]) > 23 || Number(timeMatch[2]) > 59 || Number(timeMatch[3]) > 59) return null;
+  const offsetMatch = /([+-])(\\d{2}):(\\d{2})$/.exec(normalizedCandidate);
+  if (offsetMatch && (Number(offsetMatch[2]) > 23 || Number(offsetMatch[3]) > 59)) return null;
 
   const parsed = Date.parse(candidate);
   if (!Number.isFinite(parsed)) return null;

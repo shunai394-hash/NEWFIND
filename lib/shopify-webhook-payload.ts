@@ -60,3 +60,12 @@ export function normalizeShopifyDescription(value: unknown): string | null {
     .slice(0, 12000);
   return text || null;
 }
+
+/** Prevent a full product snapshot from being replayed under the unsigned delete topic header. */
+export function isMinimalShopifyDeletePayload(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const payload = value as Record<string, unknown>;
+  const allowedKeys = new Set(["id", "admin_graphql_api_id"]);
+  if (payload.id == null) return false;
+  return Object.keys(payload).every((key) => allowedKeys.has(key));
+}

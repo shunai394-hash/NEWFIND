@@ -27,8 +27,8 @@ function isLikelyUntranslatedChineseTitle(title: string): boolean {
 function isLikelyHeadlineBundle(title: string): boolean {
   // A single card must represent one discovery, not several source titles joined
   // together by a feed/import pipeline.
-  const separators = title.match(/[,，、]/gu) ?? [];
-  return separators.length >= 2;
+  return /(?:市场展望|market outlook).*(?:市场展望|market outlook)/iu.test(title) ||
+    /新闻和统计.*新闻和统计/u.test(title);
 }
 
 function hasVerifiableSource(sourceUrl?: string | null): boolean {

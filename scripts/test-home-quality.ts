@@ -111,6 +111,14 @@ function main() {
     "private-network source URLs must not count as product identity evidence",
   );
   assert(
+    !hasVerifiedProductIdentity({ productUrl: "https://100.64.1.10/item" }),
+    "carrier-grade NAT addresses must not count as public product sources",
+  );
+  assert(
+    !hasVerifiedProductIdentity({ productUrl: "https://203.0.113.10/item" }),
+    "documentation-only IPv4 ranges must not count as public product sources",
+  );
+  assert(
     !hasVerifiedProductIdentity({}),
     "missing source and structured identity must fail",
   );

@@ -84,7 +84,20 @@ function pickResidentsToAct(
       return a.persona_name.localeCompare(b.persona_name);
     });
 
-  return due.slice(0, limit);
+  // Reserve part of each normal patrol for product discovery. Without this,
+  // residents whose next_action_at is older can consume every slot with social
+  // turns, starving product_hunter residents even when they are due.
+  // Keep the run bounded: this is a slot reservation, not extra work.
+  const hunterTarget = Math.min(2, limit);
+  const hunters = due
+    .filter((persona) => persona.resident_role === "product_hunter")
+    .slice(0, hunterTarget);
+  const selectedIds = new Set(hunters.map((persona) => persona.id));
+  const remainder = due
+    .filter((persona) => !selectedIds.has(persona.id))
+    .slice(0, Math.max(0, limit - hunters.length));
+
+  return [...hunters, ...remainder];
 }
 
 function summarizeResults(results: unknown[]) {

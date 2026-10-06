@@ -1,9 +1,25 @@
 import type { DiscoveryProduct } from "@/lib/discovery/types";
+import type { CategoryId } from "@/lib/types";
 
 export type ProductSignal = {
   key: string;
   label: string;
 };
+
+export function matchesDiscoveryCategory(
+  product: Pick<DiscoveryProduct, "category" | "country" | "trendTags" | "people">,
+  category: CategoryId | "all",
+): boolean {
+  if (category === "all") return true;
+  if (category === "fashion") {
+    return product.category === "fashion" || product.trendTags.includes("teen");
+  }
+  if (category === "japan_brands") return isJapanProduct(product);
+  if (category === "celebrity") {
+    return product.category === "celebrity_style" || product.people.length > 0;
+  }
+  return product.category === category;
+}
 
 export function isJapanProduct(product: Pick<DiscoveryProduct, "country" | "category">) {
   const country = (product.country ?? "").trim().toLowerCase();

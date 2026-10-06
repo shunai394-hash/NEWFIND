@@ -1,5 +1,5 @@
 import { readBoundedWebhookBody } from "@/lib/shopify-webhook-body";
-import { isShopifyMyshopifyDomain, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
+import { isShopifyMyshopifyDomain, normalizeShopifyDescription, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "@/lib/shopify-webhook-security";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
     shop_domain: shopDomain,
     shopify_product_id: productId,
     title: typeof product.title === "string" ? product.title.slice(0, 300) : "Untitled product",
-    description: typeof product.body_html === "string" ? product.body_html.slice(0, 12000) : null,
+    description: normalizeShopifyDescription(product.body_html),
     handle: handle || null,
     vendor: typeof product.vendor === "string" ? product.vendor.slice(0, 200) : null,
     product_type: typeof product.product_type === "string" ? product.product_type.slice(0, 200) : null,

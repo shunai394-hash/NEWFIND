@@ -111,6 +111,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Release config rejects localhost server URLs
+        run: |
+          if CAPACITOR_SERVER_URL=http://localhost:3000 CAPACITOR_RELEASE=1 npx cap sync ios > "$RUNNER_TEMP/invalid-release-config.log" 2>&1; then
+            echo "Release configuration unexpectedly accepted localhost."
+            exit 1
+          fi
+          if ! grep -Fq "requires CAPACITOR_SERVER_URL to be an explicit HTTPS URL" "$RUNNER_TEMP/invalid-release-config.log"; then
+            cat "$RUNNER_TEMP/invalid-release-config.log"
+            echo "Release configuration failed for an unexpected reason."
+            exit 1
+          fi
+
       - name: Sync Capacitor iOS project
         env:
           CAPACITOR_SERVER_URL: https://newfind-self.vercel.app

@@ -33,6 +33,7 @@ export async function GET() {
   );
 
   return NextResponse.json({
+    reportAvailable: report.available,
     residents: report.residents,
     posts: report.posts,
     products: report.products,

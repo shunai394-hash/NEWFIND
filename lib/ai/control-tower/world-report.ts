@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type WorldDiscoveryReport = {
+  available: boolean;
   residents: number;
   searches: number;
   scanned: number;
@@ -33,6 +34,7 @@ function startOfUtcDay(now = new Date()) {
 
 export async function loadWorldDiscoveryReport(): Promise<WorldDiscoveryReport> {
   const empty: WorldDiscoveryReport = {
+    available: false,
     residents: 0,
     searches: 0,
     scanned: 0,
@@ -54,10 +56,16 @@ export async function loadWorldDiscoveryReport(): Promise<WorldDiscoveryReport> 
       .gte("occurred_at", startOfUtcDay())
       .order("occurred_at", { ascending: false })
       .limit(400);
-    if (error || !data) return empty;
+    if (error || !data) {
+      // Keep database details in server logs, never in the public response.
+      console.error("[world-report] activity query unavailable", {
+        code: error?.code ?? "NO_DATA",
+      });
+      return empty;
+    }
 
     const residents = new Set<string>();
-    const report = { ...empty, headlines: [] as WorldDiscoveryReport["headlines"] };
+    const report = { ...empty, available: true, headlines: [] as WorldDiscoveryReport["headlines"] };
     for (const row of data) {
       const meta = (row.metadata ?? {}) as Record<string, unknown>;
       if (row.persona_id) residents.add(String(row.persona_id));
@@ -97,7 +105,10 @@ export async function loadWorldDiscoveryReport(): Promise<WorldDiscoveryReport> 
     report.residents = residents.size;
     report.headlines = report.headlines.slice(0, 12);
     return report;
-  } catch {
+  } catch (error) {
+    console.error("[world-report] activity report failed", {
+      message: error instanceof Error ? error.message : "unknown error",
+    });
     return empty;
   }
 }

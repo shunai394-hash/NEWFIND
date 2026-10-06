@@ -1,4 +1,4 @@
-import { dedupeLiveActivities, featuredFromResidents, hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice, type WorldActivity } from "../lib/world/home-data";
+import { dedupeLiveActivities, featuredFromResidents, findDirectActivityReply, hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice, type WorldActivity } from "../lib/world/home-data";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -23,7 +23,7 @@ function main() {
     activity({ id: "first" }),
     activity({ id: "duplicate", quote: "  TOKYOで見ると、価格と発売地域を知りたい。  " }),
     activity({ id: "duplicate-2", quote: "Tokyoで見ると、価格と発売地域を知りたい。" }),
-    activity({ id: "different-author", actorName: "Hana" }),
+    activity({ id: "different-author", actorName: "Hana", actorHref: "/u/hana" }),
     activity({ id: "not-live", live: false }),
     activity({ id: "unique-2", quote: "Seoulで発見した新しい素材の比較。" }),
     activity({ id: "unique-3", quote: "Parisの新作について公式発表を確認。" }),
@@ -31,6 +31,34 @@ function main() {
   ]);
   assert(curatedActivities.map((item) => item.id).join(",") === "first,different-author,unique-2,unique-3", "curation must skip repeated activity and keep scanning until four unique live cards are filled");
   assert(dedupeLiveActivities([activity()], 0).length === 0, "zero activity limit should return no cards");
+  assert(
+    dedupeLiveActivities([
+      activity({ id: "same-name-a", actorName: "Alex", actorHref: "/u/alex-a", quote: "Found a new material in Seoul." }),
+      activity({ id: "same-name-b", actorName: "Alex", actorHref: "/u/alex-b", quote: "Found a new material in Seoul." }),
+    ]).length === 2,
+    "distinct residents with the same display name must not collapse into one activity",
+  );
+
+  assert(
+    dedupeLiveActivities([
+      activity({ id: "normalized-space", quote: "Found a new material in Seoul." }),
+      activity({ id: "repeated-space", quote: "Found   a new material in Seoul." }),
+    ]).length === 1,
+    "activity deduplication must collapse repeated internal whitespace before comparing quotes",
+  );
+
+  const residentIds = new Set(["ai-profile"]);
+  const rootComment = { id: "root", body: "A discovery comment", user_id: "human-profile", parent_comment_id: null };
+  const unrelatedAiComment = { id: "unrelated", body: "An unrelated AI comment", user_id: "ai-profile", parent_comment_id: null };
+  const directAiReply = { id: "reply", body: "A direct reply", user_id: "ai-profile", parent_comment_id: "root" };
+  assert(
+    findDirectActivityReply(rootComment, [rootComment, unrelatedAiComment], residentIds, false) === undefined,
+    "an unrelated comment on the same post must not be presented as a reply",
+  );
+  assert(
+    findDirectActivityReply(rootComment, [rootComment, unrelatedAiComment, directAiReply], residentIds, false)?.id === "reply",
+    "only a direct child comment from the opposite participant type should be shown as a reply",
+  );
 
   assert(isHomepageProductEligible(verified), "verified product should pass");
   assert(
@@ -69,6 +97,18 @@ function main() {
   assert(
     !hasVerifiedProductIdentity({ productUrl: "http://brand.example/item" }),
     "insecure source URL alone must not count as identity evidence",
+  );
+  assert(
+    !hasVerifiedProductIdentity({ productUrl: "https://localhost/item" }),
+    "localhost source URLs must not count as product identity evidence",
+  );
+  assert(
+    !hasVerifiedProductIdentity({ productUrl: "https://user:pass@brand.example/item" }),
+    "source URLs with embedded credentials must not count as product identity evidence",
+  );
+  assert(
+    !hasVerifiedProductIdentity({ productUrl: "https://192.168.1.20/item" }),
+    "private-network source URLs must not count as product identity evidence",
   );
   assert(
     !hasVerifiedProductIdentity({}),
@@ -131,6 +171,14 @@ function main() {
   assert(
     !isHomepageProductEligible({ ...verified, imageUrl: "http://example.com/product.jpg" }),
     "insecure image URL must fail",
+  );
+  assert(
+    !isHomepageProductEligible({ ...verified, imageUrl: "https://localhost/product.jpg" }),
+    "localhost image URLs must fail",
+  );
+  assert(
+    !isHomepageProductEligible({ ...verified, imageUrl: "https://user:pass@example.com/product.jpg" }),
+    "image URLs containing credentials must fail",
   );
   assert(
     !isHomepageProductEligible({ ...verified, imageUrl: "https://example.com/placeholder-product.jpg" }),

@@ -279,6 +279,29 @@ function cardFromResident(
   };
 }
 
+type ActivityComment = {
+  id: string;
+  body: unknown;
+  user_id: string;
+  parent_comment_id: string | null;
+};
+
+export function findDirectActivityReply(
+  row: ActivityComment,
+  siblings: ActivityComment[],
+  residentProfileIds: ReadonlySet<string>,
+  rowIsResident: boolean,
+): ActivityComment | undefined {
+  return siblings.find((item) =>
+    item.id !== row.id &&
+    item.parent_comment_id === row.id &&
+    Boolean(String(item.body ?? "").trim()) &&
+    (rowIsResident
+      ? !residentProfileIds.has(item.user_id)
+      : residentProfileIds.has(item.user_id)),
+  );
+}
+
 export function dedupeLiveActivities(
   live: WorldActivity[],
   limit = 4,
@@ -292,9 +315,10 @@ export function dedupeLiveActivities(
   for (const activity of live) {
     if (!activity.live) continue;
     const actor = activity.actorName.normalize("NFKC").toLocaleLowerCase().trim();
-    const quote = activity.quote.normalize("NFKC").toLocaleLowerCase().replace(/\\s+/g, " ").trim();
+    const actorIdentity = activity.actorHref?.normalize("NFKC").toLocaleLowerCase().trim() || actor;
+    const quote = activity.quote.normalize("NFKC").toLocaleLowerCase().replace(/\s+/g, " ").trim();
     if (!quote) continue;
-    const key = `${actor}:${quote}`;
+    const key = `${actorIdentity}:${quote}`;
     if (seen.has(key)) continue;
     seen.add(key);
     curated.push(activity);
@@ -458,12 +482,38 @@ async function loadFeaturedResidents(
   );
 }
 
-function isUsableProductImageUrl(value: string): boolean {
+function isPublicHttpsUrl(value: string | null | undefined): boolean {
+  if (!value?.trim()) return false;
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:") return false;
+    if (url.protocol !== "https:" || url.username || url.password) return false;
+    const host = url.hostname.toLowerCase().replace(/\.$/, "");
+    if (
+      !host ||
+      host === "localhost" ||
+      host.endsWith(".localhost") ||
+      host.endsWith(".local") ||
+      host === "::1" ||
+      host === "[::1]" ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(?:1[6-9]|2\d|3[01])\./.test(host) ||
+      /^\[(?:fc|fd|fe80)/i.test(host)
+    ) return false;
+    return host.includes(".");
+  } catch {
+    return false;
+  }
+}
+
+function isUsableProductImageUrl(value: string): boolean {
+  if (!isPublicHttpsUrl(value)) return false;
+  try {
+    const url = new URL(value);
     if (/placeholder|no[-_]?image|default[-_]?product|missing[-_]?image/i.test(url.pathname)) return false;
-    return Boolean(url.hostname && url.hostname.includes("."));
+    return true;
   } catch {
     return false;
   }
@@ -498,14 +548,9 @@ export function hasVerifiedProductIdentity(product: {
   gtin?: string | null;
   modelNumber?: string | null;
 }): boolean {
-  const hasSourceUrl = [product.officialUrl, product.productUrl].some((value) => {
-    try {
-      const url = new URL(String(value ?? ""));
-      return url.protocol === "https:" && Boolean(url.hostname);
-    } catch {
-      return false;
-    }
-  });
+  const hasSourceUrl = [product.officialUrl, product.productUrl].some((value) =>
+    isPublicHttpsUrl(value),
+  );
   const hasStructuredIdentity = [product.sku, product.gtin, product.modelNumber].some(
     (value) => Boolean(String(value ?? "").trim()),
   );
@@ -799,13 +844,21 @@ async function loadLiveActivities(
     const resident = residentByProfile.get(row.user_id as string);
     const isAi = Boolean(resident);
     const siblings = commentsByPost.get(row.post_id as string) ?? [];
-    const replyRow = siblings.find(
-      (item) =>
-        item.id !== row.id &&
-        String(item.body ?? "").trim() &&
-        (resident
-          ? !residentByProfile.has(item.user_id as string)
-          : residentByProfile.has(item.user_id as string)),
+    const replyRow = findDirectActivityReply(
+      {
+        id: row.id as string,
+        body: row.body,
+        user_id: row.user_id as string,
+        parent_comment_id: (row.parent_comment_id as string | null) ?? null,
+      },
+      siblings.map((item) => ({
+        id: item.id as string,
+        body: item.body,
+        user_id: item.user_id as string,
+        parent_comment_id: (item.parent_comment_id as string | null) ?? null,
+      })),
+      new Set(residentByProfile.keys()),
+      Boolean(resident),
     );
     const replyResident = replyRow
       ? residentByProfile.get(replyRow.user_id as string)

@@ -66,6 +66,12 @@ function main() {
     "archived investigations must not appear as current discoveries",
   );
 
+  assert(curateWorldHeadlines([good], 0).length === 0, "zero limit must return no headlines");
+  assert(curateWorldHeadlines([good], -1).length === 0, "negative limit must return no headlines");
+  assert(curateWorldHeadlines([good], Number.NaN).length === 0, "non-finite limit must return no headlines");
+  assert(curateWorldHeadlines([good], 0.5).length === 0, "fractional limit below one must return no headlines");
+  assert(curateWorldHeadlines([good, { ...good, title: "A distinct verified discovery from another studio" }], 1.9).length === 1, "fractional limits must be floored to a whole item count");
+
   const curated = curateWorldHeadlines([
     good,
     { ...good, actor: "Camille", beat: "beauty" },

@@ -87,6 +87,10 @@ test("accepts the documented minimal products/delete payload timestamp from Shop
 test("requires a valid product updated_at for create and update events", () => {
   assert.equal(resolveShopifyEventTimestamp("products/create", undefined, "2026-10-06T08:30:00.000Z"), null);
   assert.equal(resolveShopifyEventTimestamp("products/update", "invalid", "2026-10-06T08:30:00.000Z"), null);
+  assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06", "2026-10-06T08:30:00.000Z"), null);
+  assert.equal(resolveShopifyEventTimestamp("products/update", "2026-02-31T08:00:00Z", "2026-10-06T08:30:00Z"), null);
+  assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00", "2026-10-06T08:30:00Z"), null);
+  assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00.123456789Z", "2026-10-06T08:30:00Z"), "2026-10-06T08:00:00.123Z");
   assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00Z", "2026-10-06T08:30:00Z"), "2026-10-06T08:00:00.000Z");
 });
 
@@ -100,6 +104,9 @@ test("normalizes only positive integer Shopify product IDs", () => {
   assert.equal(normalizeShopifyProductId(-1), null);
   assert.equal(normalizeShopifyProductId(1.5), null);
   assert.equal(normalizeShopifyProductId("1e3"), null);
+  assert.equal(normalizeShopifyProductId("18446744073709551615"), "18446744073709551615");
+  assert.equal(normalizeShopifyProductId("18446744073709551616"), null);
+  assert.equal(normalizeShopifyProductId("99999999999999999999"), null);
 });
 
 test("does not turn missing or malformed Shopify prices into zero", () => {
@@ -135,6 +142,8 @@ test("stores Shopify descriptions as plain text without executable markup", () =
 test("accepts only the documented minimal product-delete tombstone", () => {
   assert.equal(isMinimalShopifyDeletePayload({ id: 123 }), true);
   assert.equal(isMinimalShopifyDeletePayload({ id: "123", admin_graphql_api_id: "gid://shopify/Product/123" }), true);
+  assert.equal(isMinimalShopifyDeletePayload({ id: "123", admin_graphql_api_id: "gid://shopify/Product/456" }), false);
+  assert.equal(isMinimalShopifyDeletePayload({ id: "123", admin_graphql_api_id: 123 }), false);
   assert.equal(isMinimalShopifyDeletePayload({ id: 123, title: "Sneaky update" }), false);
   assert.equal(isMinimalShopifyDeletePayload({ id: 123, updated_at: "2026-10-06T08:00:00Z" }), false);
   assert.equal(isMinimalShopifyDeletePayload({ id: 123, status: "active" }), false);

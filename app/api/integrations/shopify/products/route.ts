@@ -1,5 +1,5 @@
 import { readBoundedWebhookBody } from "@/lib/shopify-webhook-body";
-import { resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
+import { normalizeShopifyProductId, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "@/lib/shopify-webhook-security";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -91,10 +91,10 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ ok: false, error: "Invalid JSON or UTF-8 payload" }, { status: 400 });
   }
-  if (product.id == null) {
-    return Response.json({ ok: false, error: "Missing product id" }, { status: 400 });
+  const productId = normalizeShopifyProductId(product.id);
+  if (!productId) {
+    return Response.json({ ok: false, error: "Missing or invalid product id" }, { status: 400 });
   }
-  const productId = String(product.id);
   const triggeredAt = request.headers.get("x-shopify-triggered-at")?.trim() ?? "";
   if (topic === "products/delete" && (
     product.updated_at != null || product.title != null || product.status != null ||

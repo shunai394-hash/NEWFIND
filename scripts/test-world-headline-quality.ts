@@ -77,6 +77,7 @@ function main() {
     { ...good, actor: "Camille", beat: "beauty" },
     { ...good, title: "Trend signal 1000+ unrelated news aggregation" },
     { ...good, title: "A verified product launch from a small Tokyo studio", sourceUrl: "https://tokyo.example.org/launch" },
+    { ...good, title: "A second headline about the same nylon research", sourceUrl: "https://example.org/research/independent-nylon/?utm_source=rss#article" },
     { ...good, title: "A promising launch without a source link", sourceUrl: null },
   ]);
 

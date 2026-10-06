@@ -1,4 +1,5 @@
 import { readBoundedWebhookBody } from "@/lib/shopify-webhook-body";
+import { resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "@/lib/shopify-webhook-security";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -93,14 +94,18 @@ export async function POST(request: Request) {
   if (product.id == null) {
     return Response.json({ ok: false, error: "Missing product id" }, { status: 400 });
   }
-  const sourceUpdatedAt = typeof product.updated_at === "string" && Number.isFinite(Date.parse(product.updated_at))
-    ? new Date(product.updated_at).toISOString()
-    : null;
-  if (!sourceUpdatedAt) {
-    return Response.json({ ok: false, error: "Missing or invalid signed product updated_at" }, { status: 400 });
-  }
-
   const productId = String(product.id);
+  const triggeredAt = request.headers.get("x-shopify-triggered-at")?.trim() ?? "";
+  if (topic === "products/delete" && (
+    product.updated_at != null || product.title != null || product.status != null ||
+    product.variants != null || product.image != null || product.images != null
+  )) {
+    return Response.json({ ok: false, error: "Delete topic payload is not the expected minimal product tombstone" }, { status: 400 });
+  }
+  const sourceUpdatedAt = resolveShopifyEventTimestamp(topic, product.updated_at, triggeredAt);
+  if (!sourceUpdatedAt) {
+    return Response.json({ ok: false, error: "Missing or invalid product event timestamp" }, { status: 400 });
+  }
   const archived = topic === "products/delete" || product.status === "archived";
   const variants = Array.isArray(product.variants) ? product.variants : [];
   const prices = variants

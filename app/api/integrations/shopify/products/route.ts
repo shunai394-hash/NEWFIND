@@ -87,7 +87,7 @@ export async function POST(request: Request) {
   let product: ShopifyProductWebhook;
   try {
     const rawText = new TextDecoder("utf-8", { fatal: true }).decode(rawBody);
-    product = JSON.parse(rawText) as ShopifyProductWebhook;
+    product = parseShopifyWebhookJson(rawText) as ShopifyProductWebhook;
   } catch {
     return Response.json({ ok: false, error: "Invalid JSON or UTF-8 payload" }, { status: 400 });
   }

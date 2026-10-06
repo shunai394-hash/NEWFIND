@@ -4,8 +4,11 @@
 
 - Receives Shopify `products/create`, `products/update`, and `products/delete` webhooks.
 - Verifies Shopify's HMAC-SHA256 signature against the exact raw request body.
+- Enforces a 1 MB streaming body limit and validates product IDs, shop hostnames, prices, and timestamps before persistence.
+- Stores product descriptions as plain text, not executable source HTML.
+- Handles Shopify's documented minimal `products/delete` payload (product ID only) using the delivery timestamp, while rejecting full product snapshots mislabeled as deletes.
 - Accepts events only from `SHOPIFY_ALLOWED_SHOP_DOMAIN`.
-- Upserts by `shop_domain + shopify_product_id`, so webhook retries do not create duplicate intake rows.
+- Upserts by `shop_domain + shopify_product_id`, so webhook retries do not create duplicate intake rows. The same delivery ID and stale/equal timestamps cannot mutate an existing row.
 - Stores product facts in the private `shopify_product_promotions` review queue.
 - A product is eligible for editorial review only when Shopify reports it active and published. Archived, draft, and unpublished products are blocked.
 - Does **not** publish directly to the NEWFIND timeline. Editorial quality, duplicate, image, product-link, and resident-fit checks must pass before a separate publish action is enabled.

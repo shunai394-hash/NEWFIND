@@ -37,14 +37,14 @@ type ShopifyProductWebhook = {
 
 
 function asTags(value: ShopifyProductWebhook["tags"]): string[] {
-  if (Array.isArray(value)) return value.map((tag) => String(tag).trim()).filter(Boolean);
-  if (typeof value === "string") return value.split(",").map((tag) => tag.trim()).filter(Boolean);
+  if (Array.isArray(value)) return value.map((tag) => String(tag).trim().slice(0, 100)).filter(Boolean);
+  if (typeof value === "string") return value.split(",").map((tag) => tag.trim().slice(0, 100)).filter(Boolean);
   return [];
 }
 
 function safeImage(product: ShopifyProductWebhook): string | null {
   const candidate = product.image?.src ?? product.image?.url ?? product.images?.[0]?.src ?? product.images?.[0]?.url;
-  if (!candidate) return null;
+  if (!candidate || candidate.length > 2048) return null;
   try {
     const url = new URL(candidate);
     return url.protocol === "https:" ? url.toString() : null;
@@ -105,11 +105,11 @@ export async function POST(request: Request) {
   }
   const archived = topic === "products/delete" || product.status === "archived";
   const variants = Array.isArray(product.variants) ? product.variants : [];
-  const prices = variants
-    .map((variant) => normalizeShopifyPrice(variant.price))
-    .filter((price): price is number => price !== null);
+  const normalizedPrices = variants.map((variant) => normalizeShopifyPrice(variant.price));
+  const pricesAreComplete = normalizedPrices.length > 0 && normalizedPrices.every((price) => price !== null);
+  const prices = normalizedPrices.filter((price): price is number => price !== null);
   const published = !archived && product.status === "active" && Boolean(product.published_at);
-  const handle = typeof product.handle === "string" ? product.handle.trim() : "";
+  const handle = typeof product.handle === "string" ? product.handle.trim().slice(0, 255) : "";
   const productUrl = handle ? `https://${shopDomain}/products/${encodeURIComponent(handle)}` : null;
 
   const row = {
@@ -123,8 +123,8 @@ export async function POST(request: Request) {
     tags: asTags(product.tags).slice(0, 50),
     image_url: safeImage(product),
     product_url: productUrl,
-    price_min: prices.length ? Math.min(...prices) : null,
-    price_max: prices.length ? Math.max(...prices) : null,
+    price_min: pricesAreComplete ? Math.min(...prices) : null,
+    price_max: pricesAreComplete ? Math.max(...prices) : null,
     source_updated_at: sourceUpdatedAt,
     source_status: archived ? "archived" : (product.status ?? "unknown"),
     published_to_store: published,

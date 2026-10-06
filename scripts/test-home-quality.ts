@@ -23,7 +23,7 @@ function main() {
     activity({ id: "first" }),
     activity({ id: "duplicate", quote: "  TOKYOで見ると、価格と発売地域を知りたい。  " }),
     activity({ id: "duplicate-2", quote: "Tokyoで見ると、価格と発売地域を知りたい。" }),
-    activity({ id: "different-author", actorName: "Hana" }),
+    activity({ id: "different-author", actorName: "Hana", actorHref: "/u/hana" }),
     activity({ id: "not-live", live: false }),
     activity({ id: "unique-2", quote: "Seoulで発見した新しい素材の比較。" }),
     activity({ id: "unique-3", quote: "Parisの新作について公式発表を確認。" }),
@@ -31,6 +31,14 @@ function main() {
   ]);
   assert(curatedActivities.map((item) => item.id).join(",") === "first,different-author,unique-2,unique-3", "curation must skip repeated activity and keep scanning until four unique live cards are filled");
   assert(dedupeLiveActivities([activity()], 0).length === 0, "zero activity limit should return no cards");
+  assert(
+    dedupeLiveActivities([
+      activity({ id: "same-name-a", actorName: "Alex", actorHref: "/u/alex-a", quote: "Found a new material in Seoul." }),
+      activity({ id: "same-name-b", actorName: "Alex", actorHref: "/u/alex-b", quote: "Found a new material in Seoul." }),
+    ]).length === 2,
+    "distinct residents with the same display name must not collapse into one activity",
+  );
+
   assert(
     dedupeLiveActivities([
       activity({ id: "normalized-space", quote: "Found a new material in Seoul." }),

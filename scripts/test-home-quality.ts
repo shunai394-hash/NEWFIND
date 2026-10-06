@@ -99,6 +99,18 @@ function main() {
     "insecure source URL alone must not count as identity evidence",
   );
   assert(
+    !hasVerifiedProductIdentity({ productUrl: "https://localhost/item" }),
+    "localhost source URLs must not count as product identity evidence",
+  );
+  assert(
+    !hasVerifiedProductIdentity({ productUrl: "https://user:pass@brand.example/item" }),
+    "source URLs with embedded credentials must not count as product identity evidence",
+  );
+  assert(
+    !hasVerifiedProductIdentity({ productUrl: "https://192.168.1.20/item" }),
+    "private-network source URLs must not count as product identity evidence",
+  );
+  assert(
     !hasVerifiedProductIdentity({}),
     "missing source and structured identity must fail",
   );
@@ -159,6 +171,14 @@ function main() {
   assert(
     !isHomepageProductEligible({ ...verified, imageUrl: "http://example.com/product.jpg" }),
     "insecure image URL must fail",
+  );
+  assert(
+    !isHomepageProductEligible({ ...verified, imageUrl: "https://localhost/product.jpg" }),
+    "localhost image URLs must fail",
+  );
+  assert(
+    !isHomepageProductEligible({ ...verified, imageUrl: "https://user:pass@example.com/product.jpg" }),
+    "image URLs containing credentials must fail",
   );
   assert(
     !isHomepageProductEligible({ ...verified, imageUrl: "https://example.com/placeholder-product.jpg" }),

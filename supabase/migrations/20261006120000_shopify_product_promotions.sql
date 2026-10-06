@@ -71,7 +71,11 @@ begin
     return null;
   end if;
 
-  if old.source_updated_at is not null
+  -- A delete tombstone is terminal for this Shopify product ID. Its delivery
+  -- timestamp can be equal to or earlier than the last product snapshot, so
+  -- do not let timestamp ordering leave a deleted product eligible for review.
+  if new.last_webhook_topic <> 'products/delete'
+     and old.source_updated_at is not null
      and (new.source_updated_at is null or new.source_updated_at <= old.source_updated_at) then
     return null;
   end if;

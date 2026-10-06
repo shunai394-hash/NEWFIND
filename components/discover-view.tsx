@@ -8,7 +8,7 @@ import { ProductCard } from "@/components/product-card";
 import { useApp } from "@/lib/app-context";
 import { POST_CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import { fetchDiscoveryList } from "@/lib/discovery/client-api";
-import { isJapanProduct } from "@/lib/discovery/product-signals";
+import { matchesDiscoveryCategory } from "@/lib/discovery/product-signals";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { filterDiscoveryPosts } from "@/lib/products/discovery-filter";
 import { productIdentityKey } from "@/lib/ai/product-identity";
@@ -53,20 +53,9 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
   }, []);
 
   const discoverProducts = useMemo(() => {
-    const filtered = catalog.filter((item) => {
-      if (category === "all") return true;
-      if (category === "fashion") return item.category === "fashion" || item.trendTags.includes("teen");
-      if (category === "beauty") return item.category === "beauty";
-      if (category === "accessories") return item.category === "accessories";
-      if (category === "fragrance") return item.category === "fragrance";
-      if (category === "japan_brands") {
-        return isJapanProduct(item) || item.trendTags.includes("japan_trend");
-      }
-      if (category === "celebrity") {
-        return item.category === "celebrity_style" || item.people.length > 0;
-      }
-      return true;
-    });
+    const filtered = catalog.filter((item) =>
+      matchesDiscoveryCategory(item, category),
+    );
 
     // 商品タブはカタログ全件をSearchと共有せず、各カテゴリの上位だけを
     // Discover専用の「発見枠」にする。Searchはこの枠を避けて別の商品を返す。

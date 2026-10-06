@@ -27,3 +27,11 @@ test("rejects hex, malformed, truncated, and non-canonical Base64 signatures", (
   assert.equal(verifyShopifyWebhookHmac(body, secret, valid.slice(0, -4)), false);
   assert.equal(verifyShopifyWebhookHmac(body, secret, valid.replace(/=$/, "")), false);
 });
+
+test("verifies the exact raw UTF-8 bytes without re-encoding", () => {
+  const body = new TextEncoder().encode('{"id":123,"title":"東京"}');
+  const secret = "test-webhook-secret";
+  const signature = createHmac("sha256", secret).update(body).digest("base64");
+  assert.equal(verifyShopifyWebhookHmac(body, secret, signature), true);
+  assert.equal(verifyShopifyWebhookHmac(new TextEncoder().encode('{"id":123,"title":"東京 "}'), secret, signature), false);
+});

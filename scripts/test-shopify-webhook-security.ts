@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readBoundedWebhookBody } from "../lib/shopify-webhook-body";
-import { normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
+import { isShopifyMyshopifyDomain, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "../lib/shopify-webhook-security";
 
 test("accepts a valid Shopify Base64 HMAC for the exact raw body", () => {
@@ -110,4 +110,13 @@ test("does not turn missing or malformed Shopify prices into zero", () => {
   assert.equal(normalizeShopifyPrice("-1.00"), null);
   assert.equal(normalizeShopifyPrice("10000000000.00"), null);
   assert.equal(normalizeShopifyPrice("12.345"), null);
+});
+
+test("accepts only canonical myshopify.com shop domains", () => {
+  assert.equal(isShopifyMyshopifyDomain("0dkcfq-ex.myshopify.com"), true);
+  assert.equal(isShopifyMyshopifyDomain("EXAMPLE.myshopify.com"), false);
+  assert.equal(isShopifyMyshopifyDomain("example.myshopify.com.evil.test"), false);
+  assert.equal(isShopifyMyshopifyDomain("example.com"), false);
+  assert.equal(isShopifyMyshopifyDomain("https://example.myshopify.com"), false);
+  assert.equal(isShopifyMyshopifyDomain("example-.myshopify.com"), false);
 });

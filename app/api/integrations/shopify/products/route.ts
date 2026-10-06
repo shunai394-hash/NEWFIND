@@ -1,5 +1,5 @@
 import { readBoundedWebhookBody } from "@/lib/shopify-webhook-body";
-import { normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
+import { isShopifyMyshopifyDomain, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "@/lib/shopify-webhook-security";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -56,7 +56,7 @@ function safeImage(product: ShopifyProductWebhook): string | null {
 export async function POST(request: Request) {
   const secret = process.env.SHOPIFY_WEBHOOK_SECRET?.trim();
   const allowedShop = process.env.SHOPIFY_ALLOWED_SHOP_DOMAIN?.trim().toLowerCase();
-  if (!secret || !allowedShop) {
+  if (!secret || !allowedShop || !isShopifyMyshopifyDomain(allowedShop)) {
     return Response.json({ ok: false, error: "Shopify integration is not configured" }, { status: 503 });
   }
 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   const signature = request.headers.get("x-shopify-hmac-sha256")?.trim() ?? "";
   const webhookId = request.headers.get("x-shopify-webhook-id")?.trim() ?? "";
 
-  if (!shopDomain || shopDomain !== allowedShop) {
+  if (!isShopifyMyshopifyDomain(shopDomain) || shopDomain !== allowedShop) {
     return Response.json({ ok: false, error: "Shop is not allowed" }, { status: 401 });
   }
   if (!["products/create", "products/update", "products/delete"].includes(topic)) {

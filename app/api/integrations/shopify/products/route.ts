@@ -61,6 +61,7 @@ export async function POST(request: Request) {
   const shopDomain = request.headers.get("x-shopify-shop-domain")?.trim().toLowerCase() ?? "";
   const topic = request.headers.get("x-shopify-topic")?.trim().toLowerCase() ?? "";
   const signature = request.headers.get("x-shopify-hmac-sha256")?.trim() ?? "";
+  const webhookId = request.headers.get("x-shopify-webhook-id")?.trim() ?? "";
   const triggeredAtHeader = request.headers.get("x-shopify-triggered-at");
   const triggeredAt = triggeredAtHeader && Number.isFinite(Date.parse(triggeredAtHeader))
     ? new Date(triggeredAtHeader).toISOString()
@@ -79,6 +80,9 @@ export async function POST(request: Request) {
   }
   if (!verifyShopifyWebhookHmac(rawBody, secret, signature)) {
     return Response.json({ ok: false, error: "Invalid webhook signature" }, { status: 401 });
+  }
+  if (!webhookId || webhookId.length > 255) {
+    return Response.json({ ok: false, error: "Missing or invalid webhook delivery id" }, { status: 400 });
   }
 
   let product: ShopifyProductWebhook;
@@ -120,6 +124,7 @@ export async function POST(request: Request) {
     review_status: archived || !published ? "blocked" : "pending_review",
     block_reason: archived ? "product_archived" : !published ? "product_not_published" : null,
     last_webhook_topic: topic,
+    last_webhook_id: webhookId,
     last_webhook_at: new Date().toISOString(),
     payload_version: 1,
   };

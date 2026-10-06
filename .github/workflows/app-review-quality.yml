@@ -26,21 +26,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Inventory dependency vulnerabilities (non-blocking)
-        # Report exact advisories before changing transitive dependencies; this
-        # step does not hide or downgrade any existing vulnerability.
+      - name: Dependency security audit (block production critical/high)
+        # Keep the full dependency report informational, but fail the release
+        # gate when production dependencies contain Critical/High advisories.
         run: |
           npm audit --json > "$RUNNER_TEMP/audit-all.json" || true
           npm audit --omit=dev --json > "$RUNNER_TEMP/audit-production.json" || true
           node - "$RUNNER_TEMP/audit-all.json" "$RUNNER_TEMP/audit-production.json" <<'NODE'
           const fs = require("node:fs");
           for (const path of process.argv.slice(2)) {
+            const production = path.includes("production");
             let report;
             try { report = JSON.parse(fs.readFileSync(path, "utf8")); }
-            catch { console.log(JSON.stringify({ report: path, parseError: true })); continue; }
+            catch {
+              console.log(JSON.stringify({ report: path, parseError: true }));
+              if (production) process.exitCode = 1;
+              continue;
+            }
+            const summary = report.metadata?.vulnerabilities ?? null;
             console.log(JSON.stringify({
-              report: path.includes("production") ? "production-only" : "all-dependencies",
-              summary: report.metadata?.vulnerabilities ?? null,
+              report: production ? "production-only" : "all-dependencies",
+              summary,
               advisories: Object.entries(report.vulnerabilities ?? {}).map(([name, item]) => ({
                 name,
                 severity: item.severity,
@@ -50,6 +56,10 @@ jobs:
                 via: (item.via ?? []).map((entry) => typeof entry === "string" ? entry : entry.title),
               })),
             }));
+            if (production && (Number(summary?.critical ?? 0) > 0 || Number(summary?.high ?? 0) > 0)) {
+              console.error("Production dependency audit contains Critical/High vulnerabilities.");
+              process.exitCode = 1;
+            }
           }
           NODE
 

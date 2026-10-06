@@ -108,6 +108,17 @@ test("preserves Shopify 64-bit product IDs exactly when parsing webhook JSON", (
   assert.equal(normalizeShopifyProductId(product.id), "788032119674292922");
 });
 
+test("preserves Shopify 64-bit numeric IDs before JavaScript can round them", () => {
+  const parsed = parseShopifyWebhookJson('{"id":18446744073709551615,"price":12.34,"nested":{"id":9007199254740993}}') as {
+    id: unknown;
+    price: unknown;
+    nested: { id: unknown };
+  };
+  assert.equal(parsed.id, "18446744073709551615");
+  assert.equal(parsed.nested.id, "9007199254740993");
+  assert.equal(parsed.price, 12.34);
+});
+
 test("normalizes only positive integer Shopify product IDs", () => {
   assert.equal(normalizeShopifyProductId(123456789), "123456789");
   assert.equal(normalizeShopifyProductId("123456789"), "123456789");

@@ -85,6 +85,12 @@ export function curateWorldHeadlines(
   headlines: WorldHeadline[],
   limit = 8,
 ): WorldHeadline[] {
+  // Treat invalid limits as an empty request instead of accidentally returning
+  // one item for zero/negative limits. Fractional values are rounded down.
+  if (!Number.isFinite(limit) || limit <= 0) return [];
+  const maxItems = Math.floor(limit);
+  if (maxItems === 0) return [];
+
   const seen = new Set<string>();
   const curated: WorldHeadline[] = [];
 
@@ -95,7 +101,7 @@ export function curateWorldHeadlines(
     if (!key || seen.has(key)) continue;
     seen.add(key);
     curated.push({ ...headline, title });
-    if (curated.length >= limit) break;
+    if (curated.length >= maxItems) break;
   }
 
   return curated;

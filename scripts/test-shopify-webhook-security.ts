@@ -66,6 +66,8 @@ test("Shopify intake contract preserves publication and access gates", async () 
   assert.match(route, /ignored: "duplicate_or_stale"/);
   assert.match(route, /readiness: configured \? "configured" : "missing_environment"/);
   assert.match(route, /status: configured \? 200 : 503/);
+  assert.match(route, /isShopifyMyshopifyDomain\(allowedShop\)/);
+  assert.match(route, /pricesAreComplete \? Math\.min/);
   assert.match(route, /product\.status === "active" && Boolean\(product\.published_at\)/);
   assert.match(route, /source_updated_at: sourceUpdatedAt/);
   assert.doesNotMatch(route, /source_updated_at: triggeredAt/);

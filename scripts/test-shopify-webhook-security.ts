@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readBoundedWebhookBody } from "../lib/shopify-webhook-body";
-import { isShopifyMyshopifyDomain, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
+import { isShopifyMyshopifyDomain, normalizeShopifyDescription, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "../lib/shopify-webhook-security";
 
 test("accepts a valid Shopify Base64 HMAC for the exact raw body", () => {
@@ -119,4 +119,13 @@ test("accepts only canonical myshopify.com shop domains", () => {
   assert.equal(isShopifyMyshopifyDomain("example.com"), false);
   assert.equal(isShopifyMyshopifyDomain("https://example.myshopify.com"), false);
   assert.equal(isShopifyMyshopifyDomain("example-.myshopify.com"), false);
+});
+
+test("stores Shopify descriptions as plain text without executable markup", () => {
+  assert.equal(
+    normalizeShopifyDescription('<p>Great &amp; useful</p><script>alert(1)</script><img src=x onerror=alert(1)>'),
+    "Great &amp; useful",
+  );
+  assert.equal(normalizeShopifyDescription(null), null);
+  assert.equal(normalizeShopifyDescription("   "), null);
 });

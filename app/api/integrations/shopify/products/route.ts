@@ -1,5 +1,5 @@
 import { readBoundedWebhookBody } from "@/lib/shopify-webhook-body";
-import { isMinimalShopifyDeletePayload, isShopifyMyshopifyDomain, normalizeShopifyDescription, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
+import { isMinimalShopifyDeletePayload, isShopifyMyshopifyDomain, normalizeShopifyDescription, normalizeShopifyPrice, normalizeShopifyProductId, parseShopifyWebhookJson, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "@/lib/shopify-webhook-security";
 import { createAdminClient } from "@/lib/supabase/admin";
 

@@ -1,5 +1,4 @@
 const ALLOWED_PRODUCT_TOPICS = new Set(["products/create", "products/update", "products/delete"]);
-const SHOPIFY_PRODUCT_ID_MAX = 18_446_744_073_709_551_615n;
 const RFC3339_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/i;
 
 /** Parse a webhook without losing Shopify's 64-bit numeric IDs to JS rounding. */
@@ -49,9 +48,8 @@ export function normalizeShopifyProductId(value: unknown): string | null {
   if (typeof value !== "string" || !/^\d{1,20}$/.test(value)) return null;
   const normalized = value.replace(/^0+(?=\d)/, "");
   if (normalized === "0") return null;
-  try {
-    if (BigInt(normalized) > SHOPIFY_PRODUCT_ID_MAX) return null;
-  } catch {
+  const maxId = "18446744073709551615";
+  if (normalized.length > maxId.length || (normalized.length === maxId.length && normalized > maxId)) {
     return null;
   }
   return normalized;

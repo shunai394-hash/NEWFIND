@@ -47,3 +47,16 @@ export function normalizeShopifyPrice(value: unknown): number | null {
 export function isShopifyMyshopifyDomain(value: string): boolean {
   return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.myshopify\.com$/.test(value);
 }
+
+/** Keep untrusted Shopify HTML as bounded plain text in the private review queue. */
+export function normalizeShopifyDescription(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const text = value
+    .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 12000);
+  return text || null;
+}

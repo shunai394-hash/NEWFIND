@@ -1,4 +1,5 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac } from "node:crypto";
+import { safeEqualShopifyHmac } from "@/lib/shopify-webhook-security";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -33,12 +34,6 @@ type ShopifyProductWebhook = {
   images?: ShopifyImage[];
 };
 
-function safeEqualShopifyHmac(expectedBase64: string, received: string): boolean {
-  const supplied = Buffer.from(received, "base64");
-  if (supplied.length !== 32 || supplied.toString("base64") !== received) return false;
-  const expected = Buffer.from(expectedBase64, "base64");
-  return expected.length === supplied.length && timingSafeEqual(expected, supplied);
-}
 
 function asTags(value: ShopifyProductWebhook["tags"]): string[] {
   if (Array.isArray(value)) return value.map((tag) => String(tag).trim()).filter(Boolean);

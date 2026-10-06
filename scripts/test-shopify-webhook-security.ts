@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readBoundedWebhookBody } from "../lib/shopify-webhook-body";
@@ -52,4 +53,18 @@ test("bounded body reader rejects an oversized payload", async () => {
   });
   const result = await readBoundedWebhookBody(request, 4);
   assert.deepEqual(result, { tooLarge: true });
+});
+
+test("Shopify intake contract preserves publication and access gates", async () => {
+  const route = await readFile(new URL("../app/api/integrations/shopify/products/route.ts", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261006120000_shopify_product_promotions.sql", import.meta.url), "utf8");
+
+  assert.match(route, /readBoundedWebhookBody\(request, MAX_BODY_BYTES\)/);
+  assert.match(route, /last_webhook_id: webhookId/);
+  assert.match(route, /product\.status === "active" && Boolean\(product\.published_at\)/);
+  assert.match(route, /review_status: archived \|\| !published \? "blocked" : "pending_review"/);
+  assert.doesNotMatch(route, /\.from\(["']ai_posts["']\)\s*\.insert/);
+  assert.match(migration, /new\.last_webhook_id = old\.last_webhook_id/);
+  assert.match(migration, /enable row level security/i);
+  assert.match(migration, /revoke all on public\.shopify_product_promotions from anon, authenticated/i);
 });

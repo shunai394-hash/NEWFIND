@@ -17,6 +17,26 @@ function normalizeHeadline(value: string) {
     .replace(/[\p{P}\p{Z}\p{S}]+/gu, "");
 }
 
+function canonicalSourceKey(sourceUrl?: string | null): string | null {
+  if (!sourceUrl) return null;
+  try {
+    const url = new URL(sourceUrl);
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    url.hostname = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
+    url.hash = "";
+    for (const key of [...url.searchParams.keys()]) {
+      if (/^(?:utm_[a-z]+|fbclid|gclid|mc_cid|mc_eid|ref_src)$/i.test(key)) {
+        url.searchParams.delete(key);
+      }
+    }
+    url.searchParams.sort();
+    if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, "");
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 function isLikelyUntranslatedChineseTitle(title: string): boolean {
   // These simplified-only forms are strong signals of a Chinese source title,
   // while avoiding a blanket CJK filter that would reject Japanese headlines.
@@ -92,14 +112,17 @@ export function curateWorldHeadlines(
   if (maxItems === 0) return [];
 
   const seen = new Set<string>();
+  const seenSources = new Set<string>();
   const curated: WorldHeadline[] = [];
 
   for (const headline of headlines) {
     const title = headline.title.replace(/\s+/g, " ").trim();
     if (!isPresentableWorldHeadline({ ...headline, title })) continue;
     const key = normalizeHeadline(title);
-    if (!key || seen.has(key)) continue;
+    const sourceKey = canonicalSourceKey(headline.sourceUrl);
+    if (!key || seen.has(key) || (sourceKey !== null && seenSources.has(sourceKey))) continue;
     seen.add(key);
+    if (sourceKey !== null) seenSources.add(sourceKey);
     curated.push({ ...headline, title });
     if (curated.length >= maxItems) break;
   }

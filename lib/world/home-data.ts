@@ -502,6 +502,26 @@ function isPublicHttpsUrl(value: string | null | undefined): boolean {
       /^172\.(?:1[6-9]|2\d|3[01])\./.test(host) ||
       /^\[(?:fc|fd|fe80)/i.test(host)
     ) return false;
+
+    // Block non-public IPv4 ranges, including carrier-grade NAT, documentation,
+    // benchmarking, multicast and reserved addresses.
+    const octets = host.split(".").map(Number);
+    if (
+      octets.length === 4 &&
+      octets.every((octet) => Number.isInteger(octet) && octet >= 0 && octet <= 255)
+    ) {
+      const [a, b, c] = octets;
+      if (
+        a === 0 ||
+        a >= 224 ||
+        (a === 100 && b >= 64 && b <= 127) ||
+        (a === 192 && b === 0 && (c === 0 || c === 2)) ||
+        (a === 192 && b === 88 && c === 99) ||
+        (a === 198 && (b === 18 || b === 19)) ||
+        (a === 198 && b === 51 && c === 100) ||
+        (a === 203 && b === 0 && c === 113)
+      ) return false;
+    }
     return host.includes(".");
   } catch {
     return false;

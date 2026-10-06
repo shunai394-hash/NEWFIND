@@ -31,6 +31,13 @@ function main() {
   ]);
   assert(curatedActivities.map((item) => item.id).join(",") === "first,different-author,unique-2,unique-3", "curation must skip repeated activity and keep scanning until four unique live cards are filled");
   assert(dedupeLiveActivities([activity()], 0).length === 0, "zero activity limit should return no cards");
+  assert(
+    dedupeLiveActivities([
+      activity({ id: "normalized-space", quote: "Found a new material in Seoul." }),
+      activity({ id: "repeated-space", quote: "Found   a new material in Seoul." }),
+    ]).length === 1,
+    "activity deduplication must collapse repeated internal whitespace before comparing quotes",
+  );
 
   assert(isHomepageProductEligible(verified), "verified product should pass");
   assert(

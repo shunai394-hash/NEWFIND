@@ -14,7 +14,9 @@ export function matchesDiscoveryCategory(
   if (category === "fashion") {
     return product.category === "fashion" || product.trendTags.includes("teen");
   }
-  if (category === "japan_brands") return isJapanProduct(product);
+  if (category === "japan_brands") {
+    return isJapanProduct(product) || product.trendTags.includes("japan_trend");
+  }
   if (category === "celebrity") {
     return product.category === "celebrity_style" || product.people.length > 0;
   }

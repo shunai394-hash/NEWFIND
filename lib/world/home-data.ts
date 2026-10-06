@@ -279,6 +279,29 @@ function cardFromResident(
   };
 }
 
+type ActivityComment = {
+  id: string;
+  body: unknown;
+  user_id: string;
+  parent_comment_id: string | null;
+};
+
+export function findDirectActivityReply(
+  row: ActivityComment,
+  siblings: ActivityComment[],
+  residentProfileIds: ReadonlySet<string>,
+  rowIsResident: boolean,
+): ActivityComment | undefined {
+  return siblings.find((item) =>
+    item.id !== row.id &&
+    item.parent_comment_id === row.id &&
+    Boolean(String(item.body ?? "").trim()) &&
+    (rowIsResident
+      ? !residentProfileIds.has(item.user_id)
+      : residentProfileIds.has(item.user_id)),
+  );
+}
+
 export function dedupeLiveActivities(
   live: WorldActivity[],
   limit = 4,
@@ -800,13 +823,21 @@ async function loadLiveActivities(
     const resident = residentByProfile.get(row.user_id as string);
     const isAi = Boolean(resident);
     const siblings = commentsByPost.get(row.post_id as string) ?? [];
-    const replyRow = siblings.find(
-      (item) =>
-        item.id !== row.id &&
-        String(item.body ?? "").trim() &&
-        (resident
-          ? !residentByProfile.has(item.user_id as string)
-          : residentByProfile.has(item.user_id as string)),
+    const replyRow = findDirectActivityReply(
+      {
+        id: row.id as string,
+        body: row.body,
+        user_id: row.user_id as string,
+        parent_comment_id: (row.parent_comment_id as string | null) ?? null,
+      },
+      siblings.map((item) => ({
+        id: item.id as string,
+        body: item.body,
+        user_id: item.user_id as string,
+        parent_comment_id: (item.parent_comment_id as string | null) ?? null,
+      })),
+      new Set(residentByProfile.keys()),
+      Boolean(resident),
     );
     const replyResident = replyRow
       ? residentByProfile.get(replyRow.user_id as string)

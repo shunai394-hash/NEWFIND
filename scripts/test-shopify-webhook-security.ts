@@ -62,6 +62,8 @@ test("Shopify intake contract preserves publication and access gates", async () 
 
   assert.match(route, /readBoundedWebhookBody\(request, MAX_BODY_BYTES\)/);
   assert.match(route, /last_webhook_id: webhookId/);
+  assert.match(route, /\.select\("review_status, last_webhook_id, source_updated_at"\)/);
+  assert.match(route, /ignored: "duplicate_or_stale"/);
   assert.match(route, /readiness: configured \? "configured" : "missing_environment"/);
   assert.match(route, /status: configured \? 200 : 503/);
   assert.match(route, /product\.status === "active" && Boolean\(product\.published_at\)/);

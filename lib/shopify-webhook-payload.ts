@@ -15,6 +15,13 @@ export function resolveShopifyEventTimestamp(
   // documented minimal tombstone shape by the caller.
   const candidate = topic === "products/delete" ? triggeredAt : productUpdatedAt;
   if (typeof candidate !== "string" || !RFC3339_TIMESTAMP.test(candidate.trim())) return null;
+  const normalizedCandidate = candidate.trim();
+  const [year, month, day] = normalizedCandidate.slice(0, 10).split("-").map(Number);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const timeMatch = /T(\\d{2}):(\\d{2}):(\\d{2})/.exec(normalizedCandidate);
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1]) return null;
+  if (!timeMatch || Number(timeMatch[1]) > 23 || Number(timeMatch[2]) > 59 || Number(timeMatch[3]) > 59) return null;
 
   const parsed = Date.parse(candidate);
   if (!Number.isFinite(parsed)) return null;

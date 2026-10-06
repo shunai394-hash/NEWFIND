@@ -14,7 +14,7 @@ export function resolveShopifyEventTimestamp(
   // Shopify's body HMAC, so delete events are additionally constrained to the
   // documented minimal tombstone shape by the caller.
   const candidate = topic === "products/delete" ? triggeredAt : productUpdatedAt;
-  if (typeof candidate !== "string" || !RFC3339_TIMESTAMP.test(candidate.trim())) return null;
+  if (typeof candidate !== "string" || !isValidRfc3339Timestamp(candidate.trim())) return null;
 
   const parsed = Date.parse(candidate);
   if (!Number.isFinite(parsed)) return null;

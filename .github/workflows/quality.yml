@@ -36,7 +36,7 @@ jobs:
       - name: ESLint
         run: npm run lint
 
-      - name: Shopify webhook HMAC regression
+      - name: Shopify webhook security, payload, and idempotency regression
         run: npm run test:shopify-webhook
 
       - name: AI precision regression tests

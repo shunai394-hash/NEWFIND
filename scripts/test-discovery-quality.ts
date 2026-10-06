@@ -16,6 +16,7 @@ import {
 import { resultFitsHunterSpecialty, hunterLane } from "../lib/ai/specialty-fit";
 import { planNextHunt } from "../lib/ai/explore-next";
 import { canonicalProductUrl } from "../lib/discovery/rules";
+import { matchesDiscoveryCategory } from "../lib/discovery/product-signals";
 import { huntModeFromSignals } from "../lib/ai/human-signals";
 import { classifyTavilyResult } from "../lib/ai/world-search";
 import type { AiPersona } from "../lib/ai-post-engine";
@@ -25,6 +26,25 @@ function assert(condition: unknown, message: string) {
 }
 
 function main() {
+  const categoryProduct = (
+    category: import("../lib/discovery/types").DiscoveryProduct["category"],
+    overrides: Partial<Pick<import("../lib/discovery/types").DiscoveryProduct, "country" | "trendTags" | "people">> = {},
+  ) => ({
+    category,
+    country: null,
+    trendTags: [],
+    people: [],
+    ...overrides,
+  });
+
+  assert(matchesDiscoveryCategory(categoryProduct("food"), "food"), "Food filter must only include food products");
+  assert(!matchesDiscoveryCategory(categoryProduct("tech"), "food"), "Food filter must exclude tech products");
+  assert(matchesDiscoveryCategory(categoryProduct("tech"), "tech"), "Tech filter must include tech products");
+  assert(matchesDiscoveryCategory(categoryProduct("home"), "home"), "Home filter must include home products");
+  assert(matchesDiscoveryCategory(categoryProduct("celebrity_style"), "celebrity"), "Celebrity filter must include celebrity-style products");
+  assert(matchesDiscoveryCategory(categoryProduct("other", { country: "Japan" }), "japan_brands"), "Japan filter must include Japanese products");
+  assert(!matchesDiscoveryCategory(categoryProduct("food", { country: "France" }), "japan_brands"), "Japan filter must exclude unrelated countries");
+
   const generic = evaluateCaptionQuality({
     caption: "今日見つけたこれ、ちょっと気になる。",
     recentCaptions: [],

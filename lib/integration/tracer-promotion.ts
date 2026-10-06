@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { canonicalProductUrl, } from "@/lib/discovery/rules";
+import { canonicalProductUrl } from "@/lib/discovery/rules";
 import { checkTracerPublicationAttestation } from "./tracer-attestation";
 
 function text(value: unknown): string | null {

@@ -1,4 +1,6 @@
 const ALLOWED_PRODUCT_TOPICS = new Set(["products/create", "products/update", "products/delete"]);
+const SHOPIFY_PRODUCT_ID_MAX = 18_446_744_073_709_551_615n;
+const RFC3339_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/i;
 
 export function resolveShopifyEventTimestamp(
   topic: string,
@@ -8,16 +10,18 @@ export function resolveShopifyEventTimestamp(
   if (!ALLOWED_PRODUCT_TOPICS.has(topic)) return null;
 
   // Shopify's documented products/delete payload contains only the product ID.
-  // That tombstone has no updated_at, so use its delivery timestamp.
+  // Its event time comes from delivery metadata; that header is not covered by
+  // Shopify's body HMAC, so delete events are additionally constrained to the
+  // documented minimal tombstone shape by the caller.
   const candidate = topic === "products/delete" ? triggeredAt : productUpdatedAt;
-  if (typeof candidate !== "string" || !candidate.trim()) return null;
+  if (typeof candidate !== "string" || !RFC3339_TIMESTAMP.test(candidate.trim())) return null;
 
   const parsed = Date.parse(candidate);
   if (!Number.isFinite(parsed)) return null;
   return new Date(parsed).toISOString();
 }
 
-/** Convert Shopify's numeric product ID to a canonical decimal string. */
+/** Convert Shopify's unsigned 64-bit product ID to a canonical decimal string. */
 export function normalizeShopifyProductId(value: unknown): string | null {
   if (typeof value === "number") {
     if (!Number.isSafeInteger(value) || value <= 0) return null;
@@ -26,6 +30,11 @@ export function normalizeShopifyProductId(value: unknown): string | null {
   if (typeof value !== "string" || !/^\d{1,20}$/.test(value)) return null;
   const normalized = value.replace(/^0+(?=\d)/, "");
   if (normalized === "0") return null;
+  try {
+    if (BigInt(normalized) > SHOPIFY_PRODUCT_ID_MAX) return null;
+  } catch {
+    return null;
+  }
   return normalized;
 }
 
@@ -67,5 +76,10 @@ export function isMinimalShopifyDeletePayload(value: unknown): boolean {
   const payload = value as Record<string, unknown>;
   const allowedKeys = new Set(["id", "admin_graphql_api_id"]);
   if (payload.id == null) return false;
+  if (
+    payload.admin_graphql_api_id !== undefined &&
+    (typeof payload.admin_graphql_api_id !== "string" ||
+      payload.admin_graphql_api_id !== `gid://shopify/Product/${String(payload.id)}`)
+  ) return false;
   return Object.keys(payload).every((key) => allowedKeys.has(key));
 }

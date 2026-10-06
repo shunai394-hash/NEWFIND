@@ -793,7 +793,6 @@ async function loadLiveActivities(
   }
 
   for (const row of commentRows) {
-    if (activities.length >= 4) break;
     const body = String(row.body ?? "").trim();
     if (!body) continue;
     const profile = commentProfileById.get(row.user_id as string);
@@ -848,5 +847,7 @@ async function loadLiveActivities(
     });
   }
 
-  return activities.slice(0, 4);
+  // Let the final curation step fill all four slots with unique live activity.
+  // Slicing here first could discard later unique comments behind duplicates.
+  return activities;
 }

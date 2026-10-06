@@ -23,10 +23,29 @@ export function checkTracerPublicationAttestation(payload: Record<string, unknow
   if (!listingId) return { ok: false, reason: "tracer_listing_id_missing" };
   const salesUrl = text(payload.sales_url) ?? text(payload.tracer_url);
   if (!salesUrl) return { ok: false, reason: "tracer_sales_url_missing" };
+  let parsedSalesUrl: URL;
+  try {
+    parsedSalesUrl = new URL(salesUrl);
+  } catch {
+    return { ok: false, reason: "tracer_sales_url_invalid" };
+  }
+  if (parsedSalesUrl.protocol !== "https:" || parsedSalesUrl.hostname !== "tracer-self.vercel.app") {
+    return { ok: false, reason: "tracer_sales_url_untrusted_origin" };
+  }
+  const canonicalSalesUrl = parsedSalesUrl.toString();
   const productUrl = text(payload.product_url);
   // The promoted link must be TRACER's own sales page: price and image in
   // the payload belong to that page, not to a marketplace listing.
-  if (productUrl && productUrl !== salesUrl) return { ok: false, reason: "tracer_product_url_not_sales_url" };
+  if (productUrl) {
+    try {
+      const parsedProductUrl = new URL(productUrl);
+      if (parsedProductUrl.toString() !== canonicalSalesUrl) {
+        return { ok: false, reason: "tracer_product_url_not_sales_url" };
+      }
+    } catch {
+      return { ok: false, reason: "tracer_product_url_invalid" };
+    }
+  }
   const price = typeof payload.price === "number" ? payload.price : Number(payload.price);
   if (!Number.isFinite(price) || price <= 0) return { ok: false, reason: "tracer_price_invalid" };
   return { ok: true, listingId, salesUrl };

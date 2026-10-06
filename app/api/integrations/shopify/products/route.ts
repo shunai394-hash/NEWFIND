@@ -1,5 +1,5 @@
 import { readBoundedWebhookBody } from "@/lib/shopify-webhook-body";
-import { normalizeShopifyProductId, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
+import { normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "@/lib/shopify-webhook-security";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -109,8 +109,8 @@ export async function POST(request: Request) {
   const archived = topic === "products/delete" || product.status === "archived";
   const variants = Array.isArray(product.variants) ? product.variants : [];
   const prices = variants
-    .map((variant) => Number(variant.price))
-    .filter((price) => Number.isFinite(price) && price >= 0);
+    .map((variant) => normalizeShopifyPrice(variant.price))
+    .filter((price): price is number => price !== null);
   const published = !archived && product.status === "active" && Boolean(product.published_at);
   const handle = typeof product.handle === "string" ? product.handle.trim() : "";
   const productUrl = handle ? `https://${shopDomain}/products/${encodeURIComponent(handle)}` : null;

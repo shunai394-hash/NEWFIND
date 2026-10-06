@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readBoundedWebhookBody } from "../lib/shopify-webhook-body";
 import { verifyShopifyWebhookHmac } from "../lib/shopify-webhook-security";
 
 test("accepts a valid Shopify Base64 HMAC for the exact raw body", () => {
@@ -34,4 +35,21 @@ test("verifies the exact raw UTF-8 bytes without re-encoding", () => {
   const signature = createHmac("sha256", secret).update(body).digest("base64");
   assert.equal(verifyShopifyWebhookHmac(body, secret, signature), true);
   assert.equal(verifyShopifyWebhookHmac(new TextEncoder().encode('{"id":123,"title":"東京 "}'), secret, signature), false);
+});
+
+test("bounded body reader preserves raw bytes below the configured cap", async () => {
+  const bytes = new TextEncoder().encode('{"title":"東京"}');
+  const request = new Request("https://example.test/webhook", { method: "POST", body: bytes });
+  const result = await readBoundedWebhookBody(request, bytes.byteLength);
+  assert.equal("tooLarge" in result, false);
+  if ("body" in result) assert.deepEqual(result.body, bytes);
+});
+
+test("bounded body reader rejects an oversized payload", async () => {
+  const request = new Request("https://example.test/webhook", {
+    method: "POST",
+    body: new Uint8Array([1, 2, 3, 4, 5]),
+  });
+  const result = await readBoundedWebhookBody(request, 4);
+  assert.deepEqual(result, { tooLarge: true });
 });

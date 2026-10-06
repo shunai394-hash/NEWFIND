@@ -34,6 +34,32 @@ type ShopifyProductWebhook = {
 };
 
 
+async function readRawBody(request: Request, maxBytes: number): Promise<{ body: Uint8Array } | { tooLarge: true }> {
+  const reader = request.body?.getReader();
+  if (!reader) return { body: new Uint8Array() };
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      return { tooLarge: true };
+    }
+    chunks.push(value);
+  }
+
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { body };
+}
+
 function asTags(value: ShopifyProductWebhook["tags"]): string[] {
   if (Array.isArray(value)) return value.map((tag) => String(tag).trim()).filter(Boolean);
   if (typeof value === "string") return value.split(",").map((tag) => tag.trim()).filter(Boolean);
@@ -74,10 +100,11 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: "Unsupported topic" }, { status: 400 });
   }
 
-  const rawBody = await request.text();
-  if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
+  const rawBodyResult = await readRawBody(request, MAX_BODY_BYTES);
+  if ("tooLarge" in rawBodyResult) {
     return Response.json({ ok: false, error: "Payload too large" }, { status: 413 });
   }
+  const rawBody = rawBodyResult.body;
   if (!verifyShopifyWebhookHmac(rawBody, secret, signature)) {
     return Response.json({ ok: false, error: "Invalid webhook signature" }, { status: 401 });
   }
@@ -87,9 +114,10 @@ export async function POST(request: Request) {
 
   let product: ShopifyProductWebhook;
   try {
-    product = JSON.parse(rawBody) as ShopifyProductWebhook;
+    const rawText = new TextDecoder("utf-8", { fatal: true }).decode(rawBody);
+    product = JSON.parse(rawText) as ShopifyProductWebhook;
   } catch {
-    return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+    return Response.json({ ok: false, error: "Invalid JSON or UTF-8 payload" }, { status: 400 });
   }
   if (product.id == null) {
     return Response.json({ ok: false, error: "Missing product id" }, { status: 400 });

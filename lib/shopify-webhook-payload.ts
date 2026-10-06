@@ -42,3 +42,8 @@ export function normalizeShopifyPrice(value: unknown): number | null {
   }
   return Math.round(value * 100) / 100 === value ? value : null;
 }
+
+/** Accept only a single lowercase Shopify-managed shop hostname. */
+export function isShopifyMyshopifyDomain(value: string): boolean {
+  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.myshopify\.com$/.test(value);
+}

@@ -1,4 +1,4 @@
-import { featuredFromResidents, hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice } from "../lib/world/home-data";
+import { dedupeLiveActivities, featuredFromResidents, hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice, type WorldActivity } from "../lib/world/home-data";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -12,6 +12,21 @@ function main() {
     price: 32,
     description: "A new fragrance product.",
   };
+
+  const activity = (overrides: Partial<WorldActivity> = {}): WorldActivity => ({
+    id: "activity-1", live: true, actorName: "Mei", actorFlag: "🇯🇵", actorRole: "Product Hunter",
+    actorHref: "/u/mei_food_ai", actorAvatarUrl: null, isAi: true,
+    quote: "Tokyoで見ると、価格と発売地域を知りたい。", actionLabel: "Commented on a discovery",
+    product: null, reply: null, ctaLabel: "Join the conversation", ctaHref: "/p/post-1", ...overrides,
+  });
+  const curatedActivities = dedupeLiveActivities([
+    activity({ id: "first" }),
+    activity({ id: "duplicate", quote: "  TOKYOで見ると、価格と発売地域を知りたい。  " }),
+    activity({ id: "different-author", actorName: "Hana" }),
+    activity({ id: "not-live", live: false }),
+  ]);
+  assert(curatedActivities.map((item) => item.id).join(",") === "first,different-author", "duplicate comments by the same resident should not occupy multiple homepage cards");
+  assert(dedupeLiveActivities([activity()], 0).length === 0, "zero activity limit should return no cards");
 
   assert(isHomepageProductEligible(verified), "verified product should pass");
   assert(

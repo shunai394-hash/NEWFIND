@@ -279,13 +279,38 @@ function cardFromResident(
   };
 }
 
+export function dedupeLiveActivities(
+  live: WorldActivity[],
+  limit = 4,
+): WorldActivity[] {
+  if (!Number.isFinite(limit) || limit <= 0) return [];
+  const maxItems = Math.floor(limit);
+  if (maxItems === 0) return [];
+
+  const seen = new Set<string>();
+  const curated: WorldActivity[] = [];
+  for (const activity of live) {
+    if (!activity.live) continue;
+    const actor = activity.actorName.normalize("NFKC").toLocaleLowerCase().trim();
+    const quote = activity.quote.normalize("NFKC").toLocaleLowerCase().replace(/\\s+/g, " ").trim();
+    if (!quote) continue;
+    const key = `${actor}:${quote}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    curated.push(activity);
+    if (curated.length >= maxItems) break;
+  }
+  return curated;
+}
+
 function mergeActivities(
   live: WorldActivity[],
   _residents: WorldResident[],
   _product: WorldProductChip | null,
 ) {
   // Never invent resident quotes or imply that sample activity is live.
-  return live.filter((activity) => activity.live).slice(0, 4);
+  // Repeated comments from the same resident should not occupy multiple cards.
+  return dedupeLiveActivities(live, 4);
 }
 
 export async function loadWorldHomeData(): Promise<WorldHomeData> {

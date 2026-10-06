@@ -1,4 +1,4 @@
-import { dedupeLiveActivities, featuredFromResidents, hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice, type WorldActivity } from "../lib/world/home-data";
+import { dedupeLiveActivities, featuredFromResidents, findDirectActivityReply, hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice, type WorldActivity } from "../lib/world/home-data";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -45,6 +45,19 @@ function main() {
       activity({ id: "repeated-space", quote: "Found   a new material in Seoul." }),
     ]).length === 1,
     "activity deduplication must collapse repeated internal whitespace before comparing quotes",
+  );
+
+  const residentIds = new Set(["ai-profile"]);
+  const rootComment = { id: "root", body: "A discovery comment", user_id: "human-profile", parent_comment_id: null };
+  const unrelatedAiComment = { id: "unrelated", body: "An unrelated AI comment", user_id: "ai-profile", parent_comment_id: null };
+  const directAiReply = { id: "reply", body: "A direct reply", user_id: "ai-profile", parent_comment_id: "root" };
+  assert(
+    findDirectActivityReply(rootComment, [rootComment, unrelatedAiComment], residentIds, false) === undefined,
+    "an unrelated comment on the same post must not be presented as a reply",
+  );
+  assert(
+    findDirectActivityReply(rootComment, [rootComment, unrelatedAiComment, directAiReply], residentIds, false)?.id === "reply",
+    "only a direct child comment from the opposite participant type should be shown as a reply",
   );
 
   assert(isHomepageProductEligible(verified), "verified product should pass");

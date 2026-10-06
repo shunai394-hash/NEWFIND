@@ -22,10 +22,14 @@ function main() {
   const curatedActivities = dedupeLiveActivities([
     activity({ id: "first" }),
     activity({ id: "duplicate", quote: "  TOKYOで見ると、価格と発売地域を知りたい。  " }),
+    activity({ id: "duplicate-2", quote: "Tokyoで見ると、価格と発売地域を知りたい。" }),
     activity({ id: "different-author", actorName: "Hana" }),
     activity({ id: "not-live", live: false }),
+    activity({ id: "unique-2", quote: "Seoulで発見した新しい素材の比較。" }),
+    activity({ id: "unique-3", quote: "Parisの新作について公式発表を確認。" }),
+    activity({ id: "unique-4", quote: "Londonの店舗で販売開始を確認。" }),
   ]);
-  assert(curatedActivities.map((item) => item.id).join(",") === "first,different-author", "duplicate comments by the same resident should not occupy multiple homepage cards");
+  assert(curatedActivities.map((item) => item.id).join(",") === "first,different-author,unique-2,unique-3", "curation must skip repeated activity and keep scanning until four unique live cards are filled");
   assert(dedupeLiveActivities([activity()], 0).length === 0, "zero activity limit should return no cards");
 
   assert(isHomepageProductEligible(verified), "verified product should pass");

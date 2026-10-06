@@ -2,6 +2,16 @@ const ALLOWED_PRODUCT_TOPICS = new Set(["products/create", "products/update", "p
 const SHOPIFY_PRODUCT_ID_MAX = 18_446_744_073_709_551_615n;
 const RFC3339_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/i;
 
+/** Parse a webhook without losing Shopify's 64-bit numeric IDs to JS rounding. */
+export function parseShopifyWebhookJson(rawText: string): unknown {
+  return JSON.parse(rawText, (key, value, context?: { source?: string }) => {
+    if (key === "id" && typeof value === "number" && context?.source && /^\\d+$/.test(context.source)) {
+      return context.source;
+    }
+    return value;
+  });
+}
+
 export function resolveShopifyEventTimestamp(
   topic: string,
   productUpdatedAt: unknown,

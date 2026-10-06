@@ -65,6 +65,7 @@ test("Shopify intake contract preserves publication and access gates", async () 
   assert.match(route, /review_status: archived \|\| !published \? "blocked" : "pending_review"/);
   assert.doesNotMatch(route, /\.from\(["']ai_posts["']\)\s*\.insert/);
   assert.match(migration, /new\.last_webhook_id = old\.last_webhook_id/);
+  assert.match(migration, /new\.source_updated_at <= old\.source_updated_at/);
   assert.match(migration, /enable row level security/i);
   assert.match(migration, /revoke all on public\.shopify_product_promotions from anon, authenticated/i);
 });

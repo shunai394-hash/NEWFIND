@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readBoundedWebhookBody } from "../lib/shopify-webhook-body";
-import { isShopifyMyshopifyDomain, normalizeShopifyDescription, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
+import { isMinimalShopifyDeletePayload, isShopifyMyshopifyDomain, normalizeShopifyDescription, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "../lib/shopify-webhook-security";
 
 test("accepts a valid Shopify Base64 HMAC for the exact raw body", () => {
@@ -128,4 +128,13 @@ test("stores Shopify descriptions as plain text without executable markup", () =
   );
   assert.equal(normalizeShopifyDescription(null), null);
   assert.equal(normalizeShopifyDescription("   "), null);
+});
+
+test("accepts only the documented minimal product-delete tombstone", () => {
+  assert.equal(isMinimalShopifyDeletePayload({ id: 123 }), true);
+  assert.equal(isMinimalShopifyDeletePayload({ id: "123", admin_graphql_api_id: "gid://shopify/Product/123" }), true);
+  assert.equal(isMinimalShopifyDeletePayload({ id: 123, title: "Sneaky update" }), false);
+  assert.equal(isMinimalShopifyDeletePayload({ id: 123, updated_at: "2026-10-06T08:00:00Z" }), false);
+  assert.equal(isMinimalShopifyDeletePayload({ id: 123, status: "active" }), false);
+  assert.equal(isMinimalShopifyDeletePayload(null), false);
 });

@@ -58,7 +58,7 @@ create or replace function public.skip_stale_shopify_product_event()
 returns trigger
 language plpgsql
 set search_path = ''
-as $
+as $shopify_guard$
 begin
   if old.source_updated_at is not null
      and (new.source_updated_at is null or new.source_updated_at < old.source_updated_at) then
@@ -66,7 +66,7 @@ begin
   end if;
   return new;
 end;
-$;
+$shopify_guard$;
 
 drop trigger if exists shopify_product_promotions_skip_stale_event
   on public.shopify_product_promotions;

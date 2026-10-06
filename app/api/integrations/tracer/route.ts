@@ -13,7 +13,7 @@ import {
   type AckResponse,
 } from "@/lib/integration";
 import { canonicalProductUrl } from "@/lib/discovery/rules";
-import { recordTracerPromotion } from "@/lib/integration/tracer-promotion";
+import { recordTracerPromotion, withdrawTracerPromotion } from "@/lib/integration/tracer-promotion";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -173,9 +173,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: result.detail }, { status: 400 });
   }
 
-  // A product_candidate has already passed the TRACER attestation and the
-  // NEWFIND publication gate above. Resolve its stored discovery row and
-  // create exactly one resident/timeline promotion record.
   let promotion = null;
   if (envelope.event_type === "product_candidate") {
     const productUrl =
@@ -207,6 +204,15 @@ export async function POST(request: Request) {
         await markInboxFailed(inbox.row.id, promotion.detail);
         return NextResponse.json({ ok: false, error: promotion.detail }, { status: 500 });
       }
+    }
+  } else if (envelope.event_type === "product_withdrawn") {
+    promotion = await withdrawTracerPromotion({
+      eventId: envelope.event_id,
+      payload: envelope.payload,
+    });
+    if (!promotion.ok) {
+      await markInboxFailed(inbox.row.id, promotion.detail);
+      return NextResponse.json({ ok: false, error: promotion.detail }, { status: 500 });
     }
   }
 

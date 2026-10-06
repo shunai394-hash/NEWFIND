@@ -52,6 +52,28 @@ create trigger shopify_product_promotions_updated_at
   before update on public.shopify_product_promotions
   for each row execute function public.set_shopify_product_promotions_updated_at();
 
+-- Shopify may deliver events out of order. Ignore stale updates rather than
+-- allowing an older product snapshot to overwrite newer state.
+create or replace function public.skip_stale_shopify_product_event()
+returns trigger
+language plpgsql
+set search_path = ''
+as $
+begin
+  if old.source_updated_at is not null
+     and (new.source_updated_at is null or new.source_updated_at < old.source_updated_at) then
+    return null;
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists shopify_product_promotions_skip_stale_event
+  on public.shopify_product_promotions;
+create trigger shopify_product_promotions_skip_stale_event
+  before update on public.shopify_product_promotions
+  for each row execute function public.skip_stale_shopify_product_event();
+
 alter table public.shopify_product_promotions enable row level security;
 revoke all on public.shopify_product_promotions from anon, authenticated;
 grant all on public.shopify_product_promotions to service_role;

@@ -21,7 +21,7 @@ function isLikelyUntranslatedChineseTitle(title: string): boolean {
   // These simplified-only forms are strong signals of a Chinese source title,
   // while avoiding a blanket CJK filter that would reject Japanese headlines.
   return /[废盘预长驱农业统]/u.test(title) ||
-    /(?:新闻和统计|可生物降解|市场展望至|需求驱动|增长至\\d{4}年|预计增长)/u.test(title);
+    /(?:新闻和统计|可生物降解|市场展望至|需求驱动|增长至\d{4}年|预计增长)/u.test(title);
 }
 
 function isLikelyHeadlineBundle(title: string): boolean {
@@ -56,7 +56,9 @@ function hasVerifiableSource(sourceUrl?: string | null): boolean {
 
 export function isPresentableWorldHeadline(headline: WorldHeadline): boolean {
   const title = headline.title.replace(/\s+/g, " ").trim();
-  if (title.length < 12) return false;\n  if (isLikelyUntranslatedChineseTitle(title)) return false;\n  if (isLikelyHeadlineBundle(title)) return false;
+  if (title.length < 12) return false;
+  if (isLikelyUntranslatedChineseTitle(title)) return false;
+  if (isLikelyHeadlineBundle(title)) return false;
 
   // Every public-facing research/news claim must lead to a verifiable source.
   // Do not make an unsourced title look like a reported discovery.

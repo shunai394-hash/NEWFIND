@@ -72,7 +72,7 @@ begin
   end if;
 
   if old.source_updated_at is not null
-     and (new.source_updated_at is null or new.source_updated_at < old.source_updated_at) then
+     and (new.source_updated_at is null or new.source_updated_at <= old.source_updated_at) then
     return null;
   end if;
   return new;

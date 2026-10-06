@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readBoundedWebhookBody } from "../lib/shopify-webhook-body";
-import { resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
+import { normalizeShopifyProductId, resolveShopifyEventTimestamp } from "../lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "../lib/shopify-webhook-security";
 
 test("accepts a valid Shopify Base64 HMAC for the exact raw body", () => {
@@ -86,4 +86,16 @@ test("requires a valid product updated_at for create and update events", () => {
   assert.equal(resolveShopifyEventTimestamp("products/create", undefined, "2026-10-06T08:30:00.000Z"), null);
   assert.equal(resolveShopifyEventTimestamp("products/update", "invalid", "2026-10-06T08:30:00.000Z"), null);
   assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00Z", "2026-10-06T08:30:00Z"), "2026-10-06T08:00:00.000Z");
+});
+
+test("normalizes only positive integer Shopify product IDs", () => {
+  assert.equal(normalizeShopifyProductId(123456789), "123456789");
+  assert.equal(normalizeShopifyProductId("123456789"), "123456789");
+  assert.equal(normalizeShopifyProductId("00123"), "123");
+  assert.equal(normalizeShopifyProductId(null), null);
+  assert.equal(normalizeShopifyProductId({ id: 123 }), null);
+  assert.equal(normalizeShopifyProductId("gid://shopify/Product/123"), null);
+  assert.equal(normalizeShopifyProductId(-1), null);
+  assert.equal(normalizeShopifyProductId(1.5), null);
+  assert.equal(normalizeShopifyProductId("1e3"), null);
 });

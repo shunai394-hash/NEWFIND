@@ -92,6 +92,8 @@ test("requires a valid product updated_at for create and update events", () => {
   assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06", "2026-10-06T08:30:00.000Z"), null);
   assert.equal(resolveShopifyEventTimestamp("products/update", "2026-02-31T08:00:00Z", "2026-10-06T08:30:00Z"), null);
   assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00", "2026-10-06T08:30:00Z"), null);
+  assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00+99:99", "2026-10-06T08:30:00Z"), null);
+  assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00+09:00", "2026-10-06T08:30:00Z"), "2026-10-05T23:00:00.000Z");
   assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00.123456789Z", "2026-10-06T08:30:00Z"), "2026-10-06T08:00:00.123Z");
   assert.equal(resolveShopifyEventTimestamp("products/update", "2026-10-06T08:00:00Z", "2026-10-06T08:30:00Z"), "2026-10-06T08:00:00.000Z");
 });

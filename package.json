@@ -38,11 +38,11 @@
         "prebuild": "npm run icons:check && npm run test:home-quality && npm run test:world-headlines && npm run test:future-tech-feed"
     },
     "dependencies": {
-        "@capacitor/android": "^8.5.0",
+        "@capacitor/android": "^8.5.2",
         "@capacitor/app": "^8.1.1",
         "@capacitor/browser": "^8.0.4",
-        "@capacitor/core": "^8.5.0",
-        "@capacitor/ios": "^8.5.0",
+        "@capacitor/core": "^8.5.2",
+        "@capacitor/ios": "^8.5.2",
         "@capacitor/keyboard": "^8.0.5",
         "@capacitor/splash-screen": "^8.0.2",
         "@capacitor/status-bar": "^8.0.3",

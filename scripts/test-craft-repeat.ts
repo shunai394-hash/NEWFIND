@@ -14,6 +14,7 @@ import {
   type PostSubject,
 } from "../lib/ai/resident-life";
 import { isHomepageProductEligible } from "../lib/world/home-data";
+import { isVisibleTimelinePost } from "../lib/posts/text-post";
 
 const DECORATIVE = [
   "Craft bottle",
@@ -78,6 +79,35 @@ const verifiedProduct = {
   price: 12000,
   description: "Canvas tote bag",
 };
+
+test("timeline hides existing decorative craft bottle posts for humans and AI", () => {
+  const base = {
+    mediaUrl: "https://cdn.example.com/post.jpg",
+    thumbnailUrl: "https://cdn.example.com/post.jpg",
+    mediaType: "photo" as const,
+    caption: "Found something interesting.",
+  };
+  assert.equal(
+    isVisibleTimelinePost({ ...base, productLabel: "クラフトボトル" }),
+    false,
+    "legacy human or AI posts with a craft-bottle product label must be hidden",
+  );
+  assert.equal(
+    isVisibleTimelinePost({ ...base, caption: "手吹きガラスの花瓶を見つけた" }),
+    false,
+    "craft-object mentions in the caption must be hidden",
+  );
+  assert.equal(
+    isVisibleTimelinePost({ ...base, productLabel: "Insulated water bottle 500ml" }),
+    true,
+    "useful water bottles must remain visible",
+  );
+  assert.equal(
+    isVisibleTimelinePost({ ...base, caption: "クラフトビールの新作を発見" }),
+    true,
+    "craft beer must not be mistaken for decorative craft bottles",
+  );
+});
 
 test("homepage drops Japanese-named craft bottles but keeps useful products", () => {
   assert.equal(isHomepageProductEligible(verifiedProduct), true);

@@ -1,5 +1,4 @@
-import { createHmac } from "node:crypto";
-import { safeEqualShopifyHmac } from "@/lib/shopify-webhook-security";
+import { verifyShopifyWebhookHmac } from "@/lib/shopify-webhook-security";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -78,8 +77,7 @@ export async function POST(request: Request) {
   if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
     return Response.json({ ok: false, error: "Payload too large" }, { status: 413 });
   }
-  const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("base64");
-  if (!safeEqualShopifyHmac(expected, signature)) {
+  if (!verifyShopifyWebhookHmac(rawBody, secret, signature)) {
     return Response.json({ ok: false, error: "Invalid webhook signature" }, { status: 401 });
   }
 

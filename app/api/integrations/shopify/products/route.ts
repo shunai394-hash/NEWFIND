@@ -33,11 +33,11 @@ type ShopifyProductWebhook = {
   images?: ShopifyImage[];
 };
 
-function safeEqualHex(expected: string, received: string): boolean {
-  if (!/^[a-f0-9]{64}$/i.test(received)) return false;
-  const a = Buffer.from(expected, "hex");
-  const b = Buffer.from(received, "hex");
-  return a.length === b.length && timingSafeEqual(a, b);
+function safeEqualShopifyHmac(expectedBase64: string, received: string): boolean {
+  const supplied = Buffer.from(received, "base64");
+  if (supplied.length !== 32 || supplied.toString("base64") !== received) return false;
+  const expected = Buffer.from(expectedBase64, "base64");
+  return expected.length === supplied.length && timingSafeEqual(expected, supplied);
 }
 
 function asTags(value: ShopifyProductWebhook["tags"]): string[] {
@@ -79,8 +79,8 @@ export async function POST(request: Request) {
   if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
     return Response.json({ ok: false, error: "Payload too large" }, { status: 413 });
   }
-  const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
-  if (!safeEqualHex(expected, signature)) {
+  const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("base64");
+  if (!safeEqualShopifyHmac(expected, signature)) {
     return Response.json({ ok: false, error: "Invalid webhook signature" }, { status: 401 });
   }
 

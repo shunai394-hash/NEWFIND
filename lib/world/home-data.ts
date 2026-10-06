@@ -292,7 +292,7 @@ export function dedupeLiveActivities(
   for (const activity of live) {
     if (!activity.live) continue;
     const actor = activity.actorName.normalize("NFKC").toLocaleLowerCase().trim();
-    const quote = activity.quote.normalize("NFKC").toLocaleLowerCase().replace(/\\s+/g, " ").trim();
+    const quote = activity.quote.normalize("NFKC").toLocaleLowerCase().replace(/\s+/g, " ").trim();
     if (!quote) continue;
     const key = `${actor}:${quote}`;
     if (seen.has(key)) continue;

@@ -1,5 +1,5 @@
 import { readBoundedWebhookBody } from "@/lib/shopify-webhook-body";
-import { isShopifyMyshopifyDomain, normalizeShopifyDescription, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
+import { isMinimalShopifyDeletePayload, isShopifyMyshopifyDomain, normalizeShopifyDescription, normalizeShopifyPrice, normalizeShopifyProductId, resolveShopifyEventTimestamp } from "@/lib/shopify-webhook-payload";
 import { verifyShopifyWebhookHmac } from "@/lib/shopify-webhook-security";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -96,10 +96,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: "Missing or invalid product id" }, { status: 400 });
   }
   const triggeredAt = request.headers.get("x-shopify-triggered-at")?.trim() ?? "";
-  if (topic === "products/delete" && (
-    product.updated_at != null || product.title != null || product.status != null ||
-    product.variants != null || product.image != null || product.images != null
-  )) {
+  if (topic === "products/delete" && !isMinimalShopifyDeletePayload(product)) {
     return Response.json({ ok: false, error: "Delete topic payload is not the expected minimal product tombstone" }, { status: 400 });
   }
   const sourceUpdatedAt = resolveShopifyEventTimestamp(topic, product.updated_at, triggeredAt);

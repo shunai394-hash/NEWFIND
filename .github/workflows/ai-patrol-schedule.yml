@@ -53,6 +53,8 @@ jobs:
             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https%3A%2F%2Fnewfind-self.vercel.app" | \
             node -e 'const b=JSON.parse(require("fs").readFileSync(0,"utf8")); process.stdout.write(b.value)')"
+          OIDC_CLAIMS="$(printf '%s' "$OIDC_TOKEN" | node -e 'const p=JSON.parse(Buffer.from(process.argv[1].split(".")[1],"base64url").toString("utf8")); console.log(JSON.stringify({iss:p.iss,aud:p.aud,repository:p.repository,ref:p.ref,sub:p.sub,workflow_ref:p.workflow_ref,exp:p.exp,nbf:p.nbf}));' "$OIDC_TOKEN")"
+          echo "OIDC claims: $OIDC_CLAIMS"
           status=$(curl -sS -o response.json -w "%{http_code}" \
             --max-time 310 \
             -H "Authorization: Bearer $OIDC_TOKEN" \

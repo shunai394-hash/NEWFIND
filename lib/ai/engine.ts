@@ -17,10 +17,10 @@ import type { WorldSearchResult } from "@/lib/ai/world-search";
 import { listAssignedDiscoveryResidentIds } from "@/lib/ai/discovery-handoff";
 
 // Keep the daily cron bounded: resident life is intentionally sequential because
-// each turn can perform several AI/network operations. Four turns per run
-// preserves rotation while leaving enough headroom for the 300s Vercel budget.
-const DEFAULT_ACT_LIMIT = 4;
-const MAX_RUN_MS = 240_000; // Leave headroom before Vercel's 300s execution ceiling.
+// each turn can perform several AI/network operations. Two turns per run
+// preserve rotation while keeping the 300s Vercel budget reliable.
+const DEFAULT_ACT_LIMIT = 2;
+const MAX_RUN_MS = 210_000; // Keep 90s headroom for final persistence and runtime shutdown.
 
 export type AiEngineMode = "ai_engine" | "world_scout" | "product_hunter";
 

@@ -37,6 +37,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - name: Wait for production deploy before one-off OIDC patrol
+        if: github.event_name == 'push'
+        run: sleep 60
       - name: Trigger AI patrol
         env:
           BASE_URL: ${{ vars.NEWFIND_BASE_URL || 'https://newfind-self.vercel.app' }}

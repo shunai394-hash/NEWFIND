@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/ai-act?limit=2",
-      "schedule": "*/30 * * * *"
+      "path": "/api/ai-act",
+      "schedule": "0 3 * * *"
     }
   ]
 }

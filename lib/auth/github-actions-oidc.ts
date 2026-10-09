@@ -24,7 +24,16 @@ export function isTrustedGitHubActionsClaims(payload: JWTPayload): boolean {
  * secrets while keeping arbitrary callers locked out.
  */
 export async function verifyTrustedGitHubActionsToken(token: string): Promise<boolean> {
-  if (!token || token.split(".").length !== 3) return false;
+  const parts = token.split(".");
+  if (!token || parts.length !== 3) return false;
+  // Cheap untrusted-claim precheck avoids a JWKS network request for arbitrary
+  // bearer strings; authorization still requires jwtVerify below.
+  try {
+    const unverified = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as JWTPayload;
+    if (!isTrustedGitHubActionsClaims(unverified)) return false;
+  } catch {
+    return false;
+  }
   try {
     const { payload } = await jwtVerify(token, GITHUB_JWKS, {
       issuer: GITHUB_ISSUER,

@@ -184,6 +184,11 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
     };
   }
 
+  // Budget the entire invocation, including resident setup and external source collection.
+  // Starting this clock only before the resident loop allowed preflight work plus a full
+  // 240s loop to exceed Vercel's 300s function ceiling.
+  const runStartedAt = Date.now();
+
   await logAiActivity({
     actorName: "SYSTEM",
     actorRole: "engine",
@@ -297,7 +302,6 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       console.error("Google Trends failed. Continuing without trends.", error);
     }
     const results = [];
-    const runStartedAt = Date.now();
 
     for (const persona of acting) {
       // A resident turn can fan out into search, AI generation, Supabase writes,

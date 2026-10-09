@@ -770,6 +770,7 @@ class TavilyWorldSearchProvider
             ...(query.excludeDomains ?? []),
           ],
         }),
+        signal: AbortSignal.timeout(12_000),
         cache: "no-store",
       },
     );

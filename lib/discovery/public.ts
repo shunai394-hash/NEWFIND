@@ -1,10 +1,15 @@
+import { isDecorativeCraftObject } from "@/lib/ai/craft-object";
 import { listDiscoveryProducts } from "@/lib/discovery/store";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import type { DiscoveryCategory } from "@/lib/discovery/types";
 
 export async function listPublicDiscoveryProducts() {
   const products = await listDiscoveryProducts({ admin: false, status: "approved" });
-  return products.filter((item) => isUsableProductImage(item.productImageUrl));
+  return products.filter(
+    (item) =>
+      isUsableProductImage(item.productImageUrl) &&
+      !isDecorativeCraftObject(`${item.productName} ${item.description ?? ""}`),
+  );
 }
 
 export async function listPublicByCategory(category: DiscoveryCategory | "all" | "trending") {

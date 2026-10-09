@@ -16,6 +16,20 @@ function text(value: unknown): string | null {
   return trimmed || null;
 }
 
+// TRACER's official production storefront hosts. TRACER moved its production
+// deployment to tracer-pied-alpha.vercel.app; the previous host is kept so
+// already-signed events stay valid. Override with NEWFIND_TRACER_SALES_HOSTS
+// (comma-separated hostnames). HTTPS is always required.
+const DEFAULT_TRACER_SALES_HOSTS = ["tracer-self.vercel.app", "tracer-pied-alpha.vercel.app"];
+
+export function trustedTracerSalesHosts(): string[] {
+  const configured = (process.env.NEWFIND_TRACER_SALES_HOSTS ?? "")
+    .split(",")
+    .map((host) => host.trim().toLowerCase())
+    .filter((host) => /^[a-z0-9.-]+$/.test(host));
+  return configured.length > 0 ? configured : DEFAULT_TRACER_SALES_HOSTS;
+}
+
 export function checkTracerPublicationAttestation(payload: Record<string, unknown>): TracerAttestation {
   if (payload.tracer_published !== true) return { ok: false, reason: "tracer_not_published" };
   if (payload.sales_test_gate !== "passed") return { ok: false, reason: "tracer_sales_test_gate_not_passed" };
@@ -29,7 +43,7 @@ export function checkTracerPublicationAttestation(payload: Record<string, unknow
   } catch {
     return { ok: false, reason: "tracer_sales_url_invalid" };
   }
-  if (parsedSalesUrl.protocol !== "https:" || parsedSalesUrl.hostname !== "tracer-self.vercel.app") {
+  if (parsedSalesUrl.protocol !== "https:" || !trustedTracerSalesHosts().includes(parsedSalesUrl.hostname.toLowerCase())) {
     return { ok: false, reason: "tracer_sales_url_untrusted_origin" };
   }
   const canonicalSalesUrl = parsedSalesUrl.toString();

@@ -6,6 +6,7 @@ import { canonicalProductUrl } from "@/lib/discovery/rules";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import { publishBrandBridgeToFeed } from "./brandbridge-feed";
 import { checkTracerPublicationAttestation, withdrawnProductUrls } from "./tracer-attestation";
+import { isDecorativeCraftObject } from "@/lib/ai/craft-object";
 import type { TracerInboundEventType } from "./types";
 
 function asString(value: unknown): string | null {
@@ -81,6 +82,13 @@ async function handleProductCandidate(
       ok: false,
       detail: "product_candidate requires product_url and product_name",
     };
+  }
+
+  // Same decorative-craft rule as the product hunter, posting gate and
+  // homepage: stop craft bottles / vases / ornaments at intake instead of
+  // storing and then hiding them.
+  if (isDecorativeCraftObject(`${productName} ${asString(payload.category) ?? ""}`)) {
+    return { ok: false, detail: "decorative_craft_object_not_promoted" };
   }
 
   const canonical = canonicalProductUrl(productUrl) || productUrl;

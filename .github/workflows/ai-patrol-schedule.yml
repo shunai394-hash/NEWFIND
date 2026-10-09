@@ -47,7 +47,7 @@ jobs:
           status=$(curl -sS -o response.json -w "%{http_code}" \
             --max-time 310 \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "$BASE_URL/api/ai-act?mode=$MODE")
+            "$BASE_URL/api/ai-act?mode=$MODE&limit=2")
           echo "HTTP $status"
           # Print only aggregate counts, never the raw body.
           node -e '

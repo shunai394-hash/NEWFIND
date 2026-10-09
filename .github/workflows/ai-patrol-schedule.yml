@@ -42,14 +42,17 @@ jobs:
           BASE_URL: ${{ vars.NEWFIND_BASE_URL || 'https://newfind-self.vercel.app' }}
           MODE: ${{ inputs.mode || 'ai_engine' }}
         run: |
-          if [ -z "$CRON_SECRET" ]; then
-            # A skipped patrol must not look like a successful one.
-            echo "::error::CRON_SECRET repository secret is not configured: the AI patrol did NOT run. Set it to the same value as Vercel's CRON_SECRET."
+          if [ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] || [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            echo "::error::GitHub Actions OIDC is unavailable; the AI patrol did NOT run."
             exit 1
           fi
+          OIDC_TOKEN="$(curl -sSf \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https%3A%2F%2Fnewfind-self.vercel.app" | \
+            node -e 'const b=JSON.parse(require("fs").readFileSync(0,"utf8")); process.stdout.write(b.value)')"
           status=$(curl -sS -o response.json -w "%{http_code}" \
             --max-time 310 \
-            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
             "$BASE_URL/api/ai-act?mode=$MODE&limit=2")
           echo "HTTP $status"
           # Print only aggregate counts, never the raw body.

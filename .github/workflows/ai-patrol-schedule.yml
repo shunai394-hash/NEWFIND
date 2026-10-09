@@ -4,10 +4,10 @@ name: AI resident patrol schedule
 # run lets only a few residents act, so most residents went days between
 # patrols. This scheduler calls the same authenticated endpoint more often.
 #
-# Requires the repository secret CRON_SECRET (the same value as Vercel's
-# CRON_SECRET); without it every run fails visibly instead of passing green. Optionally set the repository
-# variable NEWFIND_BASE_URL (defaults to the production URL). Every run calls
-# the AI providers, so the schedule below directly drives API cost.
+# Uses GitHub Actions OIDC for the single trusted workflow on main, so no
+# shared CRON_SECRET needs to be copied into GitHub repository secrets.
+# Optionally set NEWFIND_BASE_URL (defaults to production). Each run calls AI
+# providers, so the schedule below directly drives API cost.
 # The engine holds a run lock: an overlapping call returns 409 and is skipped.
 
 on:
@@ -20,9 +20,12 @@ on:
         type: choice
         options: [ai_engine, world_scout, product_hunter]
         default: ai_engine
+  push:
+    branches: [main]
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: ai-patrol
@@ -30,23 +33,29 @@ concurrency:
 
 jobs:
   patrol:
+    if: github.event_name != 'push' || contains(github.event.head_commit.message, '[run-ai-patrol-now]')
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - name: Wait for production deploy before one-off OIDC patrol
+        if: github.event_name == 'push'
+        run: sleep 60
       - name: Trigger AI patrol
         env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
           BASE_URL: ${{ vars.NEWFIND_BASE_URL || 'https://newfind-self.vercel.app' }}
           MODE: ${{ inputs.mode || 'ai_engine' }}
         run: |
-          if [ -z "$CRON_SECRET" ]; then
-            # A skipped patrol must not look like a successful one.
-            echo "::error::CRON_SECRET repository secret is not configured: the AI patrol did NOT run. Set it to the same value as Vercel's CRON_SECRET."
+          if [ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] || [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            echo "::error::GitHub Actions OIDC is unavailable; the AI patrol did NOT run."
             exit 1
           fi
+          OIDC_TOKEN="$(curl -sSf \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https%3A%2F%2Fnewfind-self.vercel.app" | \
+            node -e 'const b=JSON.parse(require("fs").readFileSync(0,"utf8")); process.stdout.write(b.value)')"
           status=$(curl -sS -o response.json -w "%{http_code}" \
             --max-time 310 \
-            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
             "$BASE_URL/api/ai-act?mode=$MODE&limit=2")
           echo "HTTP $status"
           # Print only aggregate counts, never the raw body.

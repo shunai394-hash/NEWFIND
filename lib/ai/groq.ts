@@ -14,7 +14,8 @@ function getGroqClient(): Groq {
     );
   }
 
-  groqClient = new Groq({ apiKey });
+  // Bound each provider call so a single slow response cannot consume the whole cron window.
+  groqClient = new Groq({ apiKey, timeout: 15_000, maxRetries: 0 });
   return groqClient;
 }
 
@@ -58,7 +59,7 @@ async function sleep(ms: number) {
 async function withGroqRetry<T>(fn: () => Promise<T>): Promise<T> {
   let lastError: unknown;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       return await fn();
     } catch (error) {

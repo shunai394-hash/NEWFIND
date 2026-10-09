@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { hasBearerSecret, UNAUTHORIZED_BODY } from "@/lib/auth/cron-auth";
+import { bearerToken, hasBearerSecret, UNAUTHORIZED_BODY } from "@/lib/auth/cron-auth";
+import { verifyTrustedGitHubActionsToken } from "@/lib/auth/github-actions-oidc";
 import type { AiEngineMode, executeAiEngine } from "@/lib/ai/engine";
 
 type ExecuteAiEngine = typeof executeAiEngine;
@@ -23,7 +24,13 @@ export function createAiActHandler(deps: {
   execute: (input: Parameters<ExecuteAiEngine>[0]) => ReturnType<ExecuteAiEngine>;
 }) {
   return async function handle(request: Request) {
-    if (!hasBearerSecret(request, [deps.cronSecret()])) {
+    const sharedSecretAuthorized = hasBearerSecret(request, [deps.cronSecret()]);
+    const token = bearerToken(request);
+    const githubActionsAuthorized =
+      !sharedSecretAuthorized && token?.split(".").length === 3
+        ? await verifyTrustedGitHubActionsToken(token)
+        : false;
+    if (!sharedSecretAuthorized && !githubActionsAuthorized) {
       return NextResponse.json(UNAUTHORIZED_BODY, { status: 401, headers: NO_STORE });
     }
 

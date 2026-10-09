@@ -192,6 +192,10 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
     relatedRunId: lock.runId,
   });
 
+  // Start the budget before resident setup and network-source collection so
+  // preflight work is counted against the platform's execution ceiling too.
+  const runStartedAt = Date.now();
+
   try {
     const factory = await ensureAiResidentPopulation();
     let featuredResidents: Awaited<
@@ -297,7 +301,6 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
       console.error("Google Trends failed. Continuing without trends.", error);
     }
     const results = [];
-    const runStartedAt = Date.now();
 
     for (const persona of acting) {
       // A resident turn can fan out into search, AI generation, Supabase writes,

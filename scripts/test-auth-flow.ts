@@ -21,6 +21,7 @@ import {
   loginErrorFromParams,
 } from "../lib/auth/login-errors";
 import { lookupAuthUserByEmail, trustedAppleEmail } from "../lib/apple/session";
+import { isTrustedGitHubActionsClaims } from "../lib/auth/github-actions-oidc";
 
 const ORIGIN = "https://newfind-self.vercel.app";
 const CALLBACK = "app.newfind.social://auth/callback";
@@ -333,4 +334,18 @@ test("Apple linking only matches an exact email, never another search result", a
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("GitHub OIDC patrol authorization is restricted to the production workflow on main", () => {
+  const trusted = {
+    iss: "https://token.actions.githubusercontent.com",
+    repository: "shunai394-hash/NEWFIND",
+    ref: "refs/heads/main",
+    sub: "repo:shunai394-hash/NEWFIND:ref:refs/heads/main",
+    workflow_ref: "shunai394-hash/NEWFIND/.github/workflows/ai-patrol-schedule.yml@refs/heads/main",
+  };
+  assert.equal(isTrustedGitHubActionsClaims(trusted), true);
+  assert.equal(isTrustedGitHubActionsClaims({ ...trusted, repository: "someone/else" }), false);
+  assert.equal(isTrustedGitHubActionsClaims({ ...trusted, ref: "refs/heads/feature" }), false);
+  assert.equal(isTrustedGitHubActionsClaims({ ...trusted, workflow_ref: "someone/else.yml@refs/heads/main" }), false);
 });

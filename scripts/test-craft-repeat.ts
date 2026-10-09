@@ -186,3 +186,24 @@ test("the same news article is capped across residents, products are not", () =>
   });
   assert.deepEqual(dropCommunityRepeatedSubjects([product], twice).map((s) => s.id), ["product"]);
 });
+
+// Titles that actually reached the public discovery feed through the TRACER
+// intake (production probe 2026-10-09). The intake and the public list now
+// reject them; functional products from the same feed stay eligible.
+test("TRACER intake craft titles seen in production are decorative", () => {
+  for (const title of [
+    "Glass Sculpture Elephant Entrance Hall Ornament",
+    "Vintage Ceramic Vase Crude Pottery Pot New Chinese Handmade",
+    "Creative Colorful Glass Rooster Decoration Glass Chicken Desk TV Cabinet Hallway Home Desktop Decorative Crafts",
+    "Wood Carving Ornaments Handmade Wooden Cute Table Decoration",
+  ]) {
+    assert.equal(isDecorativeCraftObject(title), true, title);
+  }
+  for (const title of [
+    "500ML Iced Brew Coffee Cup With Ice Cube Tray Leak Proof Versatile Iced Coffee Bottle",
+    "3510ml Car Perfume Perfume Sprayer Fine Mist Spray Bottle",
+    "Computer Accessories Luminous USB Wired Mouse",
+  ]) {
+    assert.equal(isDecorativeCraftObject(title), false, title);
+  }
+});

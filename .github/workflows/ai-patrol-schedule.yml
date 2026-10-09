@@ -4,8 +4,8 @@ name: AI resident patrol schedule
 # run lets only a few residents act, so most residents went days between
 # patrols. This scheduler calls the same authenticated endpoint more often.
 #
-# Opt-in: it does nothing until the repository secret CRON_SECRET (the same
-# value as Vercel's CRON_SECRET) is set. Optionally set the repository
+# Requires the repository secret CRON_SECRET (the same value as Vercel's
+# CRON_SECRET); without it every run fails visibly instead of passing green. Optionally set the repository
 # variable NEWFIND_BASE_URL (defaults to the production URL). Every run calls
 # the AI providers, so the schedule below directly drives API cost.
 # The engine holds a run lock: an overlapping call returns 409 and is skipped.
@@ -40,8 +40,9 @@ jobs:
           MODE: ${{ inputs.mode || 'ai_engine' }}
         run: |
           if [ -z "$CRON_SECRET" ]; then
-            echo "CRON_SECRET is not configured; skipping."
-            exit 0
+            # A skipped patrol must not look like a successful one.
+            echo "::error::CRON_SECRET repository secret is not configured: the AI patrol did NOT run. Set it to the same value as Vercel's CRON_SECRET."
+            exit 1
           fi
           status=$(curl -sS -o response.json -w "%{http_code}" \
             --max-time 310 \

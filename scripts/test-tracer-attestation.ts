@@ -30,4 +30,16 @@ assert.deepEqual(
   [base.sales_url],
 );
 
+// TRACER's current production host is trusted; other hosts and http are not.
+const pied = "https://tracer-pied-alpha.vercel.app/shop/item-1";
+assert.equal(checkTracerPublicationAttestation({ ...base, sales_url: pied, product_url: pied }).ok, true);
+assert.deepEqual(
+  checkTracerPublicationAttestation({ ...base, sales_url: "https://tracer-pied-alpha.vercel.app.evil.example/x", product_url: undefined }),
+  { ok: false, reason: "tracer_sales_url_untrusted_origin" },
+);
+assert.deepEqual(
+  checkTracerPublicationAttestation({ ...base, sales_url: "http://tracer-pied-alpha.vercel.app/shop/item-1", product_url: undefined }),
+  { ok: false, reason: "tracer_sales_url_untrusted_origin" },
+);
+
 console.log("TRACER attestation contract: PASS");

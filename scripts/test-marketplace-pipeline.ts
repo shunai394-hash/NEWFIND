@@ -12,7 +12,10 @@ import {
   researchSuppliers,
   estimateMargin,
 } from "../lib/marketplace/supplier";
-import { itemToDiscoveryInput } from "../lib/marketplace/newfind";
+import {
+  itemToDiscoveryInput,
+  savedMarketplaceDiscoveryId,
+} from "../lib/marketplace/newfind";
 import {
   qualifyForPricesense,
   rejectSalesEntityAsProduct,
@@ -103,6 +106,18 @@ function fixtureAdapter(
 }
 
 async function main() {
+  // Saved IDs must be resolved by candidate identity, not by the compacted
+  // array of successful saves (duplicates and failures are omitted there).
+  const savedByIdentity = { "identity-b": "saved-product-b" };
+  assert(
+    savedMarketplaceDiscoveryId(savedByIdentity, "identity-a") === undefined,
+    "an unsaved/duplicate candidate must not inherit another candidate's product ID",
+  );
+  assert(
+    savedMarketplaceDiscoveryId(savedByIdentity, "identity-b") === "saved-product-b",
+    "a saved candidate resolves only its own product ID",
+  );
+
   const newsUrl = "https://www.bbc.com/news/business-rate-cut";
   assert(newsLooksLikeProduct("Breaking: markets rally after rate cut", newsUrl), "news title/url is news");
   assert(

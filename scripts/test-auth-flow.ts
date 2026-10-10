@@ -348,4 +348,9 @@ test("GitHub OIDC patrol authorization is restricted to the production workflow 
   assert.equal(isTrustedGitHubActionsClaims({ ...trusted, repository: "someone/else" }), false);
   assert.equal(isTrustedGitHubActionsClaims({ ...trusted, ref: "refs/heads/feature" }), false);
   assert.equal(isTrustedGitHubActionsClaims({ ...trusted, workflow_ref: "someone/else.yml@refs/heads/main" }), false);
+  // ID-qualified subject as GitHub issues it in production.
+  assert.equal(isTrustedGitHubActionsClaims({ ...trusted, sub: "repo:shunai394-hash@300428130/NEWFIND@1342638167:ref:refs/heads/main" }), true);
+  assert.equal(isTrustedGitHubActionsClaims({ ...trusted, sub: "repo:shunai394-hash@1/NEWFIND@1342638167:ref:refs/heads/main" }), false);
+  assert.equal(isTrustedGitHubActionsClaims({ ...trusted, sub: "repo:shunai394-hash@300428130/NEWFIND@1342638167:ref:refs/heads/feature" }), false);
+  assert.equal(isTrustedGitHubActionsClaims({ ...trusted, sub: undefined }), false);
 });

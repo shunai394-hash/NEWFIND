@@ -71,7 +71,7 @@ jobs:
               # must not be mistaken for successful correspondent activity.
               node -e '
                 const b = JSON.parse(require("fs").readFileSync("response.json", "utf8"));
-                if (b.ok !== true || b.skipped === true || !Number.isInteger(b.actedCount)) {
+                if (b.ok !== true || b.skipped === true || !Number.isInteger(b.actedCount) || b.actedCount < 1) {
                   console.error("Patrol did not complete as an active run.");
                   process.exit(1);
                 }

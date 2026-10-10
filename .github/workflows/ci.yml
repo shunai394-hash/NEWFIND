@@ -1,0 +1,37 @@
+name: NEWFIND CI
+on:
+  push:
+    branches:
+      - fix/remove-old-tracer-host-newfind-20261011
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+      CRON_SECRET: ci-cron-secret
+      INTEGRATION_HMAC_SECRET: ci-integration-hmac-secret
+      INTEGRATION_KEY: newfind-tracer
+      GROQ_API_KEY: ci-groq-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:tracer-attestation
+      - run: npm run test:tracer-integration
+      - run: npm run test:ai-precision
+      - run: npm run test:ai-mind
+      - run: npm run test:ai-correspondent
+      - run: npm run test:marketplace
+      - run: npm run test:discovery-quality
+      - run: npx tsc --noEmit
+      - run: npm run lint

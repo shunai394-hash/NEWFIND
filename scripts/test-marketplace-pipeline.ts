@@ -348,6 +348,14 @@ async function main() {
     },
   };
   assert(!isMarketplaceDiscoveryApproved(ipLiteralItem), "IP-literal source URLs must not be publicly approved");
+  const localHostItem = {
+    ...productItem,
+    evaluation: {
+      ...productItem.evaluation,
+      candidate: { ...productItem.evaluation.candidate, url: "https://internal-service/product" },
+    },
+  };
+  assert(!isMarketplaceDiscoveryApproved(localHostItem), "single-label local hosts must not be publicly approved");
   for (const decision of ["WATCH", "INVESTIGATE"] as const) {
     const unqualified = {
       ...productItem,

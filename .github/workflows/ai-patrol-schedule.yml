@@ -15,8 +15,8 @@ name: AI resident patrol schedule
 on:
   schedule:
     - cron: "17 */4 * * *" # ai_engine: every 4 hours
-    - cron: "47 2,10,18 * * *" # world_scout: every 8 hours
-    - cron: "7 6,14,22 * * *" # product_hunter: every 8 hours
+    - cron: "47 2,14 * * *" # world_scout: twice daily
+    - cron: "7 6,18 * * *" # product_hunter: twice daily
   workflow_dispatch:
     inputs:
       mode:
@@ -47,7 +47,7 @@ jobs:
       - name: Trigger AI patrol
         env:
           BASE_URL: ${{ vars.NEWFIND_BASE_URL || 'https://newfind-self.vercel.app' }}
-          MODE: ${{ inputs.mode || (github.event.schedule == '47 2,10,18 * * *' && 'world_scout') || (github.event.schedule == '7 6,14,22 * * *' && 'product_hunter') || 'ai_engine' }}
+          MODE: ${{ inputs.mode || (github.event.schedule == '47 2,14 * * *' && 'world_scout') || (github.event.schedule == '7 6,18 * * *' && 'product_hunter') || 'ai_engine' }}
         run: |
           if [ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] || [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
             echo "::error::GitHub Actions OIDC is unavailable; the AI patrol did NOT run."

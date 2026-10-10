@@ -41,6 +41,19 @@ export function savedMarketplaceDiscoveryId(
   return typeof id === "string" && id.length > 0 ? id : undefined;
 }
 
+/** Only qualified, non-rejected candidates with usable product media can be public posts. */
+export function isMarketplaceDiscoveryApproved(item: MarketplacePipelineItem): boolean {
+  const evaluation = item.evaluation;
+  return (
+    (evaluation.decision === "STRONG_CANDIDATE" || evaluation.decision === "CANDIDATE") &&
+    evaluation.confidence >= 55 &&
+    evaluation.scores.sourceConfidence >= 40 &&
+    evaluation.dropReason === null &&
+    isUsableProductImage(evaluation.candidate.imageUrl) &&
+    Boolean(evaluation.candidate.url)
+  );
+}
+
 export function itemToWorldResult(item: MarketplacePipelineItem): WorldSearchResult | null {
   const candidate = item.evaluation.candidate;
   if (newsLooksLikeProduct(candidate.title, candidate.url)) return null;
@@ -122,7 +135,7 @@ export function itemToDiscoveryInput(
     discoveredByResidentId: residentId,
     discoveredAt: now,
     attentionReason: item.evaluation.whyNow,
-    status: isUsableProductImage(candidate.imageUrl) && candidate.url ? "approved" : "pending",
+    status: isMarketplaceDiscoveryApproved(item) ? "approved" : "pending",
     trendTags: [],
     sources: [
       {

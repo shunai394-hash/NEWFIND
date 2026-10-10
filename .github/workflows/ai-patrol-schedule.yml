@@ -1,18 +1,22 @@
 name: AI resident patrol schedule
 
-# Vercel Hobby crons run at most once a day (vercel.json: 03:00 UTC), and each
-# run lets only a few residents act, so most residents went days between
-# patrols. This scheduler calls the same authenticated endpoint more often.
+# Keep the core AI engine on its four-hour rotation. Run the world scout and
+# product hunter in dedicated modes every eight hours, staggered between core
+# runs, so those specialist roles are not left to incidental selection by the
+# general engine. Each invocation is capped at two resident turns.
 #
 # Uses GitHub Actions OIDC for the single trusted workflow on main, so no
 # shared CRON_SECRET needs to be copied into GitHub repository secrets.
-# Optionally set NEWFIND_BASE_URL (defaults to production). Each run calls AI
-# providers, so the schedule below directly drives API cost.
-# The engine holds a run lock: an overlapping call returns 409 and is skipped.
+# Each run calls AI providers and therefore has direct API cost. The engine
+# lock prevents overlapping runs; HTTP 409 is reported as a skipped overlap.
+#
+# Optionally set NEWFIND_BASE_URL (defaults to production).
 
 on:
   schedule:
-    - cron: "17 */4 * * *"
+    - cron: "17 */4 * * *" # ai_engine: every 4 hours
+    - cron: "47 2,10,18 * * *" # world_scout: every 8 hours
+    - cron: "7 6,14,22 * * *" # product_hunter: every 8 hours
   workflow_dispatch:
     inputs:
       mode:
@@ -43,7 +47,7 @@ jobs:
       - name: Trigger AI patrol
         env:
           BASE_URL: ${{ vars.NEWFIND_BASE_URL || 'https://newfind-self.vercel.app' }}
-          MODE: ${{ inputs.mode || 'ai_engine' }}
+          MODE: ${{ inputs.mode || (github.event.schedule == '47 2,10,18 * * *' && 'world_scout') || (github.event.schedule == '7 6,14,22 * * *' && 'product_hunter') || 'ai_engine' }}
         run: |
           if [ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] || [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
             echo "::error::GitHub Actions OIDC is unavailable; the AI patrol did NOT run."
@@ -51,7 +55,7 @@ jobs:
           fi
           OIDC_TOKEN="$(curl -sSf \
             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https%3A%2F%2Fnewfind-self.vercel.app" | \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fnewfind-self.vercel.app" | \
             node -e 'const b=JSON.parse(require("fs").readFileSync(0,"utf8")); process.stdout.write(b.value)')"
           OIDC_CLAIMS="$(printf '%s' "$OIDC_TOKEN" | node -e 'const p=JSON.parse(Buffer.from(process.argv[1].split(".")[1],"base64url").toString("utf8")); console.log(JSON.stringify({iss:p.iss,aud:p.aud,repository:p.repository,ref:p.ref,sub:p.sub,workflow_ref:p.workflow_ref,exp:p.exp,nbf:p.nbf}));' "$OIDC_TOKEN")"
           echo "OIDC claims: $OIDC_CLAIMS"
@@ -60,12 +64,48 @@ jobs:
             -H "Authorization: Bearer $OIDC_TOKEN" \
             "$BASE_URL/api/ai-act?mode=$MODE&limit=2")
           echo "HTTP $status"
-          # Print only aggregate counts, never the raw body.
-          node -e '
-            const b = JSON.parse(require("fs").readFileSync("response.json", "utf8") || "{}");
-            console.log(JSON.stringify({ ok: b.ok, skipped: b.skipped, aiCount: b.aiCount, actedCount: b.actedCount }));
-          ' || true
           case "$status" in
-            200|409) exit 0 ;;
-            *) exit 1 ;;
+            200)
+              # A 200 response is only green if a patrol actually ran and the
+              # endpoint returned its structured summary. A paused/no-op run
+              # must not be mistaken for successful correspondent activity.
+              node -e '
+                const b = JSON.parse(require("fs").readFileSync("response.json", "utf8"));
+                if (b.ok !== true || b.skipped === true || !Number.isInteger(b.actedCount)) {
+                  console.error("Patrol did not complete as an active run.");
+                  process.exit(1);
+                }
+                const s = b.summary || {};
+                console.log(JSON.stringify({
+                  mode: process.env.MODE,
+                  ok: b.ok,
+                  aiCount: b.aiCount,
+                  actedCount: b.actedCount,
+                  posts: s.posts ?? 0,
+                  discoveries: s.discoveries ?? 0,
+                  reactions: s.reactions ?? 0,
+                  searches: s.searches ?? 0,
+                  newCandidates: s.newCandidates ?? 0,
+                  errors: s.errors ?? 0,
+                  noAction: s.noAction ?? 0,
+                  sourceDiversity: s.sourceDiversity ?? [],
+                  regionDiversity: s.regionDiversity ?? []
+                }));
+              '
+              ;;
+            409)
+              # The engine lock can legitimately reject an overlapping run.
+              node -e '
+                const b = JSON.parse(require("fs").readFileSync("response.json", "utf8"));
+                if (b.skipped !== true) {
+                  console.error("HTTP 409 did not report a recognized skipped run.");
+                  process.exit(1);
+                }
+                console.log(JSON.stringify({ mode: process.env.MODE, skipped: true, reason: b.error || "engine_busy" }));
+              '
+              ;;
+            *)
+              echo "::error::AI patrol endpoint failed with HTTP $status"
+              exit 1
+              ;;
           esac

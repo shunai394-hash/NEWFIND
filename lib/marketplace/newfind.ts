@@ -26,9 +26,20 @@ import type { MarketplacePipelineItem } from "./pipeline";
 export type NewfindMarketplaceHuntResult = {
   pipeline: MarketplacePipelineResult;
   savedProductIds: string[];
+  /** Newly saved product IDs keyed by the exact pipeline identity, never by array position. */
+  savedProductIdsByIdentity: Record<string, string>;
   worldResults: WorldSearchResult[];
   skippedPosts: Array<{ title: string; reason: string }>;
 };
+
+/** Resolve only the ID saved for this exact candidate identity. */
+export function savedMarketplaceDiscoveryId(
+  idsByIdentity: Readonly<Record<string, string>>,
+  identityKey: string,
+): string | undefined {
+  const id = idsByIdentity[identityKey];
+  return typeof id === "string" && id.length > 0 ? id : undefined;
+}
 
 export function itemToWorldResult(item: MarketplacePipelineItem): WorldSearchResult | null {
   const candidate = item.evaluation.candidate;
@@ -178,6 +189,7 @@ export async function runNewfindMarketplaceHunt(
   const skippedPosts: Array<{ title: string; reason: string }> = [];
   const worldResults: WorldSearchResult[] = [];
   const savedProductIds: string[] = [];
+  const savedProductIdsByIdentity: Record<string, string> = {};
   const discoveryIds = new Map<string, string>();
 
   let existingProducts: DiscoveryProduct[] = [];
@@ -213,12 +225,15 @@ export async function runNewfindMarketplaceHunt(
       continue;
     }
     if (options?.dryRun) {
-      savedProductIds.push(`dry-${item.evaluation.identityKey}`);
+      const dryRunId = `dry-${item.evaluation.identityKey}`;
+      savedProductIds.push(dryRunId);
+      savedProductIdsByIdentity[item.evaluation.identityKey] = dryRunId;
       continue;
     }
     try {
       const saved = await saveDiscoveryProductToDb(prepared);
       savedProductIds.push(saved.id);
+      savedProductIdsByIdentity[item.evaluation.identityKey] = saved.id;
       discoveryIds.set(item.evaluation.identityKey, saved.id);
       existingProducts.push(saved);
     } catch (error) {
@@ -230,5 +245,5 @@ export async function runNewfindMarketplaceHunt(
     await persistMarketplacePipeline(pipeline, { discoveryIds });
   }
 
-  return { pipeline, savedProductIds, worldResults, skippedPosts };
+  return { pipeline, savedProductIds, savedProductIdsByIdentity, worldResults, skippedPosts };
 }

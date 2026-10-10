@@ -118,6 +118,12 @@ async function main() {
     savedMarketplaceDiscoveryId(savedByIdentity, "identity-b") === "saved-product-b",
     "a saved candidate resolves only its own product ID",
   );
+  const specialKeyMap = Object.create(null) as Record<string, string>;
+  specialKeyMap["__proto__"] = "saved-special-key-product";
+  assert(
+    savedMarketplaceDiscoveryId(specialKeyMap, "__proto__") === "saved-special-key-product",
+    "identity lookup must support special keys without prototype confusion",
+  );
 
   const newsUrl = "https://www.bbc.com/news/business-rate-cut";
   assert(newsLooksLikeProduct("Breaking: markets rally after rate cut", newsUrl), "news title/url is news");

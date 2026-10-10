@@ -37,6 +37,7 @@ export function savedMarketplaceDiscoveryId(
   idsByIdentity: Readonly<Record<string, string>>,
   identityKey: string,
 ): string | undefined {
+  if (!Object.prototype.hasOwnProperty.call(idsByIdentity, identityKey)) return undefined;
   const id = idsByIdentity[identityKey];
   return typeof id === "string" && id.length > 0 ? id : undefined;
 }
@@ -227,7 +228,7 @@ export async function runNewfindMarketplaceHunt(
   const skippedPosts: Array<{ title: string; reason: string }> = [];
   const worldResults: WorldSearchResult[] = [];
   const savedProductIds: string[] = [];
-  const savedProductIdsByIdentity: Record<string, string> = {};
+  const savedProductIdsByIdentity: Record<string, string> = Object.create(null);
   const discoveryIds = new Map<string, string>();
 
   let existingProducts: DiscoveryProduct[] = [];

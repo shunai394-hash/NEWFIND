@@ -29,7 +29,7 @@ const DECORATIVE_CRAFT_PATTERNS: RegExp[] = [
   // jarred food, not decor.
   /(?:クラフト|ハンドメイド|手作り|手づくり|手仕事|手吹き|工芸|作家|アート|装飾)(?:の|な)?\s*(?:ガラス(?:の)?)?\s*(?:ボトル|瓶(?!詰)|びん(?!詰)|ビン(?!詰)|ベッセル|器(?![具械材])|うつわ|花瓶|花器|一輪挿し|オブジェ(?!クト)|置物)/,
   // Standalone decor nouns only; 陶器 alone also covers everyday mugs and plates.
-  /陶芸(?:作品|オブジェ|置物|花器|花瓶|うつわ|器(?![具械材]))|置物|オブジェ(?!クト)|一輪挿し/u,
+  /陶芸(?:の)?(?:作品|オブジェ|置物|花器|花瓶|うつわ|器(?![具械材]))|置物|オブジェ(?!クト)|一輪挿し/u,
 ];
 
 /** True when the text describes a decorative craft object rather than a product people use. */

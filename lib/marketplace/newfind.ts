@@ -44,10 +44,14 @@ export function savedMarketplaceDiscoveryId(
 function isPublicHttpsProductUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
     if (url.protocol !== "https:" || url.username || url.password) return false;
-    // Marketplace product pages should resolve through public hostnames, not IP literals.
-    if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname) || hostname.includes(":")) return false;
+    // Marketplace product pages should resolve through public hostnames, not IP literals or local single-label hosts.
+    if (
+      !hostname.includes(".") ||
+      /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname) ||
+      hostname.includes(":")
+    ) return false;
     if (
       hostname === "localhost" ||
       hostname.endsWith(".localhost") ||

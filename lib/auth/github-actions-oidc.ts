@@ -4,7 +4,13 @@ const GITHUB_ISSUER = "https://token.actions.githubusercontent.com";
 const GITHUB_AUDIENCE = "https://newfind-self.vercel.app";
 const TRUSTED_REPOSITORY = "shunai394-hash/NEWFIND";
 const TRUSTED_REF = "refs/heads/main";
-const TRUSTED_SUBJECT = `repo:${TRUSTED_REPOSITORY}:ref:${TRUSTED_REF}`;
+// GitHub may issue the subject with immutable owner/repository ids
+// ("repo:owner@<id>/name@<id>:ref:..."). Both forms are pinned exactly, so a
+// renamed or re-created repository with the same name is not trusted.
+const TRUSTED_SUBJECTS = new Set([
+  `repo:${TRUSTED_REPOSITORY}:ref:${TRUSTED_REF}`,
+  `repo:shunai394-hash@300428130/NEWFIND@1342638167:ref:${TRUSTED_REF}`,
+]);
 const TRUSTED_WORKFLOW_REF = `${TRUSTED_REPOSITORY}/.github/workflows/ai-patrol-schedule.yml@${TRUSTED_REF}`;
 const GITHUB_JWKS = createRemoteJWKSet(new URL(`${GITHUB_ISSUER}/.well-known/jwks`));
 
@@ -13,7 +19,7 @@ export function isTrustedGitHubActionsClaims(payload: JWTPayload): boolean {
     payload.iss === GITHUB_ISSUER &&
     payload.repository === TRUSTED_REPOSITORY &&
     payload.ref === TRUSTED_REF &&
-    payload.sub === TRUSTED_SUBJECT &&
+    typeof payload.sub === "string" && TRUSTED_SUBJECTS.has(payload.sub) &&
     payload.workflow_ref === TRUSTED_WORKFLOW_REF
   );
 }

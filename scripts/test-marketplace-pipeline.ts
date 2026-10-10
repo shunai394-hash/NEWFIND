@@ -139,6 +139,29 @@ async function main() {
   );
   assert(!newsGate.ok && newsGate.reason === "news_article", "news is not a product");
 
+  const decorativeCraft = gateMarketplaceCandidate(
+    candidate({
+      marketplace: "ebay",
+      externalProductId: "decorative-craft",
+      title: "クラフトボトル 手吹きガラス",
+      url: "https://www.ebay.com/itm/decorative-craft",
+    }),
+  );
+  assert(
+    !decorativeCraft.ok && decorativeCraft.reason === "not_a_product",
+    "marketplace intake must reject decorative craft objects too",
+  );
+
+  const usefulBottle = gateMarketplaceCandidate(
+    candidate({
+      marketplace: "ebay",
+      externalProductId: "useful-bottle",
+      title: "Insulated water bottle 500ml",
+      url: "https://www.ebay.com/itm/useful-bottle",
+    }),
+  );
+  assert(usefulBottle.ok, "functional bottles must remain eligible");
+
   const invalid = gateMarketplaceCandidate(
     candidate({
       marketplace: "amazon",

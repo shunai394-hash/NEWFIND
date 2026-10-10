@@ -41,6 +41,25 @@ export function savedMarketplaceDiscoveryId(
   return typeof id === "string" && id.length > 0 ? id : undefined;
 }
 
+function isPublicHttpsProductUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (url.protocol !== "https:" || url.username || url.password) return false;
+    if (
+      hostname === "localhost" ||
+      hostname.endsWith(".localhost") ||
+      hostname.endsWith(".local") ||
+      /^(?:10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(hostname)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Only qualified, non-rejected candidates with usable product media can be public posts. */
 export function isMarketplaceDiscoveryApproved(item: MarketplacePipelineItem): boolean {
   const evaluation = item.evaluation;
@@ -50,7 +69,7 @@ export function isMarketplaceDiscoveryApproved(item: MarketplacePipelineItem): b
     evaluation.scores.sourceConfidence >= 40 &&
     evaluation.dropReason === null &&
     isUsableProductImage(evaluation.candidate.imageUrl) &&
-    Boolean(evaluation.candidate.url)
+    isPublicHttpsProductUrl(evaluation.candidate.url)
   );
 }
 

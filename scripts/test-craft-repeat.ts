@@ -31,6 +31,7 @@ const DECORATIVE = [
   "装飾ボトル",
   "アートオブジェ",
   "陶芸作品",
+  "陶芸の花瓶",
 ];
 
 const USEFUL = [

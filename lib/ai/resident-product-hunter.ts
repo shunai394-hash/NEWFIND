@@ -39,6 +39,7 @@ import {
 } from "@/lib/ai/self-model";
 import { isMarketplaceCorrespondentUsername } from "@/lib/marketplace/correspondents";
 import {
+  isMarketplaceDiscoveryApproved,
   runNewfindMarketplaceHunt,
   savedMarketplaceDiscoveryId,
   type NewfindMarketplaceHuntResult,
@@ -81,9 +82,7 @@ function marketplaceHuntAsHunterResult(
     const candidate = item.evaluation.candidate;
     if (!candidate.url) return;
     if (item.evaluation.dropReason === "news_article") return;
-    const postable =
-      isUsableProductImage(candidate.imageUrl) &&
-      item.evaluation.decision !== "DISQUALIFY";
+    const postable = isMarketplaceDiscoveryApproved(item);
     candidates.push({
       brand: candidate.brand || candidate.marketplace,
       productName: candidate.title,

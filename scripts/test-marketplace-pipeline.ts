@@ -13,6 +13,7 @@ import {
   estimateMargin,
 } from "../lib/marketplace/supplier";
 import {
+  isMarketplaceDiscoveryApproved,
   itemToDiscoveryInput,
   savedMarketplaceDiscoveryId,
 } from "../lib/marketplace/newfind";
@@ -326,6 +327,18 @@ async function main() {
       productItem.evaluation.decision === "CANDIDATE",
     `good product should be candidate, got ${productItem.evaluation.decision}`,
   );
+  assert(isMarketplaceDiscoveryApproved(productItem), "qualified candidate with image and evidence may be approved");
+  for (const decision of ["WATCH", "INVESTIGATE"] as const) {
+    const unqualified = {
+      ...productItem,
+      evaluation: { ...productItem.evaluation, decision },
+    };
+    assert(!isMarketplaceDiscoveryApproved(unqualified), `${decision} must not be approved for public discovery`);
+    assert(
+      itemToDiscoveryInput(unqualified, "resident-test")?.status === "pending",
+      `${decision} with an image and URL remains pending, not approved`,
+    );
+  }
   assert(productItem.suppliers, "supplier research must run for candidates");
   assert(
     productItem.suppliers.suppliers.length >= 2,

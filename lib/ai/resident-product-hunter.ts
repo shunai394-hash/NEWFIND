@@ -40,6 +40,7 @@ import {
 import { isMarketplaceCorrespondentUsername } from "@/lib/marketplace/correspondents";
 import {
   runNewfindMarketplaceHunt,
+  savedMarketplaceDiscoveryId,
   type NewfindMarketplaceHuntResult,
 } from "@/lib/marketplace/newfind";
 import { emptyDiscoveryReport } from "@/lib/ai/discovery-report";
@@ -116,10 +117,14 @@ function marketplaceHuntAsHunterResult(
         confidenceScore: item.evaluation.confidence,
       }),
     });
-    if (postable && hunt.savedProductIds[discoveries.length]) {
+    const discoveryProductId = savedMarketplaceDiscoveryId(
+      hunt.savedProductIdsByIdentity,
+      item.evaluation.identityKey,
+    );
+    if (postable && discoveryProductId) {
       discoveries.push({
         candidateIndex: candidates.length - 1,
-        discoveryProductId: hunt.savedProductIds[discoveries.length],
+        discoveryProductId,
       });
     }
   });

@@ -31,11 +31,16 @@ const DECORATIVE = [
   "装飾ボトル",
   "アートオブジェ",
   "陶芸作品",
+  "陶芸の花瓶",
 ];
 
 const USEFUL = [
   "Minimalist travel bottle",
   "Insulated water bottle",
+  "Pottery tool set",
+  "Pottery wheel",
+  "陶芸用ろくろ",
+  "陶芸用品セット",
   "Handcrafted leather wallet",
   "Italian craftsmanship leather jacket",
   "Japanese chisel set",

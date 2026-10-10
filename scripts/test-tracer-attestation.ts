@@ -5,12 +5,20 @@ const base = {
   tracer_published: true,
   sales_test_gate: "passed",
   tracer_listing_id: "listing-1",
-  sales_url: "https://tracer-self.vercel.app/shop/item-1",
-  product_url: "https://tracer-self.vercel.app/shop/item-1",
+  sales_url: "https://tracer-pied-alpha.vercel.app/shop/item-1",
+  product_url: "https://tracer-pied-alpha.vercel.app/shop/item-1",
   price: 2300,
 };
 
 assert.equal(checkTracerPublicationAttestation(base).ok, true);
+assert.deepEqual(
+  checkTracerPublicationAttestation({
+    ...base,
+    sales_url: "https://tracer-self.vercel.app/shop/item-1",
+    product_url: "https://tracer-self.vercel.app/shop/item-1",
+  }),
+  { ok: false, reason: "tracer_sales_url_untrusted_origin" },
+);
 assert.equal(checkTracerPublicationAttestation({ ...base, tracer_published: false }).ok, false);
 assert.equal(checkTracerPublicationAttestation({ ...base, sales_test_gate: "pending" }).ok, false);
 assert.deepEqual(
@@ -22,7 +30,7 @@ assert.deepEqual(
   { ok: false, reason: "tracer_sales_url_untrusted_origin" },
 );
 assert.deepEqual(
-  checkTracerPublicationAttestation({ ...base, product_url: "https://tracer-self.vercel.app/shop/other" }),
+  checkTracerPublicationAttestation({ ...base, product_url: "https://tracer-pied-alpha.vercel.app/shop/other" }),
   { ok: false, reason: "tracer_product_url_not_sales_url" },
 );
 assert.deepEqual(

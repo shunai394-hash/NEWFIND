@@ -340,6 +340,14 @@ async function main() {
     itemToDiscoveryInput(insecureItem, "resident-test")?.status === "pending",
     "HTTP-only sources remain pending",
   );
+  const ipLiteralItem = {
+    ...productItem,
+    evaluation: {
+      ...productItem.evaluation,
+      candidate: { ...productItem.evaluation.candidate, url: "https://203.0.113.10/product" },
+    },
+  };
+  assert(!isMarketplaceDiscoveryApproved(ipLiteralItem), "IP-literal source URLs must not be publicly approved");
   for (const decision of ["WATCH", "INVESTIGATE"] as const) {
     const unqualified = {
       ...productItem,

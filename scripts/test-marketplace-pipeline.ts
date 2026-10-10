@@ -328,6 +328,18 @@ async function main() {
     `good product should be candidate, got ${productItem.evaluation.decision}`,
   );
   assert(isMarketplaceDiscoveryApproved(productItem), "qualified candidate with image and evidence may be approved");
+  const insecureItem = {
+    ...productItem,
+    evaluation: {
+      ...productItem.evaluation,
+      candidate: { ...productItem.evaluation.candidate, url: "http://www.ebay.com/itm/insecure" },
+    },
+  };
+  assert(!isMarketplaceDiscoveryApproved(insecureItem), "HTTP-only sources must not be approved for public discovery");
+  assert(
+    itemToDiscoveryInput(insecureItem, "resident-test")?.status === "pending",
+    "HTTP-only sources remain pending",
+  );
   for (const decision of ["WATCH", "INVESTIGATE"] as const) {
     const unqualified = {
       ...productItem,

@@ -59,6 +59,7 @@ export async function getGoogleTrends(
         Accept: "application/rss+xml, application/xml, text/xml",
         "User-Agent": "NEWFIND/1.0",
       },
+      signal: AbortSignal.timeout(8_000),
       cache: "no-store",
     });
 

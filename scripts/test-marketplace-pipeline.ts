@@ -12,7 +12,11 @@ import {
   researchSuppliers,
   estimateMargin,
 } from "../lib/marketplace/supplier";
-import { itemToDiscoveryInput } from "../lib/marketplace/newfind";
+import {
+  isMarketplaceDiscoveryApproved,
+  itemToDiscoveryInput,
+  savedMarketplaceDiscoveryId,
+} from "../lib/marketplace/newfind";
 import {
   qualifyForPricesense,
   rejectSalesEntityAsProduct,
@@ -103,6 +107,24 @@ function fixtureAdapter(
 }
 
 async function main() {
+  // Saved IDs must be resolved by candidate identity, not by the compacted
+  // array of successful saves (duplicates and failures are omitted there).
+  const savedByIdentity = { "identity-b": "saved-product-b" };
+  assert(
+    savedMarketplaceDiscoveryId(savedByIdentity, "identity-a") === undefined,
+    "an unsaved/duplicate candidate must not inherit another candidate's product ID",
+  );
+  assert(
+    savedMarketplaceDiscoveryId(savedByIdentity, "identity-b") === "saved-product-b",
+    "a saved candidate resolves only its own product ID",
+  );
+  const specialKeyMap = Object.create(null) as Record<string, string>;
+  specialKeyMap["__proto__"] = "saved-special-key-product";
+  assert(
+    savedMarketplaceDiscoveryId(specialKeyMap, "__proto__") === "saved-special-key-product",
+    "identity lookup must support special keys without prototype confusion",
+  );
+
   const newsUrl = "https://www.bbc.com/news/business-rate-cut";
   assert(newsLooksLikeProduct("Breaking: markets rally after rate cut", newsUrl), "news title/url is news");
   assert(
@@ -123,6 +145,29 @@ async function main() {
     }),
   );
   assert(!newsGate.ok && newsGate.reason === "news_article", "news is not a product");
+
+  const decorativeCraft = gateMarketplaceCandidate(
+    candidate({
+      marketplace: "ebay",
+      externalProductId: "decorative-craft",
+      title: "クラフトボトル 手吹きガラス",
+      url: "https://www.ebay.com/itm/decorative-craft",
+    }),
+  );
+  assert(
+    !decorativeCraft.ok && decorativeCraft.reason === "not_a_product",
+    "marketplace intake must reject decorative craft objects too",
+  );
+
+  const usefulBottle = gateMarketplaceCandidate(
+    candidate({
+      marketplace: "ebay",
+      externalProductId: "useful-bottle",
+      title: "Insulated water bottle 500ml",
+      url: "https://www.ebay.com/itm/useful-bottle",
+    }),
+  );
+  assert(usefulBottle.ok, "functional bottles must remain eligible");
 
   const invalid = gateMarketplaceCandidate(
     candidate({
@@ -288,6 +333,46 @@ async function main() {
       productItem.evaluation.decision === "CANDIDATE",
     `good product should be candidate, got ${productItem.evaluation.decision}`,
   );
+  assert(isMarketplaceDiscoveryApproved(productItem), "qualified candidate with image and evidence may be approved");
+  const insecureItem = {
+    ...productItem,
+    evaluation: {
+      ...productItem.evaluation,
+      candidate: { ...productItem.evaluation.candidate, url: "http://www.ebay.com/itm/insecure" },
+    },
+  };
+  assert(!isMarketplaceDiscoveryApproved(insecureItem), "HTTP-only sources must not be approved for public discovery");
+  assert(
+    itemToDiscoveryInput(insecureItem, "resident-test")?.status === "pending",
+    "HTTP-only sources remain pending",
+  );
+  const ipLiteralItem = {
+    ...productItem,
+    evaluation: {
+      ...productItem.evaluation,
+      candidate: { ...productItem.evaluation.candidate, url: "https://203.0.113.10/product" },
+    },
+  };
+  assert(!isMarketplaceDiscoveryApproved(ipLiteralItem), "IP-literal source URLs must not be publicly approved");
+  const localHostItem = {
+    ...productItem,
+    evaluation: {
+      ...productItem.evaluation,
+      candidate: { ...productItem.evaluation.candidate, url: "https://internal-service/product" },
+    },
+  };
+  assert(!isMarketplaceDiscoveryApproved(localHostItem), "single-label local hosts must not be publicly approved");
+  for (const decision of ["WATCH", "INVESTIGATE"] as const) {
+    const unqualified = {
+      ...productItem,
+      evaluation: { ...productItem.evaluation, decision },
+    };
+    assert(!isMarketplaceDiscoveryApproved(unqualified), `${decision} must not be approved for public discovery`);
+    assert(
+      itemToDiscoveryInput(unqualified, "resident-test")?.status === "pending",
+      `${decision} with an image and URL remains pending, not approved`,
+    );
+  }
   assert(productItem.suppliers, "supplier research must run for candidates");
   assert(
     productItem.suppliers.suppliers.length >= 2,

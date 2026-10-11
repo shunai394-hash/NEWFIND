@@ -1,3 +1,4 @@
+import { isDecorativeCraftObject } from "@/lib/ai/craft-object";
 import { classifyWorldInfo } from "@/lib/ai/correspondent";
 import { classifyTavilyResult } from "@/lib/ai/world-search";
 import { isHttpUrl } from "./adapters/common";
@@ -25,6 +26,12 @@ export function gateMarketplaceCandidate(
   }
 
   const haystack = `${candidate.title} ${candidate.brand ?? ""}`;
+  // Marketplace APIs bypass the web hunter's product-type classifier, so apply
+  // the same decorative-object exclusion before any marketplace item is saved.
+  if (isDecorativeCraftObject(haystack)) {
+    return { ok: false, reason: "not_a_product" };
+  }
+
   if (COUNTERFEIT_HINT.test(haystack) || REGULATED_HINT.test(haystack)) {
     return { ok: false, reason: "counterfeit_or_legal_risk" };
   }

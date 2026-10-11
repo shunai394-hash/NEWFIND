@@ -39,7 +39,9 @@ import {
 } from "@/lib/ai/self-model";
 import { isMarketplaceCorrespondentUsername } from "@/lib/marketplace/correspondents";
 import {
+  isMarketplaceDiscoveryApproved,
   runNewfindMarketplaceHunt,
+  savedMarketplaceDiscoveryId,
   type NewfindMarketplaceHuntResult,
 } from "@/lib/marketplace/newfind";
 import { emptyDiscoveryReport } from "@/lib/ai/discovery-report";
@@ -80,9 +82,7 @@ function marketplaceHuntAsHunterResult(
     const candidate = item.evaluation.candidate;
     if (!candidate.url) return;
     if (item.evaluation.dropReason === "news_article") return;
-    const postable =
-      isUsableProductImage(candidate.imageUrl) &&
-      item.evaluation.decision !== "DISQUALIFY";
+    const postable = isMarketplaceDiscoveryApproved(item);
     candidates.push({
       brand: candidate.brand || candidate.marketplace,
       productName: candidate.title,
@@ -116,10 +116,14 @@ function marketplaceHuntAsHunterResult(
         confidenceScore: item.evaluation.confidence,
       }),
     });
-    if (postable && hunt.savedProductIds[discoveries.length]) {
+    const discoveryProductId = savedMarketplaceDiscoveryId(
+      hunt.savedProductIdsByIdentity,
+      item.evaluation.identityKey,
+    );
+    if (postable && discoveryProductId) {
       discoveries.push({
         candidateIndex: candidates.length - 1,
-        discoveryProductId: hunt.savedProductIds[discoveries.length],
+        discoveryProductId,
       });
     }
   });

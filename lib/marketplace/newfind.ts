@@ -26,9 +26,59 @@ import type { MarketplacePipelineItem } from "./pipeline";
 export type NewfindMarketplaceHuntResult = {
   pipeline: MarketplacePipelineResult;
   savedProductIds: string[];
+  /** Newly saved product IDs keyed by the exact pipeline identity, never by array position. */
+  savedProductIdsByIdentity: Record<string, string>;
   worldResults: WorldSearchResult[];
   skippedPosts: Array<{ title: string; reason: string }>;
 };
+
+/** Resolve only the ID saved for this exact candidate identity. */
+export function savedMarketplaceDiscoveryId(
+  idsByIdentity: Readonly<Record<string, string>>,
+  identityKey: string,
+): string | undefined {
+  if (!Object.prototype.hasOwnProperty.call(idsByIdentity, identityKey)) return undefined;
+  const id = idsByIdentity[identityKey];
+  return typeof id === "string" && id.length > 0 ? id : undefined;
+}
+
+function isPublicHttpsProductUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+    if (url.protocol !== "https:" || url.username || url.password) return false;
+    // Marketplace product pages should resolve through public hostnames, not IP literals or local single-label hosts.
+    if (
+      !hostname.includes(".") ||
+      /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname) ||
+      hostname.includes(":")
+    ) return false;
+    if (
+      hostname === "localhost" ||
+      hostname.endsWith(".localhost") ||
+      hostname.endsWith(".local") ||
+      /^(?:10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(hostname)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Only qualified, non-rejected candidates with usable product media can be public posts. */
+export function isMarketplaceDiscoveryApproved(item: MarketplacePipelineItem): boolean {
+  const evaluation = item.evaluation;
+  return (
+    (evaluation.decision === "STRONG_CANDIDATE" || evaluation.decision === "CANDIDATE") &&
+    evaluation.confidence >= 55 &&
+    evaluation.scores.sourceConfidence >= 40 &&
+    evaluation.dropReason === null &&
+    isUsableProductImage(evaluation.candidate.imageUrl) &&
+    isPublicHttpsProductUrl(evaluation.candidate.url)
+  );
+}
 
 export function itemToWorldResult(item: MarketplacePipelineItem): WorldSearchResult | null {
   const candidate = item.evaluation.candidate;
@@ -111,7 +161,7 @@ export function itemToDiscoveryInput(
     discoveredByResidentId: residentId,
     discoveredAt: now,
     attentionReason: item.evaluation.whyNow,
-    status: isUsableProductImage(candidate.imageUrl) && candidate.url ? "approved" : "pending",
+    status: isMarketplaceDiscoveryApproved(item) ? "approved" : "pending",
     trendTags: [],
     sources: [
       {
@@ -178,6 +228,7 @@ export async function runNewfindMarketplaceHunt(
   const skippedPosts: Array<{ title: string; reason: string }> = [];
   const worldResults: WorldSearchResult[] = [];
   const savedProductIds: string[] = [];
+  const savedProductIdsByIdentity: Record<string, string> = Object.create(null);
   const discoveryIds = new Map<string, string>();
 
   let existingProducts: DiscoveryProduct[] = [];
@@ -213,12 +264,15 @@ export async function runNewfindMarketplaceHunt(
       continue;
     }
     if (options?.dryRun) {
-      savedProductIds.push(`dry-${item.evaluation.identityKey}`);
+      const dryRunId = `dry-${item.evaluation.identityKey}`;
+      savedProductIds.push(dryRunId);
+      savedProductIdsByIdentity[item.evaluation.identityKey] = dryRunId;
       continue;
     }
     try {
       const saved = await saveDiscoveryProductToDb(prepared);
       savedProductIds.push(saved.id);
+      savedProductIdsByIdentity[item.evaluation.identityKey] = saved.id;
       discoveryIds.set(item.evaluation.identityKey, saved.id);
       existingProducts.push(saved);
     } catch (error) {
@@ -230,5 +284,5 @@ export async function runNewfindMarketplaceHunt(
     await persistMarketplacePipeline(pipeline, { discoveryIds });
   }
 
-  return { pipeline, savedProductIds, worldResults, skippedPosts };
+  return { pipeline, savedProductIds, savedProductIdsByIdentity, worldResults, skippedPosts };
 }

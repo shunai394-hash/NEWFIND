@@ -60,6 +60,7 @@ export async function getGoogleTrends(
         "User-Agent": "NEWFIND/1.0",
       },
       cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
     });
 
     if (!response.ok) {

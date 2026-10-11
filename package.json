@@ -16,6 +16,7 @@
     "test:home-quality": "tsx scripts/test-home-quality.ts",
     "test:world-headlines": "tsx scripts/test-world-headline-quality.ts",
     "test:future-tech-feed": "tsx scripts/test-future-tech-feed.ts",
+    "test:google-trends-timeout": "tsx scripts/test-google-trends-timeout.ts",
     "test:craft-repeat": "tsx --test scripts/test-craft-repeat.ts",
     "test:hunter-ops": "tsx scripts/test-hunter-ops.ts",
     "test:tracer-integration": "tsx scripts/test-tracer-integration.ts",
@@ -36,7 +37,7 @@
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
     "eas-build-pre-install": "bash ./eas-build-pre-install.sh",
-    "prebuild": "npm run icons:check && npm run test:home-quality && npm run test:world-headlines && npm run test:future-tech-feed"
+    "prebuild": "npm run icons:check && npm run test:home-quality && npm run test:world-headlines && npm run test:future-tech-feed && npm run test:google-trends-timeout"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

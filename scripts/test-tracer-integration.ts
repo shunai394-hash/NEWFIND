@@ -69,9 +69,9 @@ async function main() {
 
   const published = {
     product_name: "Wireless Mouse",
-    product_url: "https://tracer-self.vercel.app/shop/wireless-mouse-1",
-    sales_url: "https://tracer-self.vercel.app/shop/wireless-mouse-1",
-    tracer_url: "https://tracer-self.vercel.app/shop/wireless-mouse-1",
+    product_url: "https://tracer-pied-alpha.vercel.app/shop/wireless-mouse-1",
+    sales_url: "https://tracer-pied-alpha.vercel.app/shop/wireless-mouse-1",
+    tracer_url: "https://tracer-pied-alpha.vercel.app/shop/wireless-mouse-1",
     market_url: "https://www.amazon.co.jp/dp/B000000000",
     price: 2300,
     currency: "JPY",

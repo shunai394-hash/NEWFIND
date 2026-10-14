@@ -18,7 +18,7 @@ function text(value: unknown): string | null {
 
 // TRACER production storefront host. Rotate deliberately through
 // NEWFIND_TRACER_SALES_HOSTS (comma-separated hostnames) when production changes.
-const DEFAULT_TRACER_SALES_HOSTS = ["tracer-pied-alpha.vercel.app"];
+const DEFAULT_TRACER_SALES_HOSTS = ["tracer-self.vercel.app"];
 
 export function trustedTracerSalesHosts(): string[] {
   const configured = (process.env.NEWFIND_TRACER_SALES_HOSTS ?? "")

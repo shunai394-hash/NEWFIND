@@ -27,6 +27,7 @@ create index if not exists tracer_promotions_discovery_product_idx
   on public.tracer_promotions (discovery_product_id);
 
 alter table public.tracer_promotions enable row level security;
+grant all on table public.tracer_promotions to service_role;
 
 comment on table public.tracer_promotions is
   'Idempotency ledger for TRACER-to-NEWFIND product promotion and withdrawal events.';

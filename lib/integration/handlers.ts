@@ -35,8 +35,12 @@ async function storeBridgeNote(input: {
       actorRole: "integration",
       action: `tracer_${input.eventType}`,
       detail: `Received ${input.eventType} (${input.eventId})`,
-      relatedRunId: input.eventId,
-      metadata: input.payload,
+      // Integration event IDs are opaque idempotency keys, not ai_runs UUIDs.
+      // Keep them in metadata instead of violating ai_activity_logs.related_run_id.
+      relatedRunId: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.eventId)
+        ? input.eventId
+        : null,
+      metadata: { ...input.payload, tracer_event_id: input.eventId },
     });
   } catch {
     // non-fatal

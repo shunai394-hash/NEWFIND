@@ -5,8 +5,8 @@ const base = {
   tracer_published: true,
   sales_test_gate: "passed",
   tracer_listing_id: "listing-1",
-  sales_url: "https://tracer-pied-alpha.vercel.app/shop/item-1",
-  product_url: "https://tracer-pied-alpha.vercel.app/shop/item-1",
+  sales_url: "https://tracer-self.vercel.app/shop/item-1",
+  product_url: "https://tracer-self.vercel.app/shop/item-1",
   price: 2300,
 };
 
@@ -14,8 +14,8 @@ assert.equal(checkTracerPublicationAttestation(base).ok, true);
 assert.deepEqual(
   checkTracerPublicationAttestation({
     ...base,
-    sales_url: "https://tracer-self.vercel.app/shop/item-1",
-    product_url: "https://tracer-self.vercel.app/shop/item-1",
+    sales_url: "https://tracer-pied-alpha.vercel.app/shop/item-1",
+    product_url: "https://tracer-pied-alpha.vercel.app/shop/item-1",
   }),
   { ok: false, reason: "tracer_sales_url_untrusted_origin" },
 );
@@ -30,7 +30,7 @@ assert.deepEqual(
   { ok: false, reason: "tracer_sales_url_untrusted_origin" },
 );
 assert.deepEqual(
-  checkTracerPublicationAttestation({ ...base, product_url: "https://tracer-pied-alpha.vercel.app/shop/other" }),
+  checkTracerPublicationAttestation({ ...base, product_url: "https://tracer-self.vercel.app/shop/other" }),
   { ok: false, reason: "tracer_product_url_not_sales_url" },
 );
 assert.deepEqual(
@@ -38,15 +38,13 @@ assert.deepEqual(
   [base.sales_url],
 );
 
-// TRACER's current production host is trusted; other hosts and http are not.
-const pied = "https://tracer-pied-alpha.vercel.app/shop/item-1";
-assert.equal(checkTracerPublicationAttestation({ ...base, sales_url: pied, product_url: pied }).ok, true);
+// Only the configured production host is trusted; lookalike and insecure URLs are rejected.
 assert.deepEqual(
-  checkTracerPublicationAttestation({ ...base, sales_url: "https://tracer-pied-alpha.vercel.app.evil.example/x", product_url: undefined }),
+  checkTracerPublicationAttestation({ ...base, sales_url: "https://tracer-self.vercel.app.evil.example/x", product_url: undefined }),
   { ok: false, reason: "tracer_sales_url_untrusted_origin" },
 );
 assert.deepEqual(
-  checkTracerPublicationAttestation({ ...base, sales_url: "http://tracer-pied-alpha.vercel.app/shop/item-1", product_url: undefined }),
+  checkTracerPublicationAttestation({ ...base, sales_url: "http://tracer-self.vercel.app/shop/item-1", product_url: undefined }),
   { ok: false, reason: "tracer_sales_url_untrusted_origin" },
 );
 

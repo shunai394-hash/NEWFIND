@@ -36,6 +36,9 @@ SQL Editor で順に実行するか、CLI で適用してください。
 1. `supabase/migrations/001_init.sql`
 2. `supabase/migrations/002_grants.sql`
 3. `supabase/migrations/003_rls_grants_social.sql`（RLS/GRANT 再確認 + SNS URL カラム）
+4. `supabase/migrations/004_tracer_promotions.sql`（TRACER の公開商品を冪等に記録するサービス専用台帳）
+
+TRACER 連携を有効にする前に、NEWFIND の本番 Supabase に 004 を適用してください。004 は `service_role` のみ書き込み可能で、匿名ユーザーや通常の認証ユーザーには台帳を公開しません。
 
 `permission denied for table ...` が出る場合は 002/003 の GRANT が未適用です。
 

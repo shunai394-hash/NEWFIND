@@ -17,7 +17,7 @@ create table if not exists public.tracer_promotions (
   sales_test_gate text not null check (sales_test_gate = 'passed'),
   tracer_published boolean not null check (tracer_published is true),
   status text not null default 'promoted' check (status in ('promoted', 'withdrawn')),
-  ai_post_id uuid,
+  ai_post_id text,
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

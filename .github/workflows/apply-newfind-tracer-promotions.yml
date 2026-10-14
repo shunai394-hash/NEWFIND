@@ -38,11 +38,15 @@ jobs:
           DATABASE_URL: ${{ secrets.NEWFIND_SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/059_tracer_promotions.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261015000000_create_tracer_promotions.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261015010000_create_tracer_promotions.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261015020000_reload_tracer_promotions_schema.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261015030000_lockdown_tracer_promotions.sql
+          cat \
+            supabase/migrations/059_tracer_promotions.sql \
+            supabase/migrations/20261015000000_create_tracer_promotions.sql \
+            supabase/migrations/20261015010000_create_tracer_promotions.sql \
+            supabase/migrations/20261015020000_reload_tracer_promotions_schema.sql \
+            supabase/migrations/20261015030000_lockdown_tracer_promotions.sql \
+            > /tmp/tracer-promotions-migration.sql
+          # Apply all idempotent changes atomically: no partial schema or temporary public policy.
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f /tmp/tracer-promotions-migration.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "select to_regclass('public.tracer_promotions');"
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "select string_agg(column_name, ',' order by column_name) from information_schema.columns where table_schema='public' and table_name='tracer_promotions' and column_name in ('event_id','tracer_listing_id','discovery_product_id','ai_post_id','product_url','product_name','status','last_received_at','metadata');"
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "select coalesce(string_agg(grantee || ':' || privilege_type, ',' order by grantee, privilege_type), 'no grants') from information_schema.role_table_grants where table_schema='public' and table_name='tracer_promotions' and grantee in ('anon','authenticated','service_role');"

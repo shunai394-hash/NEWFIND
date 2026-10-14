@@ -13,9 +13,22 @@ export type LogAiActivityInput = {
   occurredAt?: string;
 };
 
+function uuidOrNull(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const candidate = value.trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate)
+    ? candidate
+    : null;
+}
+
 export async function logAiActivity(input: LogAiActivityInput) {
   try {
     const admin = createAdminClient();
+    const relatedRunId = uuidOrNull(input.relatedRunId);
+    const metadata = {
+      ...(input.metadata ?? {}),
+      ...(input.relatedRunId && !relatedRunId ? { related_run_id_input: input.relatedRunId } : {}),
+    };
     const { error } = await admin.from("ai_activity_logs").insert({
       occurred_at: input.occurredAt ?? new Date().toISOString(),
       persona_id: input.personaId ?? null,
@@ -24,8 +37,8 @@ export async function logAiActivity(input: LogAiActivityInput) {
       action: input.action,
       detail: (input.detail ?? "").slice(0, 500),
       related_product_id: input.relatedProductId ?? null,
-      related_run_id: input.relatedRunId ?? null,
-      metadata: input.metadata ?? {},
+      related_run_id: relatedRunId,
+      metadata,
     });
     if (error && /ai_activity_logs|42P01|42703/i.test(error.message)) {
       return;

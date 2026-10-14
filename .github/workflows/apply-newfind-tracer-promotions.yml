@@ -1,0 +1,48 @@
+name: Apply NEWFIND TRACER Promotion Ledger Migration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/apply-newfind-tracer-promotions.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  apply-ledger-migration:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[apply-newfind-tracer-migration]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require the authorized NEWFIND database connection
+        env:
+          DATABASE_URL: ${{ secrets.NEWFIND_SUPABASE_DB_URL }}
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::NEWFIND_SUPABASE_DB_URL is not configured. No database changes were made."
+            exit 1
+          fi
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply idempotent ledger migrations and verify access
+        env:
+          DATABASE_URL: ${{ secrets.NEWFIND_SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/059_tracer_promotions.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261015000000_create_tracer_promotions.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261015010000_create_tracer_promotions.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261015020000_reload_tracer_promotions_schema.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261015030000_lockdown_tracer_promotions.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "select to_regclass('public.tracer_promotions');"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "select string_agg(column_name, ',' order by column_name) from information_schema.columns where table_schema='public' and table_name='tracer_promotions' and column_name in ('event_id','tracer_listing_id','discovery_product_id','ai_post_id','product_url','product_name','status','last_received_at','metadata');"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "select coalesce(string_agg(grantee || ':' || privilege_type, ',' order by grantee, privilege_type), 'no grants') from information_schema.role_table_grants where table_schema='public' and table_name='tracer_promotions' and grantee in ('anon','authenticated','service_role');"

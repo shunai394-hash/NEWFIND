@@ -61,6 +61,7 @@ export async function getGoogleTrends(
       },
       signal: AbortSignal.timeout(8_000),
       cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
     });
 
     if (!response.ok) {

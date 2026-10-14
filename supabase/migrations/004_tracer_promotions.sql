@@ -8,7 +8,7 @@ create table if not exists public.tracer_promotions (
   event_id text not null unique,
   tracer_listing_id text not null unique,
   tracer_product_id text,
-  discovery_product_id uuid not null,
+  discovery_product_id text not null,
   product_url text not null,
   product_name text not null,
   image_url text,

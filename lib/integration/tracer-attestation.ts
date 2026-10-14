@@ -16,11 +16,9 @@ function text(value: unknown): string | null {
   return trimmed || null;
 }
 
-// TRACER's canonical production storefront host. Do not accept the retired
-// tracer-self.vercel.app host: inbound product links must resolve to the
-// current production storefront. Override with NEWFIND_TRACER_SALES_HOSTS
-// (comma-separated hostnames) only when deliberately rotating the host.
-const DEFAULT_TRACER_SALES_HOSTS = ["tracer-pied-alpha.vercel.app"];
+// TRACER production storefront host. Rotate deliberately through
+// NEWFIND_TRACER_SALES_HOSTS (comma-separated hostnames) when production changes.
+const DEFAULT_TRACER_SALES_HOSTS = ["tracer-self.vercel.app"];
 
 export function trustedTracerSalesHosts(): string[] {
   const configured = (process.env.NEWFIND_TRACER_SALES_HOSTS ?? "")

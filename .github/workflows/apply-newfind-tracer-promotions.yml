@@ -1,5 +1,8 @@
 name: Apply NEWFIND TRACER Promotion Ledger Migration
 
+# Operational retry marker: rerun the idempotent, transactional ledger migration
+# when production delivery reports the PostgREST schema cache is missing the table.
+
 on:
   workflow_dispatch:
   push:

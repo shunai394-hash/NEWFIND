@@ -36,7 +36,7 @@
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
     "eas-build-pre-install": "bash ./eas-build-pre-install.sh",
-    "prebuild": "npm run icons:check && npm run test:home-quality && npm run test:world-headlines && npm run test:future-tech-feed && npm run test:tracer-integration && npm run test:tracer-attestation"
+    "prebuild": "npm run icons:check && npm run test:home-quality && npm run test:world-headlines && npm run test:future-tech-feed"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

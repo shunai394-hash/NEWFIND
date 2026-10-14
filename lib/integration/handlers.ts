@@ -127,7 +127,7 @@ async function handleProductCandidate(
         ...(!isBrandBridge && (asString(payload.official_url) || asString(payload.officialUrl))
           ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
           : {}),
-        confidence_score: asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40,
+        confidence_score: Math.round(asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40),
         trend_score: asNumber(payload.demand_score) ?? 0,
         // Re-promotion carries TRACER's current price; never keep a stale one.
         ...(!isBrandBridge && asNumber(payload.price) !== null
@@ -168,8 +168,9 @@ async function handleProductCandidate(
           "TRACER product candidate",
         status: publishable ? "approved" : "pending",
         trend_score: asNumber(payload.demand_score) ?? 0,
-        confidence_score:
+        confidence_score: Math.round(
           asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40,
+        ),
         discovered_at: new Date().toISOString(),
       })
       .select("id")

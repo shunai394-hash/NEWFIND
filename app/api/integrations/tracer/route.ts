@@ -180,25 +180,30 @@ export async function POST(request: Request) {
       (typeof envelope.payload.sales_url === "string" && envelope.payload.sales_url) ||
       null;
     if (productUrl) {
-      const canonical = canonicalProductUrl(productUrl) || productUrl;
-      const admin = (await import("@/lib/supabase/admin")).createAdminClient();
-      const { data: discoveryProduct, error: discoveryError } = await admin
-        .from("discovery_products")
-        .select("id")
-        .eq("product_url", canonical)
-        .maybeSingle();
-      if (discoveryError) {
-        await markInboxFailed(inbox.row.id, discoveryError.message);
-        return NextResponse.json({ ok: false, error: "discovery product lookup failed" }, { status: 500 });
+      let discoveryProductId = typeof result.productId === "string" ? result.productId : null;
+      if (!discoveryProductId) {
+        // Compatibility fallback for event handlers that do not return a product ID.
+        const canonical = canonicalProductUrl(productUrl) || productUrl;
+        const admin = (await import("@/lib/supabase/admin")).createAdminClient();
+        const { data: discoveryProduct, error: discoveryError } = await admin
+          .from("discovery_products")
+          .select("id")
+          .eq("product_url", canonical)
+          .maybeSingle();
+        if (discoveryError) {
+          await markInboxFailed(inbox.row.id, discoveryError.message);
+          return NextResponse.json({ ok: false, error: "discovery product lookup failed" }, { status: 500 });
+        }
+        discoveryProductId = discoveryProduct?.id ? String(discoveryProduct.id) : null;
       }
-      if (!discoveryProduct?.id) {
+      if (!discoveryProductId) {
         await markInboxFailed(inbox.row.id, "discovery product missing after accepted TRACER event");
         return NextResponse.json({ ok: false, error: "discovery product missing" }, { status: 500 });
       }
       promotion = await recordTracerPromotion({
         eventId: envelope.event_id,
         payload: envelope.payload,
-        discoveryProductId: String(discoveryProduct.id),
+        discoveryProductId,
       });
       if (!promotion.ok) {
         await markInboxFailed(inbox.row.id, promotion.detail);

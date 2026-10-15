@@ -213,11 +213,12 @@ export async function recordTracerPromotion(input: {
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (existingPost.error) return { ok: false, promotionId, detail: existingPost.error.message };
   if (existingPost.data?.id) {
     existingPostId = String(existingPost.data.id);
   } else {
     const imageUrl = text(input.payload.image_url) || text(input.payload.product_image_url);
-    if (!imageUrl) return { ok: true, promotionId, detail: "promotion recorded; usable product image missing" };
+    if (!imageUrl) return { ok: false, promotionId, detail: "promotion recorded; usable product image missing" };
 
     const category = text(input.payload.category) || "other";
     const caption =

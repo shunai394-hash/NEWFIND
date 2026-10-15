@@ -51,7 +51,7 @@ async function handleProductCandidate(
   eventType: TracerInboundEventType,
   eventId: string,
   payload: Record<string, unknown>,
-): Promise<{ ok: boolean; detail: string }> {
+): Promise<{ ok: boolean; detail: string; productId?: string }> {
   const isBrandBridge = eventType === "brandbridge_product";
   // Publish gate: a TRACER product is promoted only with TRACER's signed
   // attestation that it is published and passed the Sales Test Gate.
@@ -227,6 +227,7 @@ async function handleProductCandidate(
 
   return {
     ok: true,
+    productId,
     detail: assigned
       ? `assigned to ${assigned.personaName}; investigation opened`
       : `stored candidate ${productId}; no resident matched yet`,

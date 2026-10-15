@@ -88,10 +88,11 @@ async function handleProductCandidate(
     };
   }
 
-  // Same decorative-craft rule as the product hunter, posting gate and
-  // homepage: stop craft bottles / vases / ornaments at intake instead of
-  // storing and then hiding them.
-  if (isDecorativeCraftObject(`${productName} ${asString(payload.category) ?? ""}`)) {
+  // Keep the decorative-craft intake rule for ordinary/BrandBridge
+  // discoveries. A TRACER product has already passed its signed publication
+  // attestation, exact supplier checks and Sales Test Gate; don't suppress it
+  // solely because it's an ornament or other home-decor item.
+  if (isBrandBridge && isDecorativeCraftObject(`${productName} ${asString(payload.category) ?? ""}`)) {
     return { ok: false, detail: "decorative_craft_object_not_promoted" };
   }
 

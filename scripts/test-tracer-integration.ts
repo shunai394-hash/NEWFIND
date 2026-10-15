@@ -6,6 +6,7 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   signIntegrationBody,
   buildSignedHeaders,
@@ -49,6 +50,12 @@ async function test(name: string, fn: () => void | Promise<void>) {
 }
 
 async function main() {
+  await test("TRACER attestation gate can promote profitable decor without generic craft suppression", () => {
+    const handlers = readFileSync(new URL("../lib/integration/handlers.ts", import.meta.url), "utf8");
+    assert.match(handlers, /if \(isBrandBridge && isDecorativeCraftObject/);
+    assert.doesNotMatch(handlers, /if \(isDecorativeCraftObject/);
+  });
+
   await test("event type catalog", () => {
     assert.deepEqual([...TRACER_INBOUND_EVENT_TYPES], [
       "market_info",

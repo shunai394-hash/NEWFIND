@@ -16,3 +16,9 @@ console.log("TRACER promotion ledger fallback checks passed.");
 assert.match(source, /resolvePromotionPersona/);
 assert.match(source, /ai_personas/);
 assert.match(source, /no active AI resident is available to publish this promotion/);
+
+const handlerSource = await readFile(new URL("../lib/integration/handlers.ts", import.meta.url), "utf8");
+const routeSource = await readFile(new URL("../app/api/integrations/tracer/route.ts", import.meta.url), "utf8");
+assert.match(handlerSource, /productId,\s*detail: assigned/);
+assert.match(routeSource, /typeof result\.productId === "string"/,
+  "promotion processing must use the product ID returned by intake, even when duplicate-key matching retained an older URL");

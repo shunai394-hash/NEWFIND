@@ -12,3 +12,7 @@ assert.match(source, /if \(isMissingPromotionLedger\(error\)\) \{[\s\S]*?\.from\
   "withdrawal must still hide feed posts when the optional ledger is absent");
 assert.match(source, /promotion published to AI resident feed \(ledger fallback\)/);
 console.log("TRACER promotion ledger fallback checks passed.");
+
+assert.match(source, /resolvePromotionPersona/);
+assert.match(source, /ai_personas/);
+assert.match(source, /no active AI resident is available to publish this promotion/);

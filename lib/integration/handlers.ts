@@ -271,7 +271,7 @@ export async function processInboundEvent(input: {
   eventId: string;
   payload: Record<string, unknown>;
   causationId?: string | null;
-}): Promise<{ ok: boolean; detail: string }> {
+}): Promise<{ ok: boolean; detail: string; productId?: string }> {
   const source = asString(input.payload.source) || asString(input.payload.origin);
   if (source === "newfind") {
     return { ok: true, detail: "ignored newfind-originated echo (loop prevention)" };

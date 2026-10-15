@@ -23,6 +23,40 @@ function isMissingPromotionLedger(error: unknown): boolean {
     || /Could not find the table ['"]public[.]tracer_promotions['"] in the schema cache/i.test(message);
 }
 
+async function resolvePromotionPersona(
+  admin: ReturnType<typeof createAdminClient>,
+  discoveryProductId: string,
+  category: string,
+): Promise<{ personaId: string | null; detail: string | null }> {
+  const { data: investigation, error: investigationError } = await admin
+    .from("ai_investigations")
+    .select("id, persona_id")
+    .eq("product_id", discoveryProductId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (investigationError) return { personaId: null, detail: investigationError.message };
+  const assignedPersonaId = text(investigation?.persona_id);
+  if (assignedPersonaId) return { personaId: assignedPersonaId, detail: null };
+
+  // A gate-passed external product still needs a feed author when no
+  // investigation assigned one. Prefer an active resident whose categories
+  // match; otherwise rotate to the least-recently-active active resident.
+  const { data: residents, error: residentsError } = await admin
+    .from("ai_personas")
+    .select("id, preferred_categories, last_active_at")
+    .eq("is_active", true)
+    .order("last_active_at", { ascending: true, nullsFirst: true })
+    .limit(100);
+  if (residentsError) return { personaId: null, detail: residentsError.message };
+  const rows = residents ?? [];
+  const matched = rows.find((row) =>
+    Array.isArray(row.preferred_categories) && row.preferred_categories.includes(category),
+  );
+  const selected = matched ?? rows[0];
+  return { personaId: text(selected?.id), detail: null };
+}
+
 async function publishPromotionWithoutLedger(input: {
   admin: ReturnType<typeof createAdminClient>;
   payload: Record<string, unknown>;
@@ -30,23 +64,19 @@ async function publishPromotionWithoutLedger(input: {
   productName: string;
   discoveryProductId: string;
 }): Promise<{ ok: boolean; promotionId?: string; postId?: string; detail: string }> {
-  const { data: investigation, error: investigationError } = await input.admin
-    .from("ai_investigations")
-    .select("id, persona_id")
-    .eq("product_id", input.discoveryProductId)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (investigationError) return { ok: false, detail: investigationError.message };
-  const personaId = text(investigation?.persona_id);
-  if (!personaId) return { ok: false, detail: "promotion ledger unavailable and no AI resident assignment exists" };
+  const category = text(input.payload.category) || "other";
+  const resolvedPersona = await resolvePromotionPersona(input.admin, input.discoveryProductId, category);
+  if (resolvedPersona.detail) return { ok: false, detail: resolvedPersona.detail };
+  const personaId = resolvedPersona.personaId;
+  if (!personaId) return { ok: false, detail: "no active AI resident is available to publish this promotion" };
 
   const { data: existingPost, error: existingPostError } = await input.admin
     .from("ai_posts")
     .select("id")
-    .eq("persona_id", personaId)
     .eq("product_url", input.productUrl)
     .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (existingPostError) return { ok: false, detail: existingPostError.message };
   if (existingPost?.id) {
@@ -55,7 +85,6 @@ async function publishPromotionWithoutLedger(input: {
 
   const imageUrl = text(input.payload.image_url) || text(input.payload.product_image_url);
   if (!imageUrl) return { ok: false, detail: "promotion ledger unavailable and usable product image missing" };
-  const category = text(input.payload.category) || "other";
   const caption = text(input.payload.discovery_reason)
     || `${input.productName} — TRACERの審査を通過した注目商品。`;
   const post = await input.admin
@@ -170,25 +199,19 @@ export async function recordTracerPromotion(input: {
     return { ok: true, promotionId, postId: existingPostId, detail: "promotion already published" };
   }
 
-  const { data: investigation } = await admin
-    .from("ai_investigations")
-    .select("id, persona_id")
-    .eq("product_id", input.discoveryProductId)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const personaId = investigation?.persona_id as string | undefined;
-  if (!personaId) {
-    return { ok: true, promotionId, detail: "promotion recorded; no AI resident assignment yet" };
-  }
+  const category = text(input.payload.category) || "other";
+  const resolvedPersona = await resolvePromotionPersona(admin, input.discoveryProductId, category);
+  if (resolvedPersona.detail) return { ok: false, promotionId, detail: resolvedPersona.detail };
+  const personaId = resolvedPersona.personaId;
+  if (!personaId) return { ok: false, promotionId, detail: "no active AI resident is available to publish this promotion" };
 
   const existingPost = await admin
     .from("ai_posts")
     .select("id")
-    .eq("persona_id", personaId)
     .eq("product_url", productUrl)
     .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (existingPost.data?.id) {
     existingPostId = String(existingPost.data.id);

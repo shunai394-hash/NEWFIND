@@ -14,6 +14,70 @@ function number(value: unknown): number | null {
   return null;
 }
 
+function isMissingPromotionLedger(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const code = error && typeof error === "object" && "code" in error
+    ? String((error as { code?: unknown }).code ?? "")
+    : "";
+  return code === "42P01" || code === "PGRST205"
+    || /Could not find the table ['"]public[.]tracer_promotions['"] in the schema cache/i.test(message);
+}
+
+async function publishPromotionWithoutLedger(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  payload: Record<string, unknown>;
+  productUrl: string;
+  productName: string;
+  discoveryProductId: string;
+}): Promise<{ ok: boolean; promotionId?: string; postId?: string; detail: string }> {
+  const { data: investigation, error: investigationError } = await input.admin
+    .from("ai_investigations")
+    .select("id, persona_id")
+    .eq("product_id", input.discoveryProductId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (investigationError) return { ok: false, detail: investigationError.message };
+  const personaId = text(investigation?.persona_id);
+  if (!personaId) return { ok: false, detail: "promotion ledger unavailable and no AI resident assignment exists" };
+
+  const { data: existingPost, error: existingPostError } = await input.admin
+    .from("ai_posts")
+    .select("id")
+    .eq("persona_id", personaId)
+    .eq("product_url", input.productUrl)
+    .eq("status", "published")
+    .maybeSingle();
+  if (existingPostError) return { ok: false, detail: existingPostError.message };
+  if (existingPost?.id) {
+    return { ok: true, postId: String(existingPost.id), detail: "promotion already published (ledger fallback)" };
+  }
+
+  const imageUrl = text(input.payload.image_url) || text(input.payload.product_image_url);
+  if (!imageUrl) return { ok: false, detail: "promotion ledger unavailable and usable product image missing" };
+  const category = text(input.payload.category) || "other";
+  const caption = text(input.payload.discovery_reason)
+    || `${input.productName} — TRACERの審査を通過した注目商品。`;
+  const post = await input.admin
+    .from("ai_posts")
+    .insert({
+      persona_id: personaId,
+      media_type: "photo",
+      media_url: imageUrl,
+      thumbnail_url: imageUrl,
+      caption,
+      category,
+      product_url: input.productUrl,
+      product_label: "TRACER PICK",
+      status: "published",
+      published_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (post.error) return { ok: false, detail: post.error.message };
+  return { ok: true, postId: String(post.data.id), detail: "promotion published to AI resident feed (ledger fallback)" };
+}
+
 /**
  * Records a gate-passed TRACER promotion and publishes one corresponding
  * AI-resident post. This is deliberately idempotent: event_id and
@@ -42,7 +106,18 @@ export async function recordTracerPromotion(input: {
     .select("id, ai_post_id, status")
     .eq("tracer_listing_id", listingId)
     .maybeSingle();
-  if (existing.error) return { ok: false, detail: existing.error.message };
+  if (existing.error) {
+    if (isMissingPromotionLedger(existing.error)) {
+      return publishPromotionWithoutLedger({
+        admin,
+        payload: input.payload,
+        productUrl,
+        productName,
+        discoveryProductId: input.discoveryProductId,
+      });
+    }
+    return { ok: false, detail: existing.error.message };
+  }
 
   let promotionId = existing.data?.id as string | undefined;
   let existingPostId = existing.data?.ai_post_id as string | null | undefined;
@@ -171,7 +246,19 @@ export async function withdrawTracerPromotion(input: {
     .in("product_url", urls)
     .eq("status", "promoted")
     .select("id, ai_post_id");
-  if (error) return { ok: false, withdrawn: 0, detail: error.message };
+  if (error) {
+    if (isMissingPromotionLedger(error)) {
+      const fallback = await admin
+        .from("ai_posts")
+        .update({ status: "hidden" })
+        .in("product_url", urls)
+        .eq("status", "published")
+        .select("id");
+      if (fallback.error) return { ok: false, withdrawn: 0, detail: fallback.error.message };
+      return { ok: true, withdrawn: fallback.data?.length ?? 0, detail: `withdrawn ${fallback.data?.length ?? 0} TRACER promotion(s) via feed fallback` };
+    }
+    return { ok: false, withdrawn: 0, detail: error.message };
+  }
 
   const postIds = (data ?? []).map((row) => row.ai_post_id).filter((id): id is string => typeof id === "string");
   if (postIds.length > 0) {

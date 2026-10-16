@@ -56,6 +56,15 @@ async function main() {
     assert.doesNotMatch(handlers, /if \(isDecorativeCraftObject/);
   });
 
+  await test("concurrent TRACER product intake recovers unique-key races idempotently", () => {
+    const handlers = readFileSync(new URL("../lib/integration/handlers.ts", import.meta.url), "utf8");
+    assert.match(handlers, /insert\.error\.code === "23505"/);
+    assert.match(handlers, /discovery_products/);
+    assert.match(handlers, /\.eq\("product_url", canonical\)/);
+    assert.match(handlers, /\.eq\("duplicate_key", identity\)/);
+    assert.match(handlers, /discovery duplicate recovery update failed/);
+  });
+
   await test("event type catalog", () => {
     assert.deepEqual([...TRACER_INBOUND_EVENT_TYPES], [
       "market_info",

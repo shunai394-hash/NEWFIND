@@ -182,9 +182,54 @@ async function handleProductCandidate(
       .single();
 
     if (insert.error) {
-      return { ok: false, detail: `discovery insert failed: ${insert.error.message}` };
+      // Two TRACER deliveries can race: both see no product_url/duplicate_key
+      // row, then one wins the unique duplicate_key insert. Recover the loser
+      // by re-reading the canonical identity instead of reporting a failed ACK
+      // for a product that was already created by the concurrent request.
+      const isDuplicateIdentityRace =
+        insert.error.code === "23505" &&
+        /discovery_products_duplicate_key_uidx|duplicate_key/i.test(insert.error.message);
+      if (!isDuplicateIdentityRace) {
+        return { ok: false, detail: `discovery insert failed: ${insert.error.message}` };
+      }
+
+      const raced = await admin
+        .from("discovery_products")
+        .select("id, status")
+        .eq("duplicate_key", identity)
+        .maybeSingle();
+      if (raced.error) {
+        return { ok: false, detail: `discovery duplicate recovery failed: ${raced.error.message}` };
+      }
+      if (!raced.data?.id) {
+        return { ok: false, detail: `discovery insert conflict without matching identity: ${insert.error.message}` };
+      }
+      productId = String(raced.data.id);
+
+      if (publishable) {
+        const { error: promoteError } = await admin
+          .from("discovery_products")
+          .update({
+            status: "approved",
+            product_image_url: imageUrl,
+            ...(!isBrandBridge && (asString(payload.official_url) || asString(payload.officialUrl))
+              ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
+              : {}),
+            confidence_score: Math.round(asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40),
+            trend_score: asNumber(payload.demand_score) ?? 0,
+            ...(!isBrandBridge && asNumber(payload.price) !== null
+              ? { price: asNumber(payload.price), currency: asString(payload.currency) || "JPY" }
+              : {}),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", productId);
+        if (promoteError) {
+          return { ok: false, detail: `discovery promotion after duplicate recovery failed: ${promoteError.message}` };
+        }
+      }
+    } else {
+      productId = String(insert.data.id);
     }
-    productId = String(insert.data.id);
   }
 
   const assigned = await assignDiscoveryToResident({

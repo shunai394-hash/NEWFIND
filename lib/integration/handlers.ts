@@ -186,10 +186,9 @@ async function handleProductCandidate(
       // row, then one wins the unique duplicate_key insert. Recover the loser
       // by re-reading the canonical identity instead of reporting a failed ACK
       // for a product that was already created by the concurrent request.
-      const isDuplicateIdentityRace =
-        insert.error.code === "23505" &&
-        /discovery_products_duplicate_key_uidx|duplicate_key/i.test(insert.error.message);
-      if (!isDuplicateIdentityRace) {
+      // Any unique violation may be the race winner (duplicate_key OR product_url).
+      // Recovery below checks both keys and returns an explicit error if neither matches.
+      if (insert.error.code !== "23505") {
         return { ok: false, detail: `discovery insert failed: ${insert.error.message}` };
       }
 

@@ -182,9 +182,63 @@ async function handleProductCandidate(
       .single();
 
     if (insert.error) {
-      return { ok: false, detail: `discovery insert failed: ${insert.error.message}` };
+      // Two TRACER events can race after both miss the initial URL/identity
+      // lookups. The unique index is the final idempotency guard: on a
+      // duplicate-key conflict, adopt the canonical row instead of leaving
+      // the inbox event failed and retrying the same product forever.
+      if (insert.error.code === "23505") {
+        const byUrl = await admin
+          .from("discovery_products")
+          .select("id")
+          .eq("product_url", canonical)
+          .maybeSingle();
+        if (byUrl.error) {
+          return { ok: false, detail: `discovery duplicate recovery lookup failed: ${byUrl.error.message}` };
+        }
+        let recoveredId = byUrl.data?.id ? String(byUrl.data.id) : null;
+        if (!recoveredId) {
+          const byIdentity = await admin
+            .from("discovery_products")
+            .select("id")
+            .eq("duplicate_key", identity)
+            .maybeSingle();
+          if (byIdentity.error) {
+            return { ok: false, detail: `discovery duplicate identity lookup failed: ${byIdentity.error.message}` };
+          }
+          recoveredId = byIdentity.data?.id ? String(byIdentity.data.id) : null;
+        }
+        if (recoveredId) {
+          productId = recoveredId;
+          if (publishable) {
+            const { error: recoverPromoteError } = await admin
+              .from("discovery_products")
+              .update({
+                status: "approved",
+                product_image_url: imageUrl,
+                ...(!isBrandBridge && (asString(payload.official_url) || asString(payload.officialUrl))
+                  ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
+                  : {}),
+                confidence_score: Math.round(asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40),
+                trend_score: asNumber(payload.demand_score) ?? 0,
+                ...(!isBrandBridge && asNumber(payload.price) !== null
+                  ? { price: asNumber(payload.price), currency: asString(payload.currency) || "JPY" }
+                  : {}),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", recoveredId);
+            if (recoverPromoteError) {
+              return { ok: false, detail: `discovery duplicate recovery update failed: ${recoverPromoteError.message}` };
+            }
+          }
+        } else {
+          return { ok: false, detail: `discovery insert failed: ${insert.error.message}` };
+        }
+      } else {
+        return { ok: false, detail: `discovery insert failed: ${insert.error.message}` };
+      }
+    } else {
+      productId = String(insert.data.id);
     }
-    productId = String(insert.data.id);
   }
 
   const assigned = await assignDiscoveryToResident({

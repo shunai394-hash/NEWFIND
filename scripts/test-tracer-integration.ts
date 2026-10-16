@@ -56,7 +56,15 @@ async function main() {
     assert.doesNotMatch(handlers, /if \(isDecorativeCraftObject/);
   });
 
-  await test("concurrent TRACER product intake recovers duplicate-key races idempotently", () => {\n    const handlers = readFileSync(new URL("../lib/integration/handlers.ts", import.meta.url), "utf8");\n    assert.match(handlers, /insert\\.error\\.code === "23505"/);\n    assert.match(handlers, /discovery_products_duplicate_key_uidx|duplicate_key/);\n    assert.match(handlers, /discovery duplicate recovery failed/);\n    assert.match(handlers, /discovery promotion after duplicate recovery failed/);\n  });\n\n  await test("event type catalog", () => {
+  await test("concurrent TRACER product intake recovers duplicate-key races idempotently", () => {
+    const handlers = readFileSync(new URL("../lib/integration/handlers.ts", import.meta.url), "utf8");
+    assert.match(handlers, /insert\.error\.code === "23505"/);
+    assert.match(handlers, /discovery_products_duplicate_key_uidx|duplicate_key/);
+    assert.match(handlers, /discovery duplicate recovery failed/);
+    assert.match(handlers, /discovery promotion after duplicate recovery failed/);
+  });
+
+  await test("event type catalog", () => {
     assert.deepEqual([...TRACER_INBOUND_EVENT_TYPES], [
       "market_info",
       "product_candidate",

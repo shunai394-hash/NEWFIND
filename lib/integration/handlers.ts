@@ -201,10 +201,24 @@ async function handleProductCandidate(
       if (raced.error) {
         return { ok: false, detail: `discovery duplicate recovery failed: ${raced.error.message}` };
       }
-      if (!raced.data?.id) {
-        return { ok: false, detail: `discovery insert conflict without matching identity: ${insert.error.message}` };
+      let recoveredId = raced.data?.id ? String(raced.data.id) : null;
+      if (!recoveredId) {
+        // A product_url unique constraint can also win the race even when
+        // duplicate_key differs (for example, URL normalization changed).
+        const byUrl = await admin
+          .from("discovery_products")
+          .select("id")
+          .eq("product_url", canonical)
+          .maybeSingle();
+        if (byUrl.error) {
+          return { ok: false, detail: `discovery duplicate URL recovery failed: ${byUrl.error.message}` };
+        }
+        recoveredId = byUrl.data?.id ? String(byUrl.data.id) : null;
       }
-      productId = String(raced.data.id);
+      if (!recoveredId) {
+        return { ok: false, detail: `discovery insert conflict without matching identity or URL: ${insert.error.message}` };
+      }
+      productId = recoveredId;
 
       if (publishable) {
         const { error: promoteError } = await admin

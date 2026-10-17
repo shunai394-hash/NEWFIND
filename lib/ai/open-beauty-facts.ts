@@ -180,14 +180,13 @@ async function fetchJson(url: string): Promise<unknown> {
       Accept: "application/json",
       "User-Agent": USER_AGENT,
     },
+    signal: AbortSignal.timeout(8_000),
     cache: "no-store",
   });
 
   if (!response.ok) {
-    const body = await response.text();
-    throw new Error(
-      `Open Beauty Facts search failed: ${response.status} ${body}`,
-    );
+    // Keep provider failures bounded and avoid logging HTML error pages.
+    throw new Error(`Open Beauty Facts search failed: ${response.status}`);
   }
 
   return response.json();

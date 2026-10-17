@@ -22,6 +22,27 @@ import { listAssignedDiscoveryResidentIds } from "@/lib/ai/discovery-handoff";
 const DEFAULT_ACT_LIMIT = 4;
 const MAX_RUN_MS = 240_000; // Leave headroom before Vercel's 300s execution ceiling.
 
+async function withTimeout<T>(
+  operation: () => Promise<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export type AiEngineMode = "ai_engine" | "world_scout" | "product_hunter";
 
 export type AiEngineRequest = {
@@ -253,7 +274,7 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
 
     let worldNews: WorldSearchResult[] = [];
     try {
-      worldNews = await getSharedWorldNews();
+      worldNews = await withTimeout(() => getSharedWorldNews(), 12_000, "Shared world news");
     } catch (error) {
       console.error("Shared world news failed. Continuing without GDELT.", error);
       worldNews = [];
@@ -266,7 +287,7 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
     );
     try {
       // Academic research is a first-class discovery source, not product-search noise.
-      const research = await arxivWorldSourceCollector.collect({ limit: 12 });
+      const research = await withTimeout(() => arxivWorldSourceCollector.collect({ limit: 12 }), 12_000, "arXiv research collection");
       for (const item of research) {
         const key = item.url.replace(/\/$/, "").toLowerCase();
         if (!key || seenWorldUrls.has(key)) continue;
@@ -282,7 +303,7 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
     try {
       // Pull real publisher and research-lab feeds; one unavailable feed must not
       // cancel the rest of the resident cycle. These items keep their source URLs.
-      const futureTechNews = await collectFutureTechNews(4);
+      const futureTechNews = await withTimeout(() => collectFutureTechNews(4), 12_000, "Future-tech news collection");
       for (const item of futureTechNews) {
         const key = item.url.replace(/\/$/, "").toLowerCase();
         if (!key || seenWorldUrls.has(key)) continue;
@@ -297,7 +318,7 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
 
     let googleTrends: Awaited<ReturnType<typeof getGoogleTrendsForWorld>> = [];
     try {
-      googleTrends = await getGoogleTrendsForWorld(["JP", "US", "GB", "KR"], 6);
+      googleTrends = await withTimeout(() => getGoogleTrendsForWorld(["JP", "US", "GB", "KR"], 6), 10_000, "Google Trends collection");
     } catch (error) {
       console.error("Google Trends failed. Continuing without trends.", error);
     }

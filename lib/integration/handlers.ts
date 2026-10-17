@@ -8,6 +8,7 @@ import { publishBrandBridgeToFeed } from "./brandbridge-feed";
 import { checkTracerPublicationAttestation, withdrawnProductUrls } from "./tracer-attestation";
 import { isDecorativeCraftObject } from "@/lib/ai/craft-object";
 import type { TracerInboundEventType } from "./types";
+import { isDuplicateKeyConflict } from "./duplicate-conflict";
 
 function asString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -188,7 +189,7 @@ async function handleProductCandidate(
       // for a product that was already created by the concurrent request.
       // Any unique violation may be the race winner (duplicate_key OR product_url).
       // Recovery below checks both keys and returns an explicit error if neither matches.
-      if (insert.error.code !== "23505") {
+      if (!isDuplicateKeyConflict(insert.error)) {
         return { ok: false, detail: `discovery insert failed: ${insert.error.message}` };
       }
 

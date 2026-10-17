@@ -189,10 +189,11 @@ async function handleProductCandidate(
       // for a product that was already created by the concurrent request.
       // Any unique violation may be the race winner (duplicate_key OR product_url).
       // Recovery below checks both keys and returns an explicit error if neither matches.
-      if (!isDuplicateKeyConflict(insert.error)) {
-        return { ok: false, detail: `discovery insert failed: ${insert.error.message}` };
-      }
-
+      // Attempt identity recovery after any insert error, not only errors
+      // recognized by the runtime wrapper. A successful lookup by the exact
+      // duplicate key or canonical URL proves the desired row already exists.
+      // If neither lookup finds it, preserve the original error as a failure.
+      const duplicateConflict = isDuplicateKeyConflict(insert.error);
       const raced = await admin
         .from("discovery_products")
         .select("id, status")
@@ -216,7 +217,10 @@ async function handleProductCandidate(
         recoveredId = byUrl.data?.id ? String(byUrl.data.id) : null;
       }
       if (!recoveredId) {
-        return { ok: false, detail: `discovery insert conflict without matching identity or URL: ${insert.error.message}` };
+        const detail = duplicateConflict
+          ? `discovery insert conflict without matching identity or URL: ${insert.error.message}`
+          : `discovery insert failed without matching identity or URL: ${insert.error.message}`;
+        return { ok: false, detail };
       }
       productId = recoveredId;
 

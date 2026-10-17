@@ -59,7 +59,7 @@ async function main() {
   await test("concurrent TRACER product intake recovers duplicate-key races idempotently", () => {
     const handlers = readFileSync(new URL("../lib/integration/handlers.ts", import.meta.url), "utf8");
     assert.match(handlers, /isDuplicateKeyConflict\(insert\.error\)/);
-    assert.match(handlers, /!isDuplicateKeyConflict\(insert\.error\)/);
+    assert.match(handlers, /const duplicateConflict = isDuplicateKeyConflict\(insert\.error\)/);\n    assert.doesNotMatch(handlers, /if \(!isDuplicateKeyConflict\(insert\.error\)\)/);
     assert.match(handlers, /Any unique violation may be the race winner/);
     assert.match(handlers, /\.eq\("duplicate_key", identity\)/);
     assert.match(handlers, /\.eq\("product_url", canonical\)/);

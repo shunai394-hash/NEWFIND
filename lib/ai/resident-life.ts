@@ -1569,7 +1569,19 @@ function fallbackSocialAction(
       : followedPost || interestPost || candidates[0];
   if (!target) return { type: "IGNORE" };
 
-  const reply = target.comments[0];
+  // Reply only to a real comment that this resident has not already answered.
+  // The old comments[0] selection kept targeting the same root comment forever.
+  const repliedCommentIds = new Set(
+    target.comments
+      .filter((comment) => comment.authorId === persona.profile_id)
+      .map((comment) => comment.parentCommentId)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const reply = target.comments.find(
+    (comment) =>
+      comment.authorId !== persona.profile_id &&
+      !repliedCommentIds.has(comment.id),
+  );
   const roll = hashSeed(`${persona.id}:${target.id}:${persona.last_action || ""}`) % 10;
   const ja = usesJapanese(persona);
 

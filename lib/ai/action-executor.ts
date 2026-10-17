@@ -75,6 +75,37 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
+function normalizeCommentText(value: string): string {
+  return value
+    .normalize("NFKC")
+    .replace(/[\s\u3000]+/g, "")
+    .replace(/[、。,.!！?？「」『』"'“”]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function commentSimilarity(a: string, b: string): number {
+  const left = normalizeCommentText(a);
+  const right = normalizeCommentText(b);
+  if (!left || !right) return 0;
+  if (left === right) return 1;
+  const grams = (value: string) => {
+    const result = new Set<string>();
+    for (let i = 0; i < value.length - 1; i += 1) {
+      result.add(value.slice(i, i + 2));
+    }
+    return result;
+  };
+  const leftGrams = grams(left);
+  const rightGrams = grams(right);
+  if (!leftGrams.size || !rightGrams.size) return 0;
+  let intersection = 0;
+  for (const gram of leftGrams) {
+    if (rightGrams.has(gram)) intersection += 1;
+  }
+  return intersection / (leftGrams.size + rightGrams.size - intersection);
+}
+
 function normalizeProductUrl(value: string): string {
   try {
     const url = new URL(value);
@@ -134,6 +165,35 @@ export async function executeAIAction(
 
     case "COMMENT": {
       const supabase = createAdminClient();
+      const commentText = action.text.trim();
+      if (!commentText) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "empty comment" },
+        };
+      }
+
+      // AI patrols can run concurrently and deterministic fallbacks can produce
+      // the same sentence again. Never publish the same/near-identical comment
+      // from one resident within the recent comment window, even on another post.
+      const { data: recentComments } = await supabase
+        .from("comments")
+        .select("body")
+        .eq("user_id", userId)
+        .gte("created_at", new Date(Date.now() - 14 * 24 * 36e5).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(100);
+      const duplicateComment = (recentComments ?? []).some((row) =>
+        commentSimilarity(String(row.body ?? ""), commentText) >= 0.78,
+      );
+      if (duplicateComment) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "duplicate or near-duplicate recent comment" },
+        };
+      }
 
       const { data: targetPost } = await supabase
         .from("posts")
@@ -168,7 +228,7 @@ export async function executeAIAction(
         .insert({
           post_id: action.postId,
           user_id: userId,
-          body: action.text.trim(),
+          body: commentText,
         })
         .select("*")
         .single();
@@ -387,6 +447,32 @@ export async function executeAIAction(
 
     case "REPLY": {
       const supabase = createAdminClient();
+      const replyText = action.text.trim();
+      if (!replyText) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "empty reply" },
+        };
+      }
+
+      const { data: recentReplies } = await supabase
+        .from("comments")
+        .select("body")
+        .eq("user_id", userId)
+        .gte("created_at", new Date(Date.now() - 14 * 24 * 36e5).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(100);
+      const duplicateReply = (recentReplies ?? []).some((row) =>
+        commentSimilarity(String(row.body ?? ""), replyText) >= 0.78,
+      );
+      if (duplicateReply) {
+        return {
+          executed: false,
+          action,
+          result: { reason: "duplicate or near-duplicate recent reply" },
+        };
+      }
 
       const { data: parent, error: parentError } = await supabase
         .from("comments")
@@ -427,7 +513,7 @@ export async function executeAIAction(
         .insert({
           post_id: action.postId,
           user_id: userId,
-          body: action.text.trim(),
+          body: replyText,
           parent_comment_id: action.parentCommentId,
         })
         .select("*")

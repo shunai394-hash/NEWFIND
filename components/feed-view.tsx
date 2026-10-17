@@ -147,9 +147,14 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
             ? aiPage.length
             : aiOffsetRef.current + aiPage.length;
 
-          collectedAI = category
-            ? aiPage.filter((post) => post.category === category)
-            : aiPage;
+          // Apply the same legacy-post cleanup to AI posts as human posts.
+          // Old decorative craft-bottle posts can remain in storage after the
+          // publishing gate is fixed, so filter them at read time too.
+          collectedAI = aiPage.filter(
+            (post) =>
+              (!category || post.category === category) &&
+              isVisibleTimelinePost(post),
+          );
 
           if (session) {
             collectedAI = collectedAI.filter(

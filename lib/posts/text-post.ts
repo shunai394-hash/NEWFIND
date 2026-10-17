@@ -1,5 +1,6 @@
 import type { CategoryId, CreatePostInput, MediaType, Post } from "@/lib/types";
 import { isCategoryId } from "@/lib/categories";
+import { isDecorativeCraftObject } from "@/lib/ai/craft-object";
 import {
   hasDisplayablePostMedia,
   isAiPersonDiscoveryMedia,
@@ -40,13 +41,14 @@ export function requirePostCaption(value: string | null | undefined): string {
 }
 
 export function isVisibleTimelinePost(
-  post: Pick<Post, "mediaUrl" | "thumbnailUrl" | "mediaType" | "caption">,
+  post: Pick<Post, "mediaUrl" | "thumbnailUrl" | "mediaType" | "caption"> & { productLabel?: string | null },
 ): boolean {
   const media = normalizeMediaUrl(post.mediaUrl);
   const thumb = normalizeMediaUrl(post.thumbnailUrl);
   if (isAiPersonDiscoveryMedia(media) || isAiPersonDiscoveryMedia(thumb)) {
     return false;
   }
+  if (isDecorativeCraftObject(`${post.productLabel ?? ""} ${post.caption}`)) return false;
   if (hasDisplayablePostMedia(post)) return true;
   return Boolean(trimCaption(post.caption));
 }

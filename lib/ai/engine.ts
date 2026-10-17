@@ -189,15 +189,17 @@ export async function executeAiEngine(input: AiEngineRequest = {}) {
   // 240s loop to exceed Vercel's 300s function ceiling.
   const runStartedAt = Date.now();
 
-  await logAiActivity({
-    actorName: "SYSTEM",
-    actorRole: "engine",
-    action: "run_started",
-    detail: `${mode} via ${triggeredBy}`,
-    relatedRunId: lock.runId,
-  });
-
   try {
+    // Keep start logging inside the protected section so a failed log write
+    // still enters the run's failure/cleanup path.
+    await logAiActivity({
+      actorName: "SYSTEM",
+      actorRole: "engine",
+      action: "run_started",
+      detail: `${mode} via ${triggeredBy}`,
+      relatedRunId: lock.runId,
+    });
+  
     const factory = await ensureAiResidentPopulation();
     let featuredResidents: Awaited<
       ReturnType<typeof ensureFeaturedLivingResidents>

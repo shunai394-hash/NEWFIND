@@ -18,7 +18,7 @@
     "test:future-tech-feed": "tsx scripts/test-future-tech-feed.ts",
     "test:craft-repeat": "tsx --test scripts/test-craft-repeat.ts",
     "test:hunter-ops": "tsx scripts/test-hunter-ops.ts",
-    "test:tracer-integration": "tsx scripts/test-tracer-integration.ts && node scripts/test-tracer-confidence-score.mjs && node scripts/test-tracer-promotion-ledger-fallback.mjs",
+    "test:tracer-integration": "tsx scripts/test-tracer-integration.ts && node scripts/test-tracer-confidence-score.mjs && node scripts/test-tracer-promotion-ledger-fallback.mjs && npm run test:tracer-duplicate-conflict",
     "test:tracer-attestation": "tsx scripts/test-tracer-attestation.ts",
     "test:auth": "tsx --test scripts/test-auth-flow.ts",
     "test:security": "tsx --test scripts/test-account-security.ts",
@@ -36,7 +36,8 @@
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
     "eas-build-pre-install": "bash ./eas-build-pre-install.sh",
-    "prebuild": "npm run icons:check && npm run test:home-quality && npm run test:world-headlines && npm run test:future-tech-feed"
+    "prebuild": "npm run icons:check && npm run test:home-quality && npm run test:world-headlines && npm run test:future-tech-feed",
+    "test:tracer-duplicate-conflict": "node --experimental-strip-types --no-warnings scripts/test-tracer-duplicate-conflict.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

@@ -898,7 +898,7 @@ function ProductChip({
       )}
       <span className="min-w-0 py-2 pr-2">
         <span className="block truncate text-[10px] font-semibold tracking-wide text-neutral-400">
-          {product.brand}
+          {product.sourceLabel || product.brand}
         </span>
         <span className="mt-0.5 block line-clamp-2 text-[12px] font-semibold leading-snug">
           {product.name}

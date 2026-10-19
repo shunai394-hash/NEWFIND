@@ -43,6 +43,7 @@ export type WorldResidentCard = {
 export type WorldProductChip = {
   id: string;
   brand: string;
+  sourceLabel?: string | null;
   name: string;
   imageUrl: string | null;
   href: string;
@@ -585,7 +586,7 @@ export function isHomepageProductEligible(
     price?: number | null;
     description?: string | null;
   },
-  options: { requireVerifiedFields?: boolean } = {},
+  options: { requireVerifiedFields?: boolean; allowUnknownBrand?: boolean } = {},
 ) {
   const brand = product.brand.trim();
   const name = product.name.trim();
@@ -598,7 +599,7 @@ export function isHomepageProductEligible(
   if (/^(?:unknown|discovery|product|untitled|new discovery|n\/?a|none|null)$/i.test(name)) {
     return false;
   }
-  if (/^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)) {
+  if (!options.allowUnknownBrand && /^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)) {
     return false;
   }
 
@@ -643,7 +644,7 @@ async function loadProducts(
   const { data, error } = await supabase
     .from("discovery_products")
     .select(
-      "id, brand, product_name, product_image_url, product_url, official_url, price, description, sku, gtin, model_number, confidence_score",
+      "id, brand, product_name, product_image_url, product_url, official_url, price, description, sku, gtin, model_number, confidence_score, discovery_source, attention_reason",
     )
     .eq("status", "approved")
     .order("created_at", { ascending: false })
@@ -694,14 +695,16 @@ async function loadProducts(
 
   if (!error && data?.length) {
     const eligible = data.filter((row) => {
+      const isTracerSource = String(row.discovery_source ?? "").toLowerCase() === "tracer" && String(row.attention_reason ?? "").startsWith("TRACER_ATTESTED_V1:");
+      const brand = String(row.brand ?? "");
       if (
         !isHomepageProductEligible({
-          brand: String(row.brand ?? ""),
+          brand,
           name: String(row.product_name ?? ""),
           imageUrl: (row.product_image_url as string | null) ?? null,
           price: normalizeHomepageProductPrice(row.price),
           description: (row.description as string | null) ?? null,
-        }, { requireVerifiedFields: false })
+        }, { requireVerifiedFields: false, allowUnknownBrand: isTracerSource })
       ) {
         return false;
       }
@@ -735,6 +738,7 @@ async function loadProducts(
       return distinct.slice(0, 8).map((row) => ({
         id: row.id as string,
         brand: (row.brand as string) ?? "",
+        sourceLabel: /^(?:unknown|unbranded|generic|n\/?a|none|null)$/i.test(String(row.brand ?? "").trim()) && String(row.discovery_source ?? "").toLowerCase() === "tracer" && String(row.attention_reason ?? "").startsWith("TRACER_ATTESTED_V1:") ? "TRACER" : null,
         name: (row.product_name as string) ?? "",
         imageUrl: (row.product_image_url as string | null) ?? null,
         href: `/products/${row.id}`,

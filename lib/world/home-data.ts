@@ -578,6 +578,23 @@ export function hasVerifiedProductIdentity(product: {
   return hasSourceUrl || hasStructuredIdentity;
 }
 
+export function homepageProductFieldFailureReason(product: {
+  brand: string; name: string; imageUrl: string | null; description?: string | null;
+}): string | null {
+  const brand = product.brand.trim();
+  const name = product.name.trim();
+  const imageUrl = product.imageUrl?.trim() || "";
+  const text = [brand, name, product.description ?? ""].join(" ").toLowerCase();
+  if (!brand) return "missing_brand";
+  if (!name) return "missing_name";
+  if (!isUsableProductImageUrl(imageUrl)) return "unusable_image";
+  if (/^(?:unknown|discovery|product|untitled|new discovery|n\/?a|none|null)$/i.test(name)) return "placeholder_name";
+  if (/^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)) return "placeholder_brand";
+  const normalize = (value: string) => value.toLocaleLowerCase().normalize("NFKC").replace(/[\p{P}\p{Z}\p{S}]+/gu, "");
+  if (normalize(name) === normalize(brand)) return "brand_equals_name";
+  if (isDecorativeCraftObject(text)) return "decorative_craft";
+  return null;
+}
 export function isHomepageProductEligible(
   product: {
     brand: string;
@@ -660,6 +677,16 @@ async function loadProducts(
       modelNumber: row.model_number as string | null,
     }),
   ).length;
+  const productFieldFailureCounts: Record<string, number> = {};
+  for (const row of candidateRows) {
+    const reason = homepageProductFieldFailureReason({
+      brand: String(row.brand ?? ""),
+      name: String(row.product_name ?? ""),
+      imageUrl: String(row.product_image_url ?? ""),
+      description: String(row.description ?? ""),
+    });
+    if (reason) productFieldFailureCounts[reason] = (productFieldFailureCounts[reason] ?? 0) + 1;
+  }
   console.info("[world-home] homepage product quality gate", {
     queryErrorCode: error?.code ?? null,
     approvedRows: candidateRows.length,
@@ -678,7 +705,8 @@ async function loadProducts(
         description: String(row.description ?? ""),
       }, { requireVerifiedFields: false }),
     ).length,
-    rowsWithVerifiedIdentity: rowsWithVerifiedIdentity,
+    productFieldFailureCounts,
+    rowsWithVerifiedIdentity,
     rowsWithEligibleConfidence: candidateRows.filter((row) =>
       isHomepageProductConfidenceEligible(
         row.confidence_score as number | string | null,

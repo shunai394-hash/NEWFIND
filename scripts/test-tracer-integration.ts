@@ -61,6 +61,7 @@ async function main() {
     const home = readFileSync(new URL("../lib/world/home-data.ts", import.meta.url), "utf8");
     assert.match(handlers, /checkTracerPublicationAttestation\(payload\)/);
     assert.match(handlers, /TRACER_ATTESTED_V1:/);
+    assert.match(handlers, /attention_reason: isBrandBridge\s*\? \(asString\(payload\.discovery_reason\).*BrandBridge product candidate/s);
     assert.match(handlers, /score !== null && score > 0 \? Math\.round\(score\) : null/);
     assert.match(home, /attention_reason.*startsWith\("TRACER_ATTESTED_V1:"\)/);
     assert.match(home, /sourceLabel:.*"TRACER"/);

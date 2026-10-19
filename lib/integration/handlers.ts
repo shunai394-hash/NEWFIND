@@ -139,6 +139,7 @@ async function handleProductCandidate(
         ...(!isBrandBridge && asNumber(payload.price) !== null
           ? { price: asNumber(payload.price), currency: asString(payload.currency) || "JPY" }
           : {}),
+        attention_reason: "TRACER_ATTESTED_V1:" + (asString(payload.discovery_reason) || asString(payload.note) || "TRACER product candidate"),
         updated_at: new Date().toISOString(),
       })
       .eq("id", productId);
@@ -168,10 +169,9 @@ async function handleProductCandidate(
         canonical_url: canonical,
         duplicate_key: identity,
         discovery_source: "tracer",
-        attention_reason:
-          asString(payload.discovery_reason) ||
-          asString(payload.why_now) ||
-          "TRACER product candidate",
+        attention_reason: isBrandBridge
+          ? (asString(payload.discovery_reason) || asString(payload.why_now) || "BrandBridge product candidate")
+          : "TRACER_ATTESTED_V1:" + (asString(payload.discovery_reason) || asString(payload.note) || "TRACER product candidate"),
         status: publishable ? "approved" : "pending",
         trend_score: asNumber(payload.demand_score) ?? 0,
         confidence_score: Math.round(
@@ -238,6 +238,7 @@ async function handleProductCandidate(
             ...(!isBrandBridge && asNumber(payload.price) !== null
               ? { price: asNumber(payload.price), currency: asString(payload.currency) || "JPY" }
               : {}),
+            attention_reason: "TRACER_ATTESTED_V1:" + (asString(payload.discovery_reason) || asString(payload.note) || "TRACER product candidate"),
             updated_at: new Date().toISOString(),
           })
           .eq("id", productId);

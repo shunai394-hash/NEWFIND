@@ -144,7 +144,9 @@ async function handleProductCandidate(
         ...(!isBrandBridge && asNumber(payload.price) !== null
           ? { price: asNumber(payload.price), currency: asString(payload.currency) || "JPY" }
           : {}),
-        attention_reason: "TRACER_ATTESTED_V1:" + (asString(payload.discovery_reason) || asString(payload.note) || "TRACER product candidate"),
+        attention_reason: isBrandBridge
+          ? (asString(payload.discovery_reason) || asString(payload.why_now) || "BrandBridge product candidate")
+          : "TRACER_ATTESTED_V1:" + (asString(payload.discovery_reason) || asString(payload.note) || "TRACER product candidate"),
         updated_at: new Date().toISOString(),
       })
       .eq("id", productId);

@@ -139,13 +139,14 @@ export async function POST(request: Request) {
   }
 
   if (inbox.duplicate && inbox.row.status === "rejected") {
-    // A legacy TRACER delivery may have been rejected after its discovery
-    // product was successfully inserted by a concurrent request. The current
-    // product-candidate handler recovers by canonical URL / duplicate identity,
-    // so allow only this known unique-key race to be replayed with the same
-    // event ID. All other rejected events remain terminal.
-    const recoverableDuplicateInsert = /discovery insert failed: duplicate key value violates unique constraint/i
-      .test(inbox.row.last_error ?? "");
+    // Permit narrowly scoped replays for two known receiver-side failures that
+    // have been fixed: the old discovery duplicate-key race and the required
+    // confidence_score NOT NULL failure. Reuse the same event ID for idempotency;
+    // all unrelated rejected events remain terminal.
+    const previousError = inbox.row.last_error ?? "";
+    const recoverableDuplicateInsert =
+      /discovery insert failed: duplicate key value violates unique constraint/i.test(previousError)
+      || /confidence_score.*violates not-null constraint/i.test(previousError);
     if (!recoverableDuplicateInsert) {
       return NextResponse.json(
         { ok: false, error: inbox.row.last_error || "previously rejected" },

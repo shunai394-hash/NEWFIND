@@ -62,7 +62,9 @@ async function main() {
     assert.match(handlers, /checkTracerPublicationAttestation\(payload\)/);
     assert.match(handlers, /TRACER_ATTESTED_V1:/);
     assert.match(handlers, /attention_reason: isBrandBridge\s*\? \(asString\(payload\.discovery_reason\).*BrandBridge product candidate/s);
-    assert.match(handlers, /score !== null && score > 0 \? Math\.round\(score\) : null/);
+    assert.match(handlers, /selectionScore !== null && selectionScore > 0/);
+    assert.match(handlers, /confidence <= 1 \? confidence \* 100 : confidence/);
+    assert.match(handlers, /return 0;/);
     assert.match(home, /attention_reason.*startsWith\("TRACER_ATTESTED_V1:"\)/);
     assert.match(home, /sourceLabel:.*"TRACER"/);
   });

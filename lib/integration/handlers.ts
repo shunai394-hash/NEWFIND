@@ -24,9 +24,21 @@ function asNumber(value: unknown): number | null {
   return null;
 }
 
-function confidenceScore(payload: Record<string, unknown>): number | null {
-  const score = asNumber(payload.selection_score) ?? asNumber(payload.confidence);
-  return score !== null && score > 0 ? Math.round(score) : null;
+function confidenceScore(payload: Record<string, unknown>): number {
+  const selectionScore = asNumber(payload.selection_score);
+  if (selectionScore !== null && selectionScore > 0) return Math.round(selectionScore);
+
+  const confidence = asNumber(payload.confidence);
+  if (confidence !== null && confidence > 0) {
+    // TRACER's confidence field is a normalized 0..1 ratio; discovery_products
+    // stores confidence_score on a 0..100 scale. A zero selection_score means
+    // "not scored", so it must not mask the fallback confidence value.
+    return Math.round(confidence <= 1 ? confidence * 100 : confidence);
+  }
+
+  // The DB column is NOT NULL. Unknown confidence remains 0 (not homepage
+  // eligible) instead of making an otherwise valid inbound event fail.
+  return 0;
 }
 
 async function storeBridgeNote(input: {

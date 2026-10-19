@@ -593,7 +593,24 @@ export function homepageProductFieldFailureReason(product: {
   const normalize = (value: string) => value.toLocaleLowerCase().normalize("NFKC").replace(/[\p{P}\p{Z}\p{S}]+/gu, "");
   if (normalize(name) === normalize(brand)) return "brand_equals_name";
   if (isDecorativeCraftObject(text)) return "decorative_craft";
-  return null;
+  const rejectPatterns = [
+    /ceramic\\s+tea\\s+whisk/,
+    /\\bpottery\\b/,
+    /\\bhandmade\\s+(?:decor|ornament|object|craft)/,
+    /\\bcraft\\s+(?:object|decor|ornament)/,
+    /\\bfigurine\\b/,
+    /\\bornament\\b/,
+    /\\bdecorative\\s+object\\b/,
+    /\\bresin\\s+art\\b/,
+    /\\bwood\\s+carving\\b/,
+    /\\bcraft(?:ed)?\\s+(?:glass\\s+)?bottles?\\b/,
+    /\\bhandcrafted\\s+(?:glass\\s+)?bottles?\\b/,
+    /\\bhandmade\\s+(?:glass\\s+)?bottles?\\b/,
+    /\\bdecorative\\s+(?:glass\\s+)?bottles?\\b/,
+    /\\bartisan(?:al)?\\s+(?:glass\\s+)?bottles?\\b/,
+    /\\bcraft\\s+vessels?\\b/,
+  ];
+  return rejectPatterns.some((pattern) => pattern.test(text)) ? "rejected_product_pattern" : null;
 }
 export function isHomepageProductEligible(
   product: {

@@ -56,6 +56,16 @@ async function main() {
     assert.doesNotMatch(handlers, /if \(isDecorativeCraftObject/);
   });
 
+  await test("TRACER attestation is persisted for homepage provenance without inflating confidence", () => {
+    const handlers = readFileSync(new URL("../lib/integration/handlers.ts", import.meta.url), "utf8");
+    const home = readFileSync(new URL("../lib/world/home-data.ts", import.meta.url), "utf8");
+    assert.match(handlers, /checkTracerPublicationAttestation\(payload\)/);
+    assert.match(handlers, /TRACER_ATTESTED_V1:/);
+    assert.match(handlers, /score !== null && score > 0 \? Math\.round\(score\) : null/);
+    assert.match(home, /attention_reason.*startsWith\("TRACER_ATTESTED_V1:"\)/);
+    assert.match(home, /sourceLabel:.*"TRACER"/);
+  });
+
   await test("concurrent TRACER product intake recovers duplicate-key races idempotently", () => {
     const handlers = readFileSync(new URL("../lib/integration/handlers.ts", import.meta.url), "utf8");
     assert.match(handlers, /isDuplicateKeyConflict\(insert\.error\)/);

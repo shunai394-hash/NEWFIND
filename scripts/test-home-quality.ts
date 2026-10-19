@@ -1,4 +1,4 @@
-import { dedupeLiveActivities, featuredFromResidents, findDirectActivityReply, hasVerifiedProductIdentity, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice, type WorldActivity } from "../lib/world/home-data";
+import { dedupeLiveActivities, featuredFromResidents, findDirectActivityReply, hasVerifiedProductIdentity, homepageProductFieldFailureReason, isHomepageProductConfidenceEligible, isHomepageProductEligible, normalizeHomepageProductPrice, type WorldActivity } from "../lib/world/home-data";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -61,6 +61,11 @@ function main() {
   );
 
   assert(isHomepageProductEligible(verified), "verified product should pass");
+  assert(homepageProductFieldFailureReason(verified) === null, "valid product fields should have no rejection reason");
+  assert(homepageProductFieldFailureReason({ ...verified, brand: "" }) === "missing_brand", "missing brand should be diagnosable");
+  assert(homepageProductFieldFailureReason({ ...verified, brand: "Unknown" }) === "placeholder_brand", "placeholder brand should be diagnosable");
+  assert(homepageProductFieldFailureReason({ ...verified, name: "Acme" }) === "brand_equals_name", "brand/name duplication should be diagnosable");
+  assert(homepageProductFieldFailureReason({ ...verified, imageUrl: null }) === "unusable_image", "invalid image should be diagnosable");
   assert(
     featuredFromResidents([]).length === 0,
     "the homepage must not present static resident blueprints as real active residents when no active persona records exist",

@@ -133,7 +133,7 @@ async function handleProductCandidate(
         ...(!isBrandBridge && (asString(payload.official_url) || asString(payload.officialUrl))
           ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
           : {}),
-        confidence_score: Math.round(asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40),
+        confidence_score: (() => { const score = asNumber(payload.selection_score) ?? asNumber(payload.confidence); return score !== null && score > 0 ? Math.round(score) : null; })(),
         trend_score: asNumber(payload.demand_score) ?? 0,
         // Re-promotion carries TRACER's current price; never keep a stale one.
         ...(!isBrandBridge && asNumber(payload.price) !== null
@@ -233,7 +233,7 @@ async function handleProductCandidate(
             ...(!isBrandBridge && (asString(payload.official_url) || asString(payload.officialUrl))
               ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
               : {}),
-            confidence_score: Math.round(asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40),
+            confidence_score: (() => { const score = asNumber(payload.selection_score) ?? asNumber(payload.confidence); return score !== null && score > 0 ? Math.round(score) : null; })(),
             trend_score: asNumber(payload.demand_score) ?? 0,
             ...(!isBrandBridge && asNumber(payload.price) !== null
               ? { price: asNumber(payload.price), currency: asString(payload.currency) || "JPY" }

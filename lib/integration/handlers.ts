@@ -236,7 +236,7 @@ async function handleProductCandidate(
             ...(!isBrandBridge && (asString(payload.official_url) || asString(payload.officialUrl))
               ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
               : {}),
-            confidence_score: (() => { const score = asNumber(payload.selection_score) ?? asNumber(payload.confidence); return score !== null && score > 0 ? Math.round(score) : null; })(),
+            confidence_score: confidenceScore(payload),
             trend_score: asNumber(payload.demand_score) ?? 0,
             ...(!isBrandBridge && asNumber(payload.price) !== null
               ? { price: asNumber(payload.price), currency: asString(payload.currency) || "JPY" }

@@ -64,6 +64,8 @@ function main() {
   assert(homepageProductFieldFailureReason(verified) === null, "valid product fields should have no rejection reason");
   assert(homepageProductFieldFailureReason({ ...verified, brand: "" }) === "missing_brand", "missing brand should be diagnosable");
   assert(homepageProductFieldFailureReason({ ...verified, brand: "Unknown" }) === "placeholder_brand", "placeholder brand should be diagnosable");
+  assert(homepageProductFieldFailureReason({ ...verified, brand: "Unknown" }, { allowUnknownBrand: true }) === null, "TRACER-attested unknown brand should follow the same exception as homepage eligibility");
+  assert(isHomepageProductEligible({ ...verified, brand: "Unknown" }, { allowUnknownBrand: true }), "TRACER-attested unknown brand should pass the explicit exception");
   assert(homepageProductFieldFailureReason({ ...verified, name: "Acme" }) === "brand_equals_name", "brand/name duplication should be diagnosable");
   assert(homepageProductFieldFailureReason({ ...verified, imageUrl: null }) === "unusable_image", "invalid image should be diagnosable");
   assert(

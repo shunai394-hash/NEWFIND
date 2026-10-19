@@ -644,7 +644,7 @@ async function loadProducts(
   const { data, error } = await supabase
     .from("discovery_products")
     .select(
-      "id, brand, product_name, product_image_url, product_url, official_url, price, description, sku, gtin, model_number, confidence_score, discovery_source",
+      "id, brand, product_name, product_image_url, product_url, official_url, price, description, sku, gtin, model_number, confidence_score, discovery_source, attention_reason",
     )
     .eq("status", "approved")
     .order("created_at", { ascending: false })
@@ -695,7 +695,7 @@ async function loadProducts(
 
   if (!error && data?.length) {
     const eligible = data.filter((row) => {
-      const isTracerSource = String(row.discovery_source ?? "").toLowerCase() === "tracer";
+      const isTracerSource = String(row.discovery_source ?? "").toLowerCase() === "tracer" && String(row.attention_reason ?? "").startsWith("TRACER_ATTESTED_V1:");
       const brand = String(row.brand ?? "");
       if (
         !isHomepageProductEligible({
@@ -738,7 +738,7 @@ async function loadProducts(
       return distinct.slice(0, 8).map((row) => ({
         id: row.id as string,
         brand: (row.brand as string) ?? "",
-        sourceLabel: /^(?:unknown|unbranded|generic|n\/?a|none|null)$/i.test(String(row.brand ?? "").trim()) && String(row.discovery_source ?? "").toLowerCase() === "tracer" ? "TRACER" : null,
+        sourceLabel: /^(?:unknown|unbranded|generic|n\/?a|none|null)$/i.test(String(row.brand ?? "").trim()) && String(row.discovery_source ?? "").toLowerCase() === "tracer" && String(row.attention_reason ?? "").startsWith("TRACER_ATTESTED_V1:") ? "TRACER" : null,
         name: (row.product_name as string) ?? "",
         imageUrl: (row.product_image_url as string | null) ?? null,
         href: `/products/${row.id}`,

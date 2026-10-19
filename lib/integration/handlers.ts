@@ -24,6 +24,11 @@ function asNumber(value: unknown): number | null {
   return null;
 }
 
+function confidenceScore(payload: Record<string, unknown>): number | null {
+  const score = asNumber(payload.selection_score) ?? asNumber(payload.confidence);
+  return score !== null && score > 0 ? Math.round(score) : null;
+}
+
 async function storeBridgeNote(input: {
   eventType: TracerInboundEventType;
   eventId: string;
@@ -133,7 +138,7 @@ async function handleProductCandidate(
         ...(!isBrandBridge && (asString(payload.official_url) || asString(payload.officialUrl))
           ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
           : {}),
-        confidence_score: (() => { const score = asNumber(payload.selection_score) ?? asNumber(payload.confidence); return score !== null && score > 0 ? Math.round(score) : null; })(),
+        confidence_score: confidenceScore(payload),
         trend_score: asNumber(payload.demand_score) ?? 0,
         // Re-promotion carries TRACER's current price; never keep a stale one.
         ...(!isBrandBridge && asNumber(payload.price) !== null
@@ -174,9 +179,7 @@ async function handleProductCandidate(
           : "TRACER_ATTESTED_V1:" + (asString(payload.discovery_reason) || asString(payload.note) || "TRACER product candidate"),
         status: publishable ? "approved" : "pending",
         trend_score: asNumber(payload.demand_score) ?? 0,
-        confidence_score: Math.round(
-          asNumber(payload.selection_score) ?? asNumber(payload.confidence) ?? 40,
-        ),
+        confidence_score: confidenceScore(payload),
         discovered_at: new Date().toISOString(),
       })
       .select("id")

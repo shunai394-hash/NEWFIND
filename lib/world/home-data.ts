@@ -578,9 +578,10 @@ export function hasVerifiedProductIdentity(product: {
   return hasSourceUrl || hasStructuredIdentity;
 }
 
-export function homepageProductFieldFailureReason(product: {
-  brand: string; name: string; imageUrl: string | null; description?: string | null;
-}): string | null {
+export function homepageProductFieldFailureReason(
+  product: { brand: string; name: string; imageUrl: string | null; description?: string | null },
+  options: { allowUnknownBrand?: boolean } = {},
+): string | null {
   const brand = product.brand.trim();
   const name = product.name.trim();
   const imageUrl = product.imageUrl?.trim() || "";
@@ -589,7 +590,7 @@ export function homepageProductFieldFailureReason(product: {
   if (!name) return "missing_name";
   if (!isUsableProductImageUrl(imageUrl)) return "unusable_image";
   if (/^(?:unknown|discovery|product|untitled|new discovery|n\/?a|none|null)$/i.test(name)) return "placeholder_name";
-  if (/^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)) return "placeholder_brand";
+  if (!options.allowUnknownBrand && /^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand)) return "placeholder_brand";
   const normalize = (value: string) => value.toLocaleLowerCase().normalize("NFKC").replace(/[\p{P}\p{Z}\p{S}]+/gu, "");
   if (normalize(name) === normalize(brand)) return "brand_equals_name";
   if (isDecorativeCraftObject(text)) return "decorative_craft";
@@ -696,12 +697,15 @@ async function loadProducts(
   ).length;
   const productFieldFailureCounts: Record<string, number> = {};
   for (const row of candidateRows) {
+    const allowUnknownBrand =
+      String(row.discovery_source ?? "").toLowerCase() === "tracer" &&
+      String(row.attention_reason ?? "").startsWith("TRACER_ATTESTED_V1:");
     const reason = homepageProductFieldFailureReason({
       brand: String(row.brand ?? ""),
       name: String(row.product_name ?? ""),
       imageUrl: String(row.product_image_url ?? ""),
       description: String(row.description ?? ""),
-    });
+    }, { allowUnknownBrand });
     if (reason) productFieldFailureCounts[reason] = (productFieldFailureCounts[reason] ?? 0) + 1;
   }
   console.info("[world-home] homepage product quality gate", {
@@ -714,14 +718,17 @@ async function loadProducts(
       const price = Number(row.price);
       return row.price != null && Number.isFinite(price) && price > 0;
     }).length,
-    rowsWithEligibleProductFields: candidateRows.filter((row) =>
-      isHomepageProductEligible({
+    rowsWithEligibleProductFields: candidateRows.filter((row) => {
+      const isTracerSource =
+        String(row.discovery_source ?? "").toLowerCase() === "tracer" &&
+        String(row.attention_reason ?? "").startsWith("TRACER_ATTESTED_V1:");
+      return isHomepageProductEligible({
         brand: String(row.brand ?? ""),
         name: String(row.product_name ?? ""),
         imageUrl: String(row.product_image_url ?? ""),
         description: String(row.description ?? ""),
-      }, { requireVerifiedFields: false }),
-    ).length,
+      }, { requireVerifiedFields: false, allowUnknownBrand: isTracerSource });
+    }).length,
     productFieldFailureCounts,
     rowsWithVerifiedIdentity,
     rowsWithEligibleConfidence: candidateRows.filter((row) =>

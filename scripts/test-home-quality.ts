@@ -158,6 +158,10 @@ function main() {
     "unknown brand must fail the homepage quality gate",
   );
   assert(
+    isHomepageProductEligible({ ...verified, brand: "Unknown" }, { allowUnknownBrand: true }),
+    "explicitly allowed source-trust flow may display unknown brand without inventing a brand",
+  );
+  assert(
     !isHomepageProductEligible({ ...verified, brand: "Young Solutions", name: "young solutions" }),
     "a brand duplicated as the product name must not be presented as a discovery",
   );

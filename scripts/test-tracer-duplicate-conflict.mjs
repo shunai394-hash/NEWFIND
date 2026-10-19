@@ -20,5 +20,6 @@ assert.match(handlers, /discovery duplicate URL recovery failed/);
 assert.match(route, /inbox\.duplicate && inbox\.row\.status === "rejected"/);
 assert.match(route, /recoverableDuplicateInsert/);
 assert.match(route, /discovery insert failed: duplicate key value violates unique constraint/i);
+assert.match(route, /confidence_score\.\*violates not-null constraint/i, "a receiver-side confidence schema failure is replayable after the normalization fix");
 assert.match(route, /if \(!recoverableDuplicateInsert\)\s*\{[\s\S]*?previously rejected/, "only the known duplicate-key rejection may be replayed");
 console.log("TRACER duplicate-key recovery contract passed");

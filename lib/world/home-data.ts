@@ -696,17 +696,34 @@ async function loadProducts(
     }),
   ).length;
   const productFieldFailureCounts: Record<string, number> = {};
+  const productFieldFailureCountsBySource: Record<string, Record<string, number>> = {};
+  const sourceCounts: Record<string, number> = {};
+  let tracerAttestedRows = 0;
+  let unknownBrandRows = 0;
+  let unknownBrandRowsWithTracerAttestation = 0;
   for (const row of candidateRows) {
-    const allowUnknownBrand =
-      String(row.discovery_source ?? "").toLowerCase() === "tracer" &&
+    const source = String(row.discovery_source ?? "").trim().toLowerCase() || "(missing)";
+    sourceCounts[source] = (sourceCounts[source] ?? 0) + 1;
+    const isTracerAttested =
+      source === "tracer" &&
       String(row.attention_reason ?? "").startsWith("TRACER_ATTESTED_V1:");
+    if (isTracerAttested) tracerAttestedRows += 1;
+    const brand = String(row.brand ?? "").trim();
+    const isUnknownBrand = /^(?:unknown|discovery|unbranded|generic|n\/?a|none|null)$/i.test(brand);
+    if (isUnknownBrand) unknownBrandRows += 1;
+    if (isUnknownBrand && isTracerAttested) unknownBrandRowsWithTracerAttestation += 1;
     const reason = homepageProductFieldFailureReason({
-      brand: String(row.brand ?? ""),
+      brand,
       name: String(row.product_name ?? ""),
       imageUrl: String(row.product_image_url ?? ""),
       description: String(row.description ?? ""),
-    }, { allowUnknownBrand });
-    if (reason) productFieldFailureCounts[reason] = (productFieldFailureCounts[reason] ?? 0) + 1;
+    }, { allowUnknownBrand: isTracerAttested });
+    if (reason) {
+      productFieldFailureCounts[reason] = (productFieldFailureCounts[reason] ?? 0) + 1;
+      const sourceCountsForReason = productFieldFailureCountsBySource[source] ?? {};
+      sourceCountsForReason[reason] = (sourceCountsForReason[reason] ?? 0) + 1;
+      productFieldFailureCountsBySource[source] = sourceCountsForReason;
+    }
   }
   console.info("[world-home] homepage product quality gate", {
     queryErrorCode: error?.code ?? null,
@@ -730,6 +747,11 @@ async function loadProducts(
       }, { requireVerifiedFields: false, allowUnknownBrand: isTracerSource });
     }).length,
     productFieldFailureCounts,
+    productFieldFailureCountsBySource,
+    sourceCounts,
+    tracerAttestedRows,
+    unknownBrandRows,
+    unknownBrandRowsWithTracerAttestation,
     rowsWithVerifiedIdentity,
     rowsWithEligibleConfidence: candidateRows.filter((row) =>
       isHomepageProductConfidenceEligible(

@@ -3,9 +3,9 @@ import { WorldHome } from "@/components/world-home";
 import { loadWorldHomeData } from "@/lib/world/home-data";
 
 export const metadata: Metadata = {
-  title: "NEWFIND — Human + AI Social Discovery World",
+  title: "NEWFIND｜商品・トレンド発見コミュニティ",
   description:
-    "A social world where people and AI residents discover products together.",
+    "ファッション・美容・ガジェットなど、気になる商品やトレンドを発見。情報源を確認して、安心して公式ショップへ。",
 };
 
 export const revalidate = 60;

@@ -8,7 +8,7 @@ import { loadMarketplaceDossier } from "@/lib/marketplace/store";
 export const dynamic = "force-dynamic";
 
 function productMetadataText(value: string | null | undefined, maxLength: number) {
-  const normalized = (value ?? "").replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim();
+  const normalized = (value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   return normalized.length > maxLength
     ? `${normalized.slice(0, maxLength - 1).trimEnd()}…`
     : normalized;

@@ -11,8 +11,25 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "NEWFIND",
-  description: "Discover products, people, and trends. Check sources and go to a real store.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://newfind-self.vercel.app"),
+  title: {
+    default: "NEWFIND｜商品・トレンド発見コミュニティ",
+    template: "%s｜NEWFIND",
+  },
+  description: "ファッション・美容・ガジェットなど、気になる商品やトレンドを発見。情報源を確認して、安心して公式ショップへ。",
+  applicationName: "NEWFIND",
+  openGraph: {
+    type: "website",
+    locale: "ja_JP",
+    siteName: "NEWFIND",
+    title: "NEWFIND｜商品・トレンド発見コミュニティ",
+    description: "ファッション・美容・ガジェットなど、気になる商品やトレンドを発見。情報源を確認して、安心して公式ショップへ。",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NEWFIND｜商品・トレンド発見コミュニティ",
+    description: "ファッション・美容・ガジェットなど、気になる商品やトレンドを発見。情報源を確認して、安心して公式ショップへ。",
+  },
   icons: {
     icon: [
       { url: "/brand/app-icon.svg", type: "image/svg+xml" },

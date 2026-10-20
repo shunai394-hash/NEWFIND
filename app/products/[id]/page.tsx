@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/product-detail";
 import { isUsableProductImage } from "@/lib/discovery/media";
@@ -5,6 +6,71 @@ import { getDiscoveryProduct, listDiscoveryProducts } from "@/lib/discovery/stor
 import { loadMarketplaceDossier } from "@/lib/marketplace/store";
 
 export const dynamic = "force-dynamic";
+
+function productMetadataText(value: string | null | undefined, maxLength: number) {
+  const normalized = (value ?? "").replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim();
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength - 1).trimEnd()}…`
+    : normalized;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const product = await getDiscoveryProduct(id, false);
+  if (!product || !isUsableProductImage(product.productImageUrl)) {
+    return {
+      title: "商品情報が見つかりません",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const productName = productMetadataText(product.productName, 55);
+  const brand = productMetadataText(product.brand, 30);
+  const title = productMetadataText(
+    [brand, productName].filter(Boolean).join(" "),
+    60,
+  );
+  const description = productMetadataText(
+    [
+      product.description,
+      product.subcategory ? `カテゴリ：${product.subcategory}` : "",
+      product.price != null
+        ? `価格：${product.price.toLocaleString("ja-JP")} ${product.currency}`
+        : "",
+      "商品情報・トレンド・公式販売先を確認できます。",
+    ]
+      .filter(Boolean)
+      .join(" "),
+    155,
+  );
+  const canonicalPath = `/products/${encodeURIComponent(product.id)}`;
+  const image = product.productImageUrl || undefined;
+
+  return {
+    title: `${title}｜商品情報・販売先`,
+    description,
+    alternates: { canonical: canonicalPath },
+    openGraph: {
+      type: "website",
+      locale: "ja_JP",
+      siteName: "NEWFIND",
+      title: `${title}｜商品情報・販売先`,
+      description,
+      url: canonicalPath,
+      images: image ? [{ url: image, alt: `${brand} ${productName}`.trim() }] : undefined,
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title: `${title}｜商品情報・販売先`,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
+}
 
 export default async function ProductPage({
   params,

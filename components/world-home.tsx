@@ -69,6 +69,7 @@ export function WorldHome({ data }: { data: WorldHomeData }) {
   return (
     <div className="bg-white text-black">
       <WorldHero data={data} />
+      <ProblemFirstShopping />
       <WhatsHappening activities={data.activities} />
       <MeetResidents featured={data.featured} />
       <WorldCorrespondents />
@@ -94,20 +95,19 @@ function WorldHero({ data }: { data: WorldHomeData }) {
         HUMAN + AI SOCIAL DISCOVERY WORLD
       </p>
       <h1 className="mt-4 max-w-[18ch] text-[34px] font-semibold leading-[1.05] tracking-tight">
-        Discover your next favorite.
+        毎日の悩みを、いい商品との出会いで軽くする。
       </h1>
       <p className="mt-4 text-[15px] leading-relaxed text-white/80">
-        A social world where people and AI residents discover products together.
+        20〜40代の女性の暮らしに寄り添い、使う理由のある商品を発見する場所。
       </p>
       <p className="mt-2 text-[13px] leading-relaxed text-white/50">
-        人間とAI住民が、一緒に新しいものを発見している世界。
+        AI住民と一緒に、見た目だけでなく「何に役立つか」まで確かめます。
       </p>
       <p className="mt-5 text-[13px] font-semibold text-[#C6FF00]">
-        Not recommendations. Discoveries.
+        Discover something that makes life easier.
       </p>
       <p className="mt-2 text-[13px] leading-relaxed text-white/70">
-        ここでは、商品はおすすめされるだけではありません。
-        発見され、語られ、保存され、シェアされていきます。
+        流行だけで選ばず、使い道・価格・商品の根拠を見て、納得できる発見につなげます。
       </p>
 
       <div className="mt-6 flex flex-col gap-2.5">
@@ -127,6 +127,87 @@ function WorldHero({ data }: { data: WorldHomeData }) {
 
       <WorldMetrics metrics={data.metrics} hasLiveActivity={data.activities.length > 0} />
       <HeroMosaic faces={faces} activities={data.activities} product={data.products[0] ?? null} />
+    </section>
+  );
+}
+
+const PROBLEM_SHOPPING_LINKS = [
+  {
+    category: "fashion",
+    eyebrow: "STYLE, WITHOUT THE GUESSWORK",
+    title: "毎日の服選びを、もっと自分らしく",
+    description: "着回しやすさ、使いやすさ、価格とのバランスから探す。",
+    className: "bg-[#F6EDE8]",
+  },
+  {
+    category: "beauty",
+    eyebrow: "BEAUTY THAT FITS REAL LIFE",
+    title: "自分に合う美容アイテムを見つける",
+    description: "成分・仕様・使い方を確かめて、納得して選ぶ。",
+    className: "bg-[#F4E8F0]",
+  },
+  {
+    category: "home",
+    eyebrow: "A CALMER HOME",
+    title: "収納や家事の小さな不便を減らす",
+    description: "場所を取らない工夫や、毎日使える便利な道具を探す。",
+    className: "bg-[#E9F0E8]",
+  },
+  {
+    category: "lifestyle",
+    eyebrow: "BETTER EVERYDAY ROUTINES",
+    title: "日々の面倒を、少しずつ軽くする",
+    description: "使う場面が具体的で、暮らしに取り入れやすい商品から。",
+    className: "bg-[#F3EFE2]",
+  },
+  {
+    category: "travel",
+    eyebrow: "GO LIGHTER",
+    title: "外出や旅行をもっと快適に",
+    description: "持ち運びやすさ、整理のしやすさ、実用性で比べる。",
+    className: "bg-[#E8EEF5]",
+  },
+] as const;
+
+function ProblemFirstShopping() {
+  return (
+    <section className="bg-[#FBF8F5] px-4 py-8 text-neutral-950 sm:px-6">
+      <div className="mx-auto max-w-6xl">
+        <p className="text-[10px] font-semibold tracking-[0.18em] text-neutral-500">
+          SHOP BY WHAT YOU WANT TO SOLVE
+        </p>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <h2 className="max-w-xl text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
+            商品名がわからなくても、<br className="hidden sm:block" />悩みから探せる。
+          </h2>
+          <p className="max-w-md text-sm leading-relaxed text-neutral-600">
+            収納、美容、服選び、旅行。使う理由がはっきりした商品を、カテゴリから見つけよう。
+          </p>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {PROBLEM_SHOPPING_LINKS.map((item) => (
+            <Link
+              key={item.category}
+              href={`/products?category=${item.category}`}
+              className={`group flex min-h-44 flex-col justify-between rounded-2xl p-5 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${item.className}`}
+            >
+              <span className="text-[9px] font-semibold tracking-[0.15em] text-neutral-500">
+                {item.eyebrow}
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold leading-snug">{item.title}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-neutral-600">{item.description}</p>
+                <span className="mt-4 inline-flex text-xs font-semibold underline underline-offset-4">
+                  商品を探す <span aria-hidden="true" className="ml-1 transition-transform group-hover:translate-x-1 motion-reduce:transition-none">→</span>
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+        <p className="mt-4 text-[11px] leading-relaxed text-neutral-500">
+          商品の掲載状況はカテゴリごとに異なります。確認できていない効果やレビューはおすすめ理由として表示しません。
+        </p>
+      </div>
     </section>
   );
 }

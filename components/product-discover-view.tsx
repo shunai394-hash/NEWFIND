@@ -20,8 +20,8 @@ const FILTERS: Array<DiscoveryCategory | "trending" | "japan" | "all"> = [
   ...DISCOVERY_CATEGORIES,
 ];
 
-export function ProductDiscoverView() {
-  const [collection, setCollection] = useState<DiscoveryCategory | "trending" | "japan" | "all">("all");
+export function ProductDiscoverView({ initialCategory = "all" }: { initialCategory?: DiscoveryCategory | "all" }) {
+  const [collection, setCollection] = useState<DiscoveryCategory | "trending" | "japan" | "all">(initialCategory);
   const [all, setAll] = useState<DiscoveryProduct[]>([]);
 
   useEffect(() => {

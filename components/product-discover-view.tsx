@@ -77,7 +77,7 @@ export function ProductDiscoverView({ initialCategory = "all" }: { initialCatego
           No products in this filter yet.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-px bg-neutral-200">
+        <div className="mx-auto grid w-full max-w-[1440px] grid-cols-2 gap-2 bg-white p-2 sm:grid-cols-3 sm:gap-3 sm:p-4 lg:grid-cols-4 lg:gap-4 lg:p-6 xl:grid-cols-5">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

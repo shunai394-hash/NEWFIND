@@ -55,7 +55,7 @@ export function ProductDetail({
   };
 
   return (
-    <article className="bg-white">
+    <article className="mx-auto w-full max-w-[1440px] bg-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c") }}
@@ -67,7 +67,7 @@ export function ProductDetail({
           alt={`${product.brand} ${product.productName}`}
         />
       ) : null}
-      <div className="space-y-5 px-4 py-5">
+      <div className="mx-auto grid w-full max-w-[1100px] gap-5 px-4 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)] lg:gap-12 lg:px-12 lg:py-10">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
             {product.brand}
@@ -259,7 +259,7 @@ export function ProductDetail({
               All
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-px bg-neutral-200">
+          <div className="mx-auto grid w-full max-w-[1440px] grid-cols-2 gap-2 bg-white p-2 sm:grid-cols-3 sm:gap-3 sm:p-4 lg:grid-cols-4 lg:gap-4 lg:p-6 xl:grid-cols-5">
             {related.map((item) => (
               <ProductCard key={item.id} product={item} />
             ))}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { isUsableProductImage } from "@/lib/discovery/media";
-import { discoveryShopUrl } from "@/lib/discovery/shop";
+import { discoveryShopUrl, ownedStorePrice } from "@/lib/discovery/shop";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -23,8 +23,9 @@ export function ProductCard({ product }: { product: DiscoveryProduct }) {
   if (!imageUrl || failed) return null;
 
   const shopUrl = discoveryShopUrl(product);
-  const price = product.price != null && Number.isFinite(product.price) && product.price > 0
-    ? new Intl.NumberFormat("ja-JP", { style: "currency", currency: product.currency || "JPY", maximumFractionDigits: 0 }).format(product.price)
+  const retailPrice = ownedStorePrice(product);
+  const price = retailPrice
+    ? new Intl.NumberFormat("ja-JP", { style: "currency", currency: retailPrice.currency, maximumFractionDigits: 0 }).format(retailPrice.price)
     : null;
 
   return (
@@ -49,7 +50,7 @@ export function ProductCard({ product }: { product: DiscoveryProduct }) {
           {product.productName}
         </Link>
         <p className="mt-2 min-h-6 text-sm font-semibold text-neutral-900">
-          {price || <span className="text-xs font-normal text-neutral-500">価格は販売先でご確認ください</span>}
+          {price || <span className="text-xs font-normal text-neutral-500">販売価格を確認中</span>}
         </p>
         <Link
           href={`/products/${product.id}`}

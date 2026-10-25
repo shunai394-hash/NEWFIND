@@ -27,7 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </a>
       <div
         className={`relative mx-auto flex min-h-dvh w-full flex-col overflow-x-clip bg-white text-black ${
-          isAdmin ? "max-w-3xl" : "max-w-[430px]"
+          isAdmin ? "max-w-3xl" : "max-w-none"
         }`}
       >
         {hideChrome ? null : (

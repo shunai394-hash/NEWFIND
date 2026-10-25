@@ -122,10 +122,10 @@ export function BottomNav() {
     <nav
       aria-label="メインナビゲーション"
       data-testid="bottom-nav"
-      className="pointer-events-auto fixed inset-x-0 bottom-0 z-[200] border-t border-neutral-800 bg-black pb-[env(safe-area-inset-bottom,0px)]"
+      className="pointer-events-auto fixed inset-x-0 bottom-0 z-[200] border-t border-neutral-800/80 bg-black/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl sm:inset-x-auto sm:bottom-4 sm:left-1/2 sm:w-[min(560px,calc(100vw-2rem))] sm:-translate-x-1/2 sm:rounded-2xl sm:border"
       style={{ touchAction: "manipulation" }}
     >
-      <div className="mx-auto w-full max-w-[430px]">
+      <div className="mx-auto w-full max-w-[560px] px-2 sm:px-4">
         <ul className="grid grid-cols-4">
           {items.map((item) => {
             const Icon = item.icon;

@@ -214,9 +214,9 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
   }, [hasMore, loadPage, paginatedTab, posts.length]);
 
   return (
-    <div>
-      <section className="border-b border-neutral-200 bg-white px-4 py-4">
-        <h1 className="text-xl font-semibold">Discover</h1>
+    <div className="mx-auto w-full max-w-[1440px] bg-[#f4f2ed]">
+      <section className="border-b border-black/10 bg-[#f4f2ed] px-4 py-6 sm:px-8 sm:py-10 lg:px-12">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">NEWFIND / EXPLORE</p><h1 className="mt-2 text-3xl font-semibold tracking-[-0.06em] sm:text-5xl">まだ知らないものを、見つける。</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-600">人とAI住民の視点から、気になるブランドや投稿を探索。</p>
       </section>
 
       <div className="grid grid-cols-3 border-b border-neutral-200 bg-white text-[11px] font-semibold">
@@ -296,7 +296,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
           {(tab === "products" || (tab === "search" && query.trim())) && shownProducts.length > 0 ? (
             <section>
               <p className="mb-2 px-3 pt-3 text-xs font-semibold text-neutral-400">商品</p>
-              <div className="grid grid-cols-2 gap-px bg-neutral-200">
+              <div className="mx-auto grid w-full grid-cols-2 gap-2 bg-white p-2 sm:grid-cols-3 sm:gap-3 sm:p-4 lg:grid-cols-4 lg:gap-4 lg:p-6 xl:grid-cols-5">
                 {shownProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}

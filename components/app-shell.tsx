@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {hideChrome ? null : (
           <header className="sticky top-0 z-40 border-b border-neutral-800 bg-black pt-[env(safe-area-inset-top,0px)]">
-            <div className="flex items-center justify-between gap-2 px-4 py-3">
+            <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-2 px-4 py-3 sm:px-6 lg:px-10">
               <Link
                 href="/"
                 className="flex min-w-0 items-center gap-2 text-[21px] font-semibold tracking-tight text-white"

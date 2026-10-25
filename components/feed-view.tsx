@@ -279,8 +279,9 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
   }, [hasMore, loadPage, posts.length]);
 
   return (
-    <div>
-      <div className="flex items-center justify-end border-b border-neutral-200 bg-white px-4 py-2">
+    <div className="mx-auto w-full max-w-[1100px] bg-[#f4f2ed]">
+      <div className="flex items-center justify-between border-b border-black/10 bg-[#f4f2ed] px-4 py-4 sm:px-8">
+        <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">NEWFIND / COMMUNITY</p><h1 className="mt-1 text-2xl font-semibold tracking-[-0.05em] sm:text-4xl">発見のフィード</h1></div>
         <Link
           href="/discover"
           aria-label="検索"

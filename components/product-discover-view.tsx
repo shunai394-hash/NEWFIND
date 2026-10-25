@@ -64,7 +64,7 @@ export function ProductDiscoverView({ initialCategory = "all" }: { initialCatego
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-2 border-b border-neutral-200 bg-white text-sm font-semibold">
+      <div className="mx-auto grid max-w-[1440px] grid-cols-2 border-b border-neutral-200 bg-white text-sm font-semibold">
         <Link href="/feed" className="py-3 text-center text-neutral-400">
           For You
         </Link>
@@ -77,7 +77,7 @@ export function ProductDiscoverView({ initialCategory = "all" }: { initialCatego
           No products in this filter yet.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-px bg-neutral-200">
+        <div className="mx-auto grid w-full max-w-[1440px] grid-cols-2 gap-2 bg-white p-2 sm:gap-3 sm:p-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-4 lg:p-6 xl:grid-cols-5">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

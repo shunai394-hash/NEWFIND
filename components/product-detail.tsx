@@ -58,7 +58,7 @@ export function ProductDetail({
           <nav aria-label="パンくずリスト" className="text-xs text-neutral-500"><Link href="/">ホーム</Link><span className="mx-2">/</span><Link href="/products">商品一覧</Link><span className="mx-2">/</span><span>{product.subcategory || product.category}</span></nav>
           <p className="mt-7 text-xs font-semibold tracking-[0.16em] text-[#a6533a]">{product.brand}</p>
           <h1 className="mt-2 text-2xl font-semibold leading-snug tracking-tight sm:text-4xl">{product.productName}</h1>
-          {product.price != null ? <p className="mt-5 text-2xl font-semibold">{product.price.toLocaleString("ja-JP")} <span className="text-sm font-medium">{product.currency}</span></p> : <p className="mt-5 text-sm text-neutral-500">価格は販売先でご確認ください。</p>}
+          {product.commercial?.sellingPriceJPY != null ? <><p className="mt-5 text-xs text-neutral-500">NEWFIND販売価格</p><p className="text-2xl font-semibold">{product.commercial.sellingPriceJPY.toLocaleString("ja-JP")} <span className="text-sm font-medium">円（税込想定）</span></p></> : product.price != null ? <><p className="mt-5 text-xs text-neutral-500">販売先の参考価格（NEWFINDの販売価格ではありません）</p><p className="text-2xl font-semibold">{product.price.toLocaleString("ja-JP")} <span className="text-sm font-medium">{product.currency}</span></p></> : <p className="mt-5 text-sm text-neutral-500">価格は販売先でご確認ください。</p>}
           <p className="mt-5 text-sm leading-8 text-neutral-700">{product.description || "商品の詳細情報は販売先のページでご確認ください。"}</p>
           <div className="mt-7 space-y-3 border-y border-neutral-200 py-5 text-sm">
             <div className="flex justify-between gap-4"><span className="text-neutral-500">カテゴリー</span><span>{product.subcategory || product.category}</span></div>

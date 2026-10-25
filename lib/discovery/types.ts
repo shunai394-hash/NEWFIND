@@ -253,6 +253,8 @@ export type DiscoveryProduct = {
     shippingCostJPY: number | null;
     sellingPriceJPY: number | null;
     commissionRate: number | null;
+    platformFeeRate: number | null;
+    otherCostJPY: number | null;
     competitorPriceJPY: number | null;
     lastVerifiedAt: string | null;
     sourceUrl: string | null;

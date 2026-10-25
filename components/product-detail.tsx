@@ -67,7 +67,7 @@ export function ProductDetail({
           alt={`${product.brand} ${product.productName}`}
         />
       ) : null}
-      <div className="mx-auto grid w-full max-w-[1100px] gap-5 px-4 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)] lg:gap-12 lg:px-12 lg:py-10">
+      <div className="mx-auto w-full max-w-[1100px] space-y-6 px-4 py-6 sm:px-8 lg:px-12 lg:py-10">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
             {product.brand}

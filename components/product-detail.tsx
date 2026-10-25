@@ -33,9 +33,33 @@ export function ProductDetail({
   const sources = evidenceSources(product.sources);
   const signals = productSignals(product);
   const officialSale = product.sales.find((item) => item.officialStore) ?? product.sales[0];
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://newfind-self.vercel.app").replace(/\/$/, "");
+  const productPageUrl = new URL(`/products/${encodeURIComponent(product.id)}`, siteUrl).toString();
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.productName,
+    ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
+    ...(imageOk && product.productImageUrl ? { image: [product.productImageUrl] } : {}),
+    ...(product.description ? { description: product.description } : {}),
+    ...(product.subcategory ? { category: product.subcategory } : {}),
+    url: productPageUrl,
+    ...(officialSale?.price != null && officialSale.currency ? {
+      offers: {
+        "@type": "Offer",
+        price: officialSale.price,
+        priceCurrency: officialSale.currency,
+        url: officialSale.affiliateUrl || officialSale.productUrl,
+      },
+    } : {}),
+  };
 
   return (
     <article className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c") }}
+      />
       <ProductViewTracker productId={product.id} />
       {imageOk && product.productImageUrl ? (
         <ProductHeroImage

@@ -601,7 +601,7 @@ function SavedTab({
   return (
     <div>
       {products.length > 0 ? (
-        <div className="grid grid-cols-2 gap-px bg-neutral-200">
+        <div className="grid grid-cols-2 gap-2 bg-white p-2 sm:grid-cols-3 sm:gap-3 sm:p-4 lg:grid-cols-4 lg:gap-4">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

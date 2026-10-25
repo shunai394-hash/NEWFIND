@@ -2,85 +2,67 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ProductSaveButton } from "@/components/product-save-button";
 import { isUsableProductImage } from "@/lib/discovery/media";
-import { productSignals } from "@/lib/discovery/product-signals";
 import { discoveryShopUrl } from "@/lib/discovery/shop";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
 
-export function ProductCard({
-  product,
-}: {
-  product: DiscoveryProduct;
-}) {
+const CATEGORY_LABELS: Record<string, string> = {
+  fashion: "ファッション",
+  beauty: "コスメ・美容",
+  accessories: "バッグ・アクセサリー",
+  lifestyle: "ライフスタイル",
+  home: "ホーム・インテリア",
+  tech: "ガジェット",
+  food: "フード",
+  travel: "トラベル",
+};
+
+export function ProductCard({ product }: { product: DiscoveryProduct }) {
   const [failed, setFailed] = useState(false);
-  const imageUrl = isUsableProductImage(product.productImageUrl)
-    ? product.productImageUrl
-    : null;
+  const imageUrl = isUsableProductImage(product.productImageUrl) ? product.productImageUrl : null;
   if (!imageUrl || failed) return null;
 
-  const person = product.people[0];
-  const signals = productSignals(product);
   const shopUrl = discoveryShopUrl(product);
-  const blurb = product.attentionReason || product.description;
+  const price = product.price != null && Number.isFinite(product.price) && product.price > 0
+    ? new Intl.NumberFormat("ja-JP", { style: "currency", currency: product.currency || "JPY", maximumFractionDigits: 0 }).format(product.price)
+    : null;
 
   return (
-    <article className="relative overflow-hidden bg-white">
-      <div className="relative">
+    <article className="group min-w-0 overflow-hidden bg-white">
+      <Link href={`/products/${product.id}`} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
+        <div className="aspect-[4/5] overflow-hidden bg-[#f0ece6]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt={`${product.brand} ${product.productName}`}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transition-none"
+            onError={() => setFailed(true)}
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      </Link>
+      <div className="px-2.5 pb-3 pt-3 sm:px-3">
+        <p className="text-[10px] font-medium tracking-wide text-neutral-500">{CATEGORY_LABELS[product.category] || product.subcategory || "アイテム"}</p>
+        <p className="mt-1 text-[11px] font-semibold text-neutral-500">{product.brand}</p>
+        <Link href={`/products/${product.id}`} className="mt-1 block min-h-10 text-[13px] font-semibold leading-snug text-neutral-900 hover:underline underline-offset-2">
+          {product.productName}
+        </Link>
+        <p className="mt-2 min-h-6 text-sm font-semibold text-neutral-900">
+          {price || <span className="text-xs font-normal text-neutral-500">価格は販売先でご確認ください</span>}
+        </p>
         <Link
           href={`/products/${product.id}`}
-          className="group block rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+          className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-full border border-neutral-300 px-3 py-2 text-xs font-semibold text-neutral-900 transition hover:border-neutral-900 hover:bg-neutral-900 hover:text-white"
         >
-          <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt={`${product.brand} ${product.productName}`}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-              onError={() => setFailed(true)}
-              loading="lazy"
-              decoding="async"
-            />
-            {person ? (
-              <span className="absolute left-2 top-2 max-w-[70%] truncate rounded-full bg-black/85 px-2.5 py-1 text-[10px] font-semibold text-white">
-                {person.personName}
-              </span>
-            ) : null}
-            {signals[0] ? (
-              <span className="absolute bottom-2 left-2 rounded-full bg-black/85 px-2.5 py-1 text-[10px] font-semibold text-white">
-                {signals[0].label}
-              </span>
-            ) : null}
-          </div>
+          商品詳細を見る <span className="ml-2" aria-hidden="true">→</span>
         </Link>
-        <div className="absolute right-2 top-2 z-10">
-          <ProductSaveButton productId={product.id} compact />
-        </div>
-      </div>
-      <Link
-        href={`/products/${product.id}`}
-        className="block px-2.5 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-black"
-      >
-        <p className="text-[11px] font-semibold tracking-wide text-neutral-500">{product.brand}</p>
-        <p className="mt-0.5 line-clamp-2 text-[13px] font-semibold leading-snug text-black">
-          {product.productName}
-        </p>
-        {blurb ? (
-          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-neutral-500">{blurb}</p>
-        ) : null}
-      </Link>
-      {shopUrl ? (
-        <div className="px-2.5 pb-3">
-          <a
-            href={shopUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#C6FF00] px-3 py-2 text-[11px] font-semibold text-black"
-          >
-            商品を見る →
+        {shopUrl ? (
+          <a href={shopUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-full bg-[#20201e] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#a6533a]">
+            販売先で購入する <span className="ml-2" aria-hidden="true">↗</span>
           </a>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </article>
   );
 }

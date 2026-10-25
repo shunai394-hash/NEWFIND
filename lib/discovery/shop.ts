@@ -1,4 +1,5 @@
 import { isDummyUrl } from "@/lib/products/discovery-filter";
+import { productHref } from "@/lib/format";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
 
 function liveHttps(url: string | null | undefined) {
@@ -20,5 +21,5 @@ export function postShopHref(post: {
   productUrl: string | null;
   sourceUrl: string | null;
 }) {
-  return null;
+  return productHref(post);
 }

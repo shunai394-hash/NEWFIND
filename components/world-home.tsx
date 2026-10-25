@@ -69,7 +69,7 @@ export function WorldHome({ data }: { data: WorldHomeData }) {
   return (
     <div className="bg-white text-black">
       <WorldHero data={data} />
-      <ProblemFirstShopping />
+      <DiscoverySignalBoard activities={data.activities} products={data.products} />
       <WhatsHappening activities={data.activities} />
       <MeetResidents featured={data.featured} />
       <WorldCorrespondents />
@@ -197,6 +197,66 @@ const PROBLEM_SHOPPING_LINKS = [
     className: "bg-[#E8EEF5]",
   },
 ] as const;
+
+function DiscoverySignalBoard({
+  activities,
+  products,
+}: {
+  activities: WorldActivity[];
+  products: WorldProductChip[];
+}) {
+  const signals = activities.filter((item) => item.product).slice(0, 3);
+  const discoveries = signals.length ? signals : activities.slice(0, 3);
+  const picks = products.slice(0, 4);
+
+  return (
+    <section className="overflow-hidden bg-[#f2f0e9] px-4 py-10 text-black sm:px-8 sm:py-16 lg:px-12 lg:py-20">
+      <div className="mx-auto max-w-[1440px]">
+        <div className="mb-7 flex flex-col justify-between gap-4 border-b border-black/15 pb-5 sm:mb-10 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-neutral-500 sm:text-xs">FIELD NOTES / 01—03</p>
+            <h2 className="mt-3 max-w-[13ch] text-3xl font-semibold leading-[1.02] tracking-[-0.06em] sm:text-5xl lg:text-6xl">誰かの発見が、<br className="hidden sm:block" />次の視点になる。</h2>
+          </div>
+          <Link href="/feed" className="inline-flex min-h-11 items-center gap-3 self-start border-b border-black pb-1 text-sm font-semibold sm:self-auto">発見の現場へ <span aria-hidden="true">↗</span></Link>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3 lg:gap-5">
+          {discoveries.map((item, index) => (
+            <article key={item.id} className={`relative flex min-h-[240px] flex-col justify-between overflow-hidden p-5 sm:min-h-[290px] sm:p-7 ${index === 1 ? "bg-[#d8e4d2]" : index === 2 ? "bg-[#e4d9ce]" : "bg-white"}`}>
+              <div className="flex items-center justify-between gap-3 border-b border-black/15 pb-4">
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em]">SIGNAL 0{index + 1}</span>
+                <span className="text-xs text-neutral-600">{item.actorFlag} {item.actorName}</span>
+              </div>
+              <div className="py-6">
+                <p className="text-xl font-medium leading-snug tracking-tight sm:text-2xl">“{item.quote}”</p>
+                {item.product ? <p className="mt-3 text-xs text-neutral-600">{item.product.brand} / {item.product.name}</p> : null}
+              </div>
+              <Link href={item.ctaHref || "/feed"} className="flex min-h-11 items-center justify-between border-t border-black/15 pt-3 text-xs font-semibold">{item.ctaLabel || "発見をひらく"}<span aria-hidden="true">↗</span></Link>
+            </article>
+          ))}
+          {discoveries.length === 0 ? (
+            <div className="col-span-full grid min-h-[220px] place-items-center border border-dashed border-black/25 p-8 text-center">
+              <div><p className="text-2xl font-semibold tracking-tight">世界は、まだ探索中。</p><p className="mt-2 text-sm text-neutral-600">AI住民と人の新しい発見がここに集まります。</p><Link href="/discover" className="mt-5 inline-flex min-h-11 items-center border-b border-black text-sm font-semibold">探索をはじめる ↗</Link></div>
+            </div>
+          ) : null}
+        </div>
+
+        {picks.length ? <div className="mt-10 border-t border-black/15 pt-5 sm:mt-14 sm:pt-7">
+          <div className="mb-4 flex items-center justify-between gap-3"><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500 sm:text-xs">OBJECTS WORTH A CLOSER LOOK</p><Link href="/discover" className="text-xs font-semibold">すべて見る ↗</Link></div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+            {picks.map((product, index) => <Link href={product.href} key={product.id} className="group min-w-0">
+              <div className="relative aspect-[4/5] overflow-hidden bg-[#e5e2da]">
+                {product.imageUrl ? <img src={product.imageUrl} alt={product.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" /> : <div className="grid h-full place-items-center text-xs text-neutral-500">IMAGE PENDING</div>}
+                <span className="absolute left-2 top-2 bg-black px-2 py-1 text-[9px] font-bold tracking-[0.16em] text-white">PICK 0{index + 1}</span>
+              </div>
+              <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">{product.brand}</p><p className="mt-1 line-clamp-2 text-sm font-semibold leading-snug">{product.name}</p>
+            </Link>)}
+          </div>
+        </div> : null}
+      </div>
+    </section>
+  );
+}
 
 function ProblemFirstShopping() {
   return (

@@ -92,5 +92,24 @@ export default async function ProductPage({
     )
     .slice(0, 6);
   const marketplace = await loadMarketplaceDossier({ discoveryProductId: product.id });
-  return <ProductDetail product={product} related={related} marketplace={marketplace} />;
+  const productUrl = new URL(`/products/${encodeURIComponent(product.id)}`, process.env.NEXT_PUBLIC_SITE_URL || "https://newfind-self.vercel.app").toString();
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: [product.brand, product.productName].filter(Boolean).join(" ").trim(),
+    description: productMetadataText(product.description, 500) || undefined,
+    image: product.productImageUrl,
+    category: product.subcategory || product.category || undefined,
+    brand: product.brand ? { "@type": "Brand", name: product.brand } : undefined,
+    url: productUrl,
+  };
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\\\u003c") }}
+      />
+      <ProductDetail product={product} related={related} marketplace={marketplace} />
+    </>
+  );
 }

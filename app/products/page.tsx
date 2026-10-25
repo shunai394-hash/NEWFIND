@@ -4,6 +4,7 @@ import { ProductCard } from "@/components/product-card";
 import { listDiscoveryProducts, listSeedDiscoveryProducts } from "@/lib/discovery/store";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import type { DiscoveryCategory } from "@/lib/discovery/types";
+import { dedupeStorefrontProducts } from "@/lib/discovery/storefront-catalog";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -38,13 +39,13 @@ export default async function ProductsPage({
     console.error("[STOREFRONT] product catalog unavailable; using approved seed fallback", error);
     catalog = listSeedDiscoveryProducts().filter((product) => product.status === "approved");
   }
-  const products = catalog.filter((product) => {
+  const products = dedupeStorefrontProducts(catalog.filter((product) => {
     if (!isUsableProductImage(product.productImageUrl)) return false;
     if (category !== "all" && product.category !== category) return false;
     if (!query) return true;
     return [product.brand, product.productName, product.description, product.subcategory]
       .some((value) => value.toLocaleLowerCase("ja-JP").includes(query));
-  });
+  }));
 
   return (
     <main className="min-h-screen bg-[#fffdfa] text-neutral-900">

@@ -4,7 +4,7 @@ function identity(value: string | null | undefined) {
   return (value ?? "")
     .normalize("NFKC")
     .toLocaleLowerCase("ja-JP")
-    .replace(/[\s\p{P}\p{S}]+/gu, "");
+    .replace(/[\\s\\p{P}\\p{S}]+/gu, "");
 }
 
 function completeness(product: DiscoveryProduct) {
@@ -15,22 +15,39 @@ function completeness(product: DiscoveryProduct) {
     + Number(Boolean(product.description?.trim()));
 }
 
-/** Hide exact brand + product-name duplicates in storefront views without merging distinct variants. */
+function identifiers(product: DiscoveryProduct) {
+  return [product.gtin, product.sku, product.modelNumber]
+    .map(identity)
+    .filter(Boolean);
+}
+
+function sameVariant(a: DiscoveryProduct, b: DiscoveryProduct) {
+  const left = identifiers(a);
+  const right = identifiers(b);
+  // If both records have identifiers, require at least one matching identifier.
+  // Different GTIN/SKU/model values can represent real variants and must be kept.
+  if (left.length && right.length) return left.some((value) => right.includes(value));
+  // Without identifiers, exact normalized brand + product name is the safest available match.
+  return true;
+}
+
+/** Hide likely exact duplicates while preserving records with conflicting variant identifiers. */
 export function dedupeStorefrontProducts(products: DiscoveryProduct[]) {
   const ranked = [...products].sort((a, b) => completeness(b) - completeness(a));
-  const seen = new Set<string>();
+  const seen = new Map<string, DiscoveryProduct[]>();
   const result: DiscoveryProduct[] = [];
   for (const product of ranked) {
     const brand = identity(product.brand);
     const name = identity(product.productName);
-    // Missing identity fields are not safe to merge, so keep those records visible.
     if (!brand || !name) {
       result.push(product);
       continue;
     }
     const key = `${brand}::${name}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const candidates = seen.get(key) ?? [];
+    if (candidates.some((candidate) => sameVariant(candidate, product))) continue;
+    candidates.push(product);
+    seen.set(key, candidates);
     result.push(product);
   }
   return result;

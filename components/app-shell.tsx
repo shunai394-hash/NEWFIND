@@ -10,7 +10,12 @@ const NAV_HEIGHT_PX = 56;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const isStorefront =
+    pathname === "/" ||
+    pathname === "/products" ||
+    pathname.startsWith("/products/");
   const hideChrome =
+    isStorefront ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/signup");

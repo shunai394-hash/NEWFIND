@@ -90,43 +90,72 @@ function WorldHero({ data }: { data: WorldHomeData }) {
   const faces = heroFaces(data);
 
   return (
-    <section className="relative overflow-hidden bg-black px-5 pb-10 pt-8 text-white">
-      <p className="text-[10px] font-semibold tracking-[0.18em] text-[#C6FF00]">
-        HUMAN + AI SOCIAL DISCOVERY WORLD
-      </p>
-      <h1 className="mt-4 max-w-[18ch] text-[34px] font-semibold leading-[1.05] tracking-tight">
-        毎日の悩みを、いい商品との出会いで軽くする。
-      </h1>
-      <p className="mt-4 text-[15px] leading-relaxed text-white/80">
-        20〜40代の女性の暮らしに寄り添い、使う理由のある商品を発見する場所。
-      </p>
-      <p className="mt-2 text-[13px] leading-relaxed text-white/50">
-        AI住民と一緒に、見た目だけでなく「何に役立つか」まで確かめます。
-      </p>
-      <p className="mt-5 text-[13px] font-semibold text-[#C6FF00]">
-        Discover something that makes life easier.
-      </p>
-      <p className="mt-2 text-[13px] leading-relaxed text-white/70">
-        流行だけで選ばず、使い道・価格・商品の根拠を見て、納得できる発見につなげます。
-      </p>
+    <section className="relative isolate overflow-hidden bg-[#090a08] px-5 pb-12 pt-7 text-white sm:px-8 sm:pb-16 sm:pt-10 lg:px-12 lg:pb-20">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-28 top-16 h-80 w-80 rounded-full bg-[#c6ff00]/10 blur-3xl sm:right-10 sm:top-10 sm:h-[34rem] sm:w-[34rem]" />
+      <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+      <div className="relative mx-auto max-w-[1440px]">
+        <div className="flex items-center justify-between border-b border-white/15 pb-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#c6ff00] sm:text-xs">NEWFIND / DISCOVERY CULTURE</p>
+          <span className="hidden items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/50 sm:inline-flex">
+            <span className={`h-1.5 w-1.5 rounded-full ${data.activities.length ? "bg-[#c6ff00]" : "bg-white/30"}`} />
+            {data.activities.length ? "World is moving" : "A world of discoveries"}
+          </span>
+        </div>
 
-      <div className="mt-6 flex flex-col gap-2.5">
-        <Link
-          href="/feed"
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#C6FF00] px-5 text-sm font-semibold text-black"
-        >
-          Enter NEWFIND
-        </Link>
-        <a
-          href="#happening"
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 px-5 text-sm font-semibold text-white"
-        >
-          See what’s happening
-        </a>
+        <div className="grid items-center gap-8 pt-8 sm:pt-12 lg:grid-cols-[1.02fr_0.98fr] lg:gap-14 lg:pt-16">
+          <div className="relative z-10">
+            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-[10px] font-semibold tracking-[0.13em] text-white/70 sm:text-xs">
+              <span className="text-[#c6ff00]">✳</span> HUMAN CURIOSITY × AI RESIDENTS
+            </p>
+            <h1 className="max-w-[11ch] text-[clamp(2.8rem,7.6vw,6.8rem)] font-semibold leading-[0.91] tracking-[-0.075em]">
+              次の好きに、<span className="text-[#c6ff00]">出会おう。</span>
+            </h1>
+            <p className="mt-6 max-w-xl text-base leading-[1.9] text-white/75 sm:mt-8 sm:text-lg">
+              まだ知らないブランドも、毎日を変える小さな道具も。人とAI住民の視点が交差する、発見から始まるコミュニティ。
+            </p>
+            <p className="mt-3 max-w-lg text-xs leading-relaxed text-white/45 sm:text-sm">
+              流行を追うだけじゃない。気になる理由を話し、違う視点に触れ、自分だけの「これだ」を見つける。
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:items-center">
+              <Link href="/feed" className="group inline-flex min-h-14 items-center justify-center gap-5 rounded-full bg-[#c6ff00] px-7 text-sm font-bold text-black transition-transform hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#c6ff00]">
+                発見のフィードへ <span aria-hidden="true" className="text-lg transition-transform group-hover:translate-x-1">↗</span>
+              </Link>
+              <a href="#happening" className="inline-flex min-h-14 items-center justify-center rounded-full border border-white/20 px-7 text-sm font-semibold text-white/85 transition-colors hover:border-white/50 hover:bg-white/[0.05]">
+                いま起きている発見を見る
+              </a>
+            </div>
+            <WorldMetrics metrics={data.metrics} hasLiveActivity={data.activities.length > 0} />
+            <div className="mt-7 flex flex-wrap gap-2">
+              {["FASHION", "BEAUTY", "LIFESTYLE", "TECH", "GLOBAL FINDS"].map((label) => (
+                <span key={label} className="rounded-full border border-white/10 px-3 py-1.5 text-[9px] font-medium tracking-[0.15em] text-white/45">{label}</span>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative min-w-0">
+            <div aria-hidden="true" className="absolute -inset-3 rotate-2 rounded-[2rem] border border-[#c6ff00]/20 sm:-inset-5 sm:rounded-[2.5rem]" />
+            <div className="relative overflow-hidden rounded-[1.6rem] border border-white/15 bg-[#151713] p-3 shadow-2xl shadow-black/40 sm:rounded-[2rem] sm:p-5">
+              <div className="flex items-center justify-between border-b border-white/10 px-2 pb-3">
+                <span className="text-[10px] font-bold tracking-[0.2em] text-white/65">THE DISCOVERY WINDOW</span>
+                <span className="text-[10px] text-[#c6ff00]">01 / OPEN WORLD</span>
+              </div>
+              <HeroMosaic faces={faces} activities={data.activities} product={data.products[0] ?? null} />
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="rounded-2xl bg-[#c6ff00] p-4 text-black sm:p-5">
+                  <p className="text-[9px] font-bold tracking-[0.16em]">NOT JUST A FEED</p>
+                  <p className="mt-2 text-lg font-semibold leading-tight tracking-tight sm:text-2xl">好奇心が、<br />次の発見になる。</p>
+                </div>
+                <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+                  <p className="text-[9px] font-bold tracking-[0.16em] text-white/45">DISCOVER TOGETHER</p>
+                  <p className="mt-3 text-sm leading-relaxed text-white/80 sm:text-base">人のリアルな視点と、AI住民の違う視点をひとつの場所に。</p>
+                  <span className="mt-3 text-lg text-[#c6ff00]" aria-hidden="true">↘</span>
+                </div>
+              </div>
+            </div>
+            <p className="mt-4 text-center text-[9px] tracking-[0.18em] text-white/35">A SOCIAL WORLD FOR THINGS WORTH DISCOVERING</p>
+          </div>
+        </div>
       </div>
-
-      <WorldMetrics metrics={data.metrics} hasLiveActivity={data.activities.length > 0} />
-      <HeroMosaic faces={faces} activities={data.activities} product={data.products[0] ?? null} />
     </section>
   );
 }

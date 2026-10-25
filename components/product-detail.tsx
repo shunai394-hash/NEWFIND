@@ -4,41 +4,27 @@ import { ProductHeroImage } from "@/components/product-hero-image";
 import { ProductSaveButton } from "@/components/product-save-button";
 import { ProductShareButton } from "@/components/product-share-button";
 import { ProductViewTracker } from "@/components/product-view-tracker";
-import { evidenceGroupForSource, evidenceSources, whyIsThisHere } from "@/lib/discovery/evidence";
 import { isUsableProductImage } from "@/lib/discovery/media";
-import { productSignals } from "@/lib/discovery/product-signals";
 import { discoveryShopUrl } from "@/lib/discovery/shop";
-import {
-  DISCOVERY_ORIGIN_LABELS,
-  EVIDENCE_GROUP_LABELS,
-  PERSON_RELATION_LABELS,
-  TREND_TAG_LABELS,
-} from "@/lib/discovery/types";
-import type { DiscoveryOrigin, DiscoveryProduct } from "@/lib/discovery/types";
-import { MarketplaceProductDossier } from "@/components/marketplace-product-dossier";
-import type { MarketplaceDossier } from "@/lib/marketplace/store";
+import type { DiscoveryProduct } from "@/lib/discovery/types";
 
 export function ProductDetail({
   product,
   related,
-  marketplace,
 }: {
   product: DiscoveryProduct;
   related: DiscoveryProduct[];
-  marketplace?: MarketplaceDossier | null;
+  marketplace?: unknown;
 }) {
   const imageOk = isUsableProductImage(product.productImageUrl);
   const shopUrl = discoveryShopUrl(product);
-  const why = whyIsThisHere(product);
-  const sources = evidenceSources(product.sources);
-  const signals = productSignals(product);
   const officialSale = product.sales.find((item) => item.officialStore) ?? product.sales[0];
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://newfind-self.vercel.app").replace(/\/$/, "");
   const productPageUrl = new URL(`/products/${encodeURIComponent(product.id)}`, siteUrl).toString();
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: product.productName,
+    name: [product.brand, product.productName].filter(Boolean).join(" ").trim(),
     ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
     ...(imageOk && product.productImageUrl ? { image: [product.productImageUrl] } : {}),
     ...(product.description ? { description: product.description } : {}),
@@ -55,217 +41,36 @@ export function ProductDetail({
   };
 
   return (
-    <article className="bg-white">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c") }}
-      />
+    <article className="min-h-screen bg-[#fffdfa] text-neutral-900">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c") }} />
       <ProductViewTracker productId={product.id} />
-      {imageOk && product.productImageUrl ? (
-        <ProductHeroImage
-          src={product.productImageUrl}
-          alt={`${product.brand} ${product.productName}`}
-        />
-      ) : null}
-      <div className="space-y-5 px-4 py-5">
-        <div>
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
-            {product.brand}
-          </p>
-          <h1 className="mt-1 text-xl font-semibold leading-tight">{product.productName}</h1>
-          {product.discoveredByResidentName ? (
-            <div className="mt-3 inline-flex items-center rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700">
-              Discovered by {product.discoveredByResidentName}
-            </div>
-          ) : null}
-          <p className="mt-2 text-sm text-neutral-500">
-            {product.subcategory}
-            {product.country ? ` · ${product.country}` : ""}
-          </p>
-          <div className="mt-4 flex gap-2">
+      <div className="mx-auto grid max-w-[1240px] gap-8 px-4 py-6 sm:px-8 sm:py-12 lg:grid-cols-2 lg:gap-14">
+        <div className="min-w-0">
+          {imageOk && product.productImageUrl ? (
+            <ProductHeroImage src={product.productImageUrl} alt={`${product.brand} ${product.productName}`} />
+          ) : <div className="aspect-[4/5] bg-neutral-100" />}
+          <div className="mt-3 flex gap-2">
             <ProductSaveButton productId={product.id} />
-            <ProductShareButton
-              url={`/products/${product.id}`}
-              title={`${product.brand} ${product.productName}`}
-            />
+            <ProductShareButton url={`/products/${product.id}`} title={`${product.brand} ${product.productName}`} />
           </div>
         </div>
-
-        {product.price != null ? (
-          <p className="text-sm font-semibold">
-            {product.price.toLocaleString()} {product.currency}
-          </p>
-        ) : null}
-
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
-            TREND SCORE
-          </p>
-          <p className="text-sm font-semibold">{product.trendScore}</p>
-          {signals.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {signals.map((signal) => (
-                <span
-                  key={signal.key}
-                  className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold"
-                >
-                  {signal.label}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          {product.trendTags.length > 0 ? (
-            <p className="text-[11px] text-neutral-400">
-              {product.trendTags.map((tag) => TREND_TAG_LABELS[tag]).join(" / ")}
-            </p>
-          ) : null}
-        </section>
-
-        {product.description ? (
-          <p className="text-sm leading-relaxed text-neutral-700">{product.description}</p>
-        ) : null}
-
-        {why ? (
-          <section className="rounded-xl bg-neutral-50 px-4 py-4">
-            <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
-              WHY IS THIS HERE?
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-700">{why}</p>
-          </section>
-        ) : null}
-
-        {product.people.length > 0 ? (
-          <section className="rounded-xl border border-neutral-200 px-4 py-4">
-            <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
-              CELEBRITY ASSOCIATION
-            </p>
-            {product.people.map((person) => {
-              const source = sources.find((item) => item.id === person.sourceId);
-              return (
-                <div key={person.id} className="mt-3">
-                  <p className="text-sm font-semibold">{person.personName}</p>
-                  <p className="mt-1 text-sm text-neutral-600">
-                    この商品／ブランドとの関連が確認された
-                    {person.relation !== "unknown"
-                      ? ` · ${PERSON_RELATION_LABELS[person.relation]}`
-                      : ""}
-                  </p>
-                  {source ? (
-                    <a
-                      href={source.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex text-xs font-semibold text-neutral-700 underline"
-                    >
-                      Evidence: {source.sourceTitle || source.sourceUrl}
-                    </a>
-                  ) : person.personUrl ? (
-                    <a
-                      href={person.personUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex text-xs font-semibold text-neutral-700 underline"
-                    >
-                      Source
-                    </a>
-                  ) : null}
-                </div>
-              );
-            })}
-          </section>
-        ) : null}
-
-        {sources.length > 0 ? (
-          <section className="space-y-3">
-            <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
-              EVIDENCE
-            </p>
-            {sources.map((source) => (
-              <div key={source.id} className="rounded-xl border border-neutral-200 px-4 py-4">
-                <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
-                  {EVIDENCE_GROUP_LABELS[evidenceGroupForSource(source.sourceType)]}
-                </p>
-                <p className="mt-1 text-sm font-semibold">{source.sourceTitle}</p>
-                <p className="mt-1 text-xs text-neutral-500">
-                  {source.sourceDomain || "source"}
-                  {source.publishedAt ? ` · ${source.publishedAt}` : ""}
-                </p>
-                {source.sourceExcerpt ? (
-                  <p className="mt-2 text-sm text-neutral-600">{source.sourceExcerpt}</p>
-                ) : null}
-                <a
-                  href={source.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex min-h-11 items-center rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold"
-                >
-                  Open source
-                </a>
-              </div>
-            ))}
-          </section>
-        ) : null}
-
-        <section className="space-y-3">
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-neutral-400">
-            WHERE TO BUY
-          </p>
-          {shopUrl ? (
-            <a
-              href={shopUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#C6FF00] px-4 py-3 text-sm font-semibold text-black"
-            >
-              公式商品ページ →
-            </a>
-          ) : null}
-          {product.sales.map((sale) => (
-            <div key={sale.id} className="rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-4 text-white">
-              <p className="text-sm font-semibold">{sale.sellerName}</p>
-              <p className="mt-1 text-xs text-neutral-400">
-                {sale.officialStore ? "Official store" : sale.sellerKind}
-                {sale.price != null ? ` · ${sale.price.toLocaleString()} ${sale.currency ?? ""}` : ""}
-              </p>
-              <a
-                href={sale.affiliateUrl || sale.productUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex min-h-11 items-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-900"
-              >
-                {sale.officialStore ? "Official store" : "Retailer"}
-              </a>
-            </div>
-          ))}
-          {!shopUrl && !officialSale ? (
-            <p className="text-sm text-neutral-500">販売ページはまだ確認できていません。</p>
-          ) : null}
-        </section>
-
-        <p className="text-[11px] text-neutral-400">
-          Confidence {product.confidenceScore}
-          {product.discoverySource
-            ? ` · ${DISCOVERY_ORIGIN_LABELS[product.discoverySource as DiscoveryOrigin] ?? product.discoverySource}`
-            : ""}
-        </p>
-
-        {marketplace ? <MarketplaceProductDossier dossier={marketplace} /> : null}
+        <div className="min-w-0 lg:py-4">
+          <nav aria-label="パンくずリスト" className="text-xs text-neutral-500"><Link href="/">ホーム</Link><span className="mx-2">/</span><Link href="/products">商品一覧</Link><span className="mx-2">/</span><span>{product.subcategory || product.category}</span></nav>
+          <p className="mt-7 text-xs font-semibold tracking-[0.16em] text-[#a6533a]">{product.brand}</p>
+          <h1 className="mt-2 text-2xl font-semibold leading-snug tracking-tight sm:text-4xl">{product.productName}</h1>
+          {product.price != null ? <p className="mt-5 text-2xl font-semibold">{product.price.toLocaleString("ja-JP")} <span className="text-sm font-medium">{product.currency}</span></p> : <p className="mt-5 text-sm text-neutral-500">価格は販売先でご確認ください。</p>}
+          <p className="mt-5 text-sm leading-8 text-neutral-700">{product.description || "商品の詳細情報は販売先のページでご確認ください。"}</p>
+          <div className="mt-7 space-y-3 border-y border-neutral-200 py-5 text-sm">
+            <div className="flex justify-between gap-4"><span className="text-neutral-500">カテゴリー</span><span>{product.subcategory || product.category}</span></div>
+            {product.country ? <div className="flex justify-between gap-4"><span className="text-neutral-500">ブランド地域</span><span>{product.country}</span></div> : null}
+            <div className="flex justify-between gap-4"><span className="text-neutral-500">販売状況</span><span>{officialSale?.availability === "in_stock" ? "販売先で在庫あり表示" : "販売先で最新状況をご確認ください"}</span></div>
+          </div>
+          {shopUrl ? <a href={shopUrl} target="_blank" rel="noopener noreferrer" className="mt-7 flex min-h-14 w-full items-center justify-center rounded-full bg-[#20201e] px-6 text-sm font-semibold text-white transition hover:bg-[#a6533a]">販売ページで購入する <span className="ml-3">↗</span></a> : <p className="mt-7 rounded-xl bg-neutral-100 p-4 text-sm text-neutral-600">現在、確認できる販売ページはありません。</p>}
+          {product.sales.length > 0 ? <section className="mt-8"><h2 className="text-lg font-semibold">販売先・価格</h2><div className="mt-3 space-y-3">{product.sales.map((sale) => <div key={sale.id} className="flex flex-wrap items-center justify-between gap-3 border border-neutral-200 bg-white p-4"><div><p className="font-semibold">{sale.sellerName}</p><p className="mt-1 text-sm text-neutral-500">{sale.price != null ? `${sale.price.toLocaleString("ja-JP")} ${sale.currency ?? ""}` : "価格は販売先でご確認ください"}</p></div><a href={sale.affiliateUrl || sale.productUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center rounded-full border border-neutral-300 px-4 text-sm font-semibold hover:border-neutral-900">販売先を見る ↗</a></div>)}</div></section> : null}
+          <p className="mt-5 text-xs leading-relaxed text-neutral-500">価格・在庫・送料・返品条件は変更される場合があります。購入前に販売先の最新表示をご確認ください。</p>
+        </div>
       </div>
-      {related.length > 0 ? (
-        <section className="border-t border-neutral-200 pb-8">
-          <div className="flex items-center justify-between px-4 py-3">
-            <h2 className="text-sm font-semibold">Related</h2>
-            <Link href="/products" className="text-xs text-neutral-400">
-              All
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-px bg-neutral-200">
-            {related.map((item) => (
-              <ProductCard key={item.id} product={item} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      {related.length > 0 ? <section className="border-t border-neutral-200 bg-[#f5f1eb] px-4 py-10 sm:px-8 sm:py-14"><div className="mx-auto max-w-[1440px]"><div className="flex items-end justify-between"><h2 className="text-xl font-semibold sm:text-2xl">こちらもおすすめ</h2><Link href="/products" className="text-sm underline underline-offset-4">商品一覧へ</Link></div><div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4 xl:grid-cols-5">{related.map((item) => <ProductCard key={item.id} product={item} />)}</div></div></section> : null}
     </article>
   );
 }

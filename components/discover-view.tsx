@@ -296,7 +296,7 @@ export function DiscoverView({ initialTab = "products" }: { initialTab?: Tab }) 
           {(tab === "products" || (tab === "search" && query.trim())) && shownProducts.length > 0 ? (
             <section>
               <p className="mb-2 px-3 pt-3 text-xs font-semibold text-neutral-400">商品</p>
-              <div className="grid grid-cols-2 gap-px bg-neutral-200">
+              <div className="mx-auto grid w-full grid-cols-2 gap-2 bg-white p-2 sm:grid-cols-3 sm:gap-3 sm:p-4 lg:grid-cols-4 lg:gap-4 lg:p-6 xl:grid-cols-5">
                 {shownProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}

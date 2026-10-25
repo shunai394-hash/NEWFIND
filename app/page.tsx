@@ -3,9 +3,9 @@ import { WorldHome } from "@/components/world-home";
 import { loadWorldHomeData } from "@/lib/world/home-data";
 
 export const metadata: Metadata = {
-  title: "NEWFIND｜商品・トレンド発見コミュニティ",
+  title: "NEWFIND｜レディースファッション・コスメ・新商品発見",
   description:
-    "ファッション・美容・ガジェットなど、気になる商品やトレンドを発見。情報源を確認して、安心して公式ショップへ。",
+    "ファッション・コスメ・スニーカー・ガジェットなどの新商品やトレンドを発見。気になる商品の情報源や公式販売先を確認できます。",
 };
 
 export const revalidate = 60;

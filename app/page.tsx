@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { StorefrontHome } from "@/components/storefront-home";
 import { listDiscoveryProducts, listSeedDiscoveryProducts } from "@/lib/discovery/store";
 import { isUsableProductImage } from "@/lib/discovery/media";
+import { dedupeStorefrontProducts } from "@/lib/discovery/storefront-catalog";
 
 const storeTitle = "NEWFIND｜ファッション・コスメ・暮らしのオンラインストア";
 const storeDescription =
@@ -36,8 +37,8 @@ export default async function HomePage() {
     console.error("[STOREFRONT] live catalog unavailable; using approved seed fallback", error);
     allProducts = listSeedDiscoveryProducts().filter((product) => product.status === "approved");
   }
-  const products = allProducts.filter(
+  const products = dedupeStorefrontProducts(allProducts.filter(
     (product) => product.status === "approved" && isUsableProductImage(product.productImageUrl),
-  );
+  ));
   return <StorefrontHome products={products} />;
 }

@@ -244,8 +244,19 @@ export type DiscoveryProduct = {
   productImageUrl: string | null;
   productUrl: string | null;
   officialUrl: string | null;
+  /** Current/reference market price from an external seller, not NEWFIND revenue. */
   price: number | null;
   currency: string;
+  /** Optional verified resale economics. Do not populate from guessed values. */
+  commercial?: {
+    supplierCostJPY: number | null;
+    shippingCostJPY: number | null;
+    sellingPriceJPY: number | null;
+    commissionRate: number | null;
+    competitorPriceJPY: number | null;
+    lastVerifiedAt: string | null;
+    sourceUrl: string | null;
+  } | null;
   sku: string | null;
   gtin?: string | null;
   modelNumber?: string | null;

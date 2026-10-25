@@ -1,5 +1,4 @@
 import { isDummyUrl } from "@/lib/products/discovery-filter";
-import { productHref } from "@/lib/format";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
 
 function liveHttps(url: string | null | undefined) {
@@ -7,19 +6,19 @@ function liveHttps(url: string | null | undefined) {
   return url.startsWith("https://") ? url : null;
 }
 
-export function discoveryShopUrl(product: Pick<
-  DiscoveryProduct,
-  "productUrl" | "officialUrl" | "sales"
->) {
-  const fromSales = product.sales
-    .map((item) => liveHttps(item.affiliateUrl) || liveHttps(item.productUrl))
-    .find(Boolean);
-  return fromSales || liveHttps(product.productUrl) || liveHttps(product.officialUrl) || null;
+/**
+ * Only return an attributable affiliate destination for storefront purchase CTAs.
+ * Direct retailer URLs are reference information, not a revenue channel for NEWFIND.
+ */
+export function discoveryShopUrl(product: Pick<DiscoveryProduct, "sales">) {
+  return product.sales
+    .map((item) => liveHttps(item.affiliateUrl))
+    .find(Boolean) || null;
 }
 
 export function postShopHref(post: {
   productUrl: string | null;
   sourceUrl: string | null;
 }) {
-  return productHref(post);
+  return null;
 }

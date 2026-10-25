@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
-import { listDiscoveryProducts } from "@/lib/discovery/store";
+import { listDiscoveryProducts, listSeedDiscoveryProducts } from "@/lib/discovery/store";
 import { isUsableProductImage } from "@/lib/discovery/media";
 import type { DiscoveryCategory } from "@/lib/discovery/types";
 
@@ -31,7 +31,13 @@ export default async function ProductsPage({
   const params = await searchParams;
   const category = CATEGORIES.some((item) => item.key === params.category) ? params.category : "all";
   const query = (params.q ?? "").trim().toLocaleLowerCase("ja-JP");
-  const catalog = await listDiscoveryProducts({ admin: false, status: "approved" });
+  let catalog;
+  try {
+    catalog = await listDiscoveryProducts({ admin: false, status: "approved" });
+  } catch (error) {
+    console.error("[STOREFRONT] product catalog unavailable; using approved seed fallback", error);
+    catalog = listSeedDiscoveryProducts().filter((product) => product.status === "approved");
+  }
   const products = catalog.filter((product) => {
     if (!isUsableProductImage(product.productImageUrl)) return false;
     if (category !== "all" && product.category !== category) return false;

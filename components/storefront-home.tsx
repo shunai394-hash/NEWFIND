@@ -44,6 +44,11 @@ export function StorefrontHome({ products }: { products: DiscoveryProduct[] }) {
               <p className="mt-6 max-w-lg text-sm leading-8 text-neutral-700 sm:text-base">
                 ファッション、コスメ、暮らしの道具。世界から見つけた気になるアイテムを、商品情報を確かめながら選べるオンラインストア。
               </p>
+              <form action="/products" className="mt-6 flex max-w-xl gap-2">
+                <label className="sr-only" htmlFor="home-product-search">商品を検索</label>
+                <input id="home-product-search" name="q" placeholder="商品名・ブランド・キーワードで検索" className="min-h-12 min-w-0 flex-1 rounded-full border border-neutral-300 bg-white/90 px-5 text-sm outline-offset-2 focus:border-neutral-800" />
+                <button className="min-h-12 rounded-full bg-white px-5 text-sm font-semibold text-neutral-900 transition hover:bg-[#20201e] hover:text-white" type="submit">検索</button>
+              </form>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link href="/products" className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#20201e] px-7 text-sm font-semibold text-white transition hover:bg-[#a6533a]">商品を見てみる <span className="ml-3">→</span></Link>
                 <a href="#categories" className="inline-flex min-h-12 items-center justify-center rounded-full border border-neutral-500/50 px-7 text-sm font-semibold hover:bg-white/60">カテゴリーから探す</a>

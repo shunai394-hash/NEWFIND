@@ -309,7 +309,7 @@ export function FeedView({ kind }: { kind: "foryou" | "following" }) {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 border-b border-neutral-200 bg-white text-sm font-semibold">
+      <div className="grid grid-cols-2 border-b border-black/10 bg-white text-sm font-semibold">
         <Link
           href="/feed"
           className={`py-3 text-center ${

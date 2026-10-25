@@ -23,9 +23,14 @@ export function ProductCard({ product }: { product: DiscoveryProduct }) {
   if (!imageUrl || failed) return null;
 
   const shopUrl = discoveryShopUrl(product);
-  const price = product.price != null && Number.isFinite(product.price) && product.price > 0
+  const sellingPrice = product.commercial?.sellingPriceJPY;
+  const hasSellingPrice = sellingPrice != null && Number.isFinite(sellingPrice) && sellingPrice > 0;
+  const referencePrice = product.price != null && Number.isFinite(product.price) && product.price > 0
     ? new Intl.NumberFormat("ja-JP", { style: "currency", currency: product.currency || "JPY", maximumFractionDigits: 0 }).format(product.price)
     : null;
+  const price = hasSellingPrice
+    ? new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 }).format(sellingPrice)
+    : referencePrice;
 
   return (
     <article className="group min-w-0 overflow-hidden bg-white">
@@ -51,6 +56,7 @@ export function ProductCard({ product }: { product: DiscoveryProduct }) {
         <p className="mt-2 min-h-6 text-sm font-semibold text-neutral-900">
           {price || <span className="text-xs font-normal text-neutral-500">価格は販売先でご確認ください</span>}
         </p>
+        <p className="mt-0.5 text-[10px] text-neutral-500">{hasSellingPrice ? "NEWFIND販売価格" : "販売先の参考価格"}</p>
         <Link
           href={`/products/${product.id}`}
           className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-full border border-neutral-300 px-3 py-2 text-xs font-semibold text-neutral-900 transition hover:border-neutral-900 hover:bg-neutral-900 hover:text-white"

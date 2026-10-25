@@ -10,25 +10,45 @@ const geist = Geist({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://newfind-self.vercel.app";
+const siteTitle = "NEWFIND｜商品・トレンド発見コミュニティ";
+const siteDescription =
+  "ファッション・美容・ガジェットなど、気になる商品やトレンドを発見。情報源を確認して、安心して公式ショップへ。";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://newfind-self.vercel.app"),
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "NEWFIND｜商品・トレンド発見コミュニティ",
+    default: siteTitle,
     template: "%s｜NEWFIND",
   },
-  description: "ファッション・美容・ガジェットなど、気になる商品やトレンドを発見。情報源を確認して、安心して公式ショップへ。",
+  description: siteDescription,
   applicationName: "NEWFIND",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
     type: "website",
     locale: "ja_JP",
     siteName: "NEWFIND",
-    title: "NEWFIND｜商品・トレンド発見コミュニティ",
-    description: "ファッション・美容・ガジェットなど、気になる商品やトレンドを発見。情報源を確認して、安心して公式ショップへ。",
+    title: siteTitle,
+    description: siteDescription,
+    url: siteUrl,
   },
   twitter: {
     card: "summary_large_image",
-    title: "NEWFIND｜商品・トレンド発見コミュニティ",
-    description: "ファッション・美容・ガジェットなど、気になる商品やトレンドを発見。情報源を確認して、安心して公式ショップへ。",
+    title: siteTitle,
+    description: siteDescription,
   },
   icons: {
     icon: [

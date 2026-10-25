@@ -4,8 +4,9 @@ import { ProductHeroImage } from "@/components/product-hero-image";
 import { ProductSaveButton } from "@/components/product-save-button";
 import { ProductShareButton } from "@/components/product-share-button";
 import { ProductViewTracker } from "@/components/product-view-tracker";
+import { ShiseidoVariantReference } from "@/components/shiseido-variant-reference";
 import { isUsableProductImage } from "@/lib/discovery/media";
-import { discoveryShopUrl } from "@/lib/discovery/shop";
+import { discoveryShopUrl, ownedStorePrice, ownedStoreSales } from "@/lib/discovery/shop";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
 
 export function ProductDetail({
@@ -18,7 +19,9 @@ export function ProductDetail({
 }) {
   const imageOk = isUsableProductImage(product.productImageUrl);
   const shopUrl = discoveryShopUrl(product);
-  const officialSale = product.sales.find((item) => item.officialStore) ?? product.sales[0];
+  const ownedSales = ownedStoreSales(product);
+  const officialSale = ownedSales[0];
+  const retailPrice = ownedStorePrice(product);
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://newfind-self.vercel.app").replace(/\/$/, "");
   const productPageUrl = new URL(`/products/${encodeURIComponent(product.id)}`, siteUrl).toString();
   const productJsonLd = {
@@ -30,12 +33,12 @@ export function ProductDetail({
     ...(product.description ? { description: product.description } : {}),
     ...(product.subcategory ? { category: product.subcategory } : {}),
     url: productPageUrl,
-    ...(officialSale?.price != null && officialSale.currency ? {
+    ...(retailPrice && shopUrl ? {
       offers: {
         "@type": "Offer",
-        price: officialSale.price,
-        priceCurrency: officialSale.currency,
-        url: officialSale.affiliateUrl || officialSale.productUrl,
+        price: retailPrice.price,
+        priceCurrency: retailPrice.currency,
+        url: shopUrl,
       },
     } : {}),
   };
@@ -58,15 +61,16 @@ export function ProductDetail({
           <nav aria-label="パンくずリスト" className="text-xs text-neutral-500"><Link href="/">ホーム</Link><span className="mx-2">/</span><Link href="/products">商品一覧</Link><span className="mx-2">/</span><span>{product.subcategory || product.category}</span></nav>
           <p className="mt-7 text-xs font-semibold tracking-[0.16em] text-[#a6533a]">{product.brand}</p>
           <h1 className="mt-2 text-2xl font-semibold leading-snug tracking-tight sm:text-4xl">{product.productName}</h1>
-          {product.price != null ? <p className="mt-5 text-2xl font-semibold">{product.price.toLocaleString("ja-JP")} <span className="text-sm font-medium">{product.currency}</span></p> : <p className="mt-5 text-sm text-neutral-500">価格は販売先でご確認ください。</p>}
+          {retailPrice ? <p className="mt-5 text-2xl font-semibold">{retailPrice.price.toLocaleString("ja-JP")} <span className="text-sm font-medium">{retailPrice.currency}</span></p> : <p className="mt-5 text-sm text-neutral-500">当店の販売価格は、仕入れ原価・送料・販売手数料を確認できた商品のみ表示します。</p>}
           <p className="mt-5 text-sm leading-8 text-neutral-700">{product.description || "商品の詳細情報は販売先のページでご確認ください。"}</p>
+          <ShiseidoVariantReference product={product} />
           <div className="mt-7 space-y-3 border-y border-neutral-200 py-5 text-sm">
             <div className="flex justify-between gap-4"><span className="text-neutral-500">カテゴリー</span><span>{product.subcategory || product.category}</span></div>
             {product.country ? <div className="flex justify-between gap-4"><span className="text-neutral-500">ブランド地域</span><span>{product.country}</span></div> : null}
-            <div className="flex justify-between gap-4"><span className="text-neutral-500">販売状況</span><span>{officialSale?.availability === "in_stock" ? "販売先で在庫あり表示" : "販売先で最新状況をご確認ください"}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-neutral-500">販売状況</span><span>{officialSale?.availability === "in_stock" ? "自社販売ページで在庫あり" : "自社販売ページで最新状況をご確認ください"}</span></div>
           </div>
-          {shopUrl ? <a href={shopUrl} target="_blank" rel="noopener noreferrer" className="mt-7 flex min-h-14 w-full items-center justify-center rounded-full bg-[#20201e] px-6 text-sm font-semibold text-white transition hover:bg-[#a6533a]">販売ページで購入する <span className="ml-3">↗</span></a> : <p className="mt-7 rounded-xl bg-neutral-100 p-4 text-sm text-neutral-600">現在、確認できる販売ページはありません。</p>}
-          {product.sales.length > 0 ? <section className="mt-8"><h2 className="text-lg font-semibold">販売先・価格</h2><div className="mt-3 space-y-3">{product.sales.map((sale) => <div key={sale.id} className="flex flex-wrap items-center justify-between gap-3 border border-neutral-200 bg-white p-4"><div><p className="font-semibold">{sale.sellerName}</p><p className="mt-1 text-sm text-neutral-500">{sale.price != null ? `${sale.price.toLocaleString("ja-JP")} ${sale.currency ?? ""}` : "価格は販売先でご確認ください"}</p></div><a href={sale.affiliateUrl || sale.productUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center rounded-full border border-neutral-300 px-4 text-sm font-semibold hover:border-neutral-900">販売先を見る ↗</a></div>)}</div></section> : null}
+          {shopUrl ? <a href={shopUrl} target="_blank" rel="noopener noreferrer" className="mt-7 flex min-h-14 w-full items-center justify-center rounded-full bg-[#20201e] px-6 text-sm font-semibold text-white transition hover:bg-[#a6533a]">販売ページで購入する <span className="ml-3">↗</span></a> : <p className="mt-7 rounded-xl bg-neutral-100 p-4 text-sm text-neutral-600">現在、確認できる自社販売ページはありません。販売価格と仕入れ条件を確認中です。</p>}
+          {ownedSales.length > 0 ? <section className="mt-8"><h2 className="text-lg font-semibold">販売先・価格</h2><div className="mt-3 space-y-3">{ownedSales.map((sale) => <div key={sale.id} className="flex flex-wrap items-center justify-between gap-3 border border-neutral-200 bg-white p-4"><div><p className="font-semibold">{sale.sellerName}</p><p className="mt-1 text-sm text-neutral-500">{sale.price != null ? `${sale.price.toLocaleString("ja-JP")} ${sale.currency ?? ""}` : "価格は販売先でご確認ください"}</p></div><a href={sale.productUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center rounded-full border border-neutral-300 px-4 text-sm font-semibold hover:border-neutral-900">自社販売ページへ ↗</a></div>)}</div></section> : null}
           <p className="mt-5 text-xs leading-relaxed text-neutral-500">価格・在庫・送料・返品条件は変更される場合があります。購入前に販売先の最新表示をご確認ください。</p>
         </div>
       </div>

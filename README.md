@@ -1,77 +1,39 @@
 # NEWFIND
 
-商品を発見するSNSのMVP。Instagram / TikTok 型の操作感で、投稿から外部EC・公式サイトへ送ります。NEWFIND 内で販売・決済・配送はしません。
+NEWFIND は、ファッション・コスメ・バッグ・暮らしの道具などを探せる日本語オンラインストアです。トップページでは公開対象の商品を表示し、商品一覧・カテゴリ・商品詳細へ案内します。
 
-## 動かし方
+## 開発環境
 
 ```bash
 npm install
 npm run dev
 ```
 
-http://localhost:3000
+開発サーバーは通常 http://localhost:3000 で起動します。
 
-Supabase の環境変数が未設定のときは、ブラウザ内のローカルモードでフィード・投稿・SNS機能が動きます。メールでアカウントを作ってください。
+## 本番サイト
 
-## Supabase に切り替える
+- ストアトップ: https://newfind-self.vercel.app/
+- 商品一覧: https://newfind-self.vercel.app/products
 
-1. 新しい Supabase プロジェクトを作成する
-2. `supabase/migrations/001_init.sql` を SQL Editor で実行する
-3. Authentication で Email / Google / Apple を有効化する
-4. Redirect URL に `http://localhost:3000/auth/callback` を追加する
-5. `.env.local` に URL と anon key を入れる
+旧 SNS フィード URL `/feed` は、ストアトップ `/` へ恒久リダイレクトします。
 
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
+## 商品カタログ
 
-画像・動画は Supabase Storage の `media` バケットに保存します。
+トップページは `lib/discovery/store` から承認済み商品を読み込み、利用可能な商品画像がある商品を重複排除して表示します。ライブカタログを取得できない場合は、承認済みのシード商品へフォールバックします。
 
-## Supabase migrations
+商品データや公開条件を変更する場合は、既存の discovery store と商品ステータスの仕様を確認してから変更してください。公開対象でない商品を、表示のためだけに承認済みとして扱わないでください。
 
-SQL Editor で順に実行するか、CLI で適用してください。
+## Supabase / TRACER 連携
 
-1. `supabase/migrations/001_init.sql`
-2. `supabase/migrations/002_grants.sql`
-3. `supabase/migrations/003_rls_grants_social.sql`（RLS/GRANT 再確認 + SNS URL カラム）
-4. `supabase/migrations/004_tracer_promotions.sql`（TRACER の公開商品を冪等に記録するサービス専用台帳）
-
-TRACER 連携を有効にする前に、NEWFIND の本番 Supabase に 004 を適用してください。004 は `service_role` のみ書き込み可能で、匿名ユーザーや通常の認証ユーザーには台帳を公開しません。
-
-`permission denied for table ...` が出る場合は 002/003 の GRANT が未適用です。
+Supabase の環境変数やマイグレーション、TRACER 商品台帳の適用状況は、実際の本番設定と `supabase/migrations/` を確認してください。環境変数や秘密鍵を README、ソースコード、コミットへ直接記載しないでください。
 
 ## モバイル (Capacitor)
 
-Web 版はそのまま Next.js です。ネイティブアプリは Capacitor WebView から **稼働中の Next.js** を読みます（`output: "export"` は使いません。OAuth の `/auth/callback` と動的ルートを壊さないため）。
+ネイティブアプリは Capacitor WebView から稼働中の Next.js サイトを読み込みます。既存の Capacitor 設定と認証コールバック URL を確認してから、接続先を変更してください。
 
-```bash
-# 1. Web を起動
-npm run dev
+## 運用上の注意
 
-# 2. WebView の向き先を指定して sync（初回や URL 変更時）
-# iOS Simulator / ブラウザ相当:
-set CAPACITOR_SERVER_URL=http://localhost:3000
-npm run cap:sync
-
-# Android Emulator からホスト PC の Next へ:
-set CAPACITOR_SERVER_URL=http://10.0.2.2:3000
-npm run cap:sync
-
-# 3. ネイティブ IDE を開く
-npm run cap:android
-npm run cap:ios
-```
-
-- Android: Android Studio + SDK が必要（このマシンに未導入ならプロジェクト生成のみ可能）
-- iOS: macOS + Xcode が必要（Windows では `ios/` の生成・編集のみ）
-- 本番では `CAPACITOR_SERVER_URL` をデプロイ先 URL にし、Supabase Redirect URL に同じオリジンの `/auth/callback` を追加する
-
-## PWA
-
-現状は **導入しない**。ホーム画面追加は Capacitor 側で賄い、Service Worker と Cookie/OAuth の兼ね合いを避ける。Web 単体のインストール性が必要になったら別途検討する。
-
-## 作っていないもの
-
-商品マスタ、売上分配、独自EC、在庫、配送、高度なAI推薦。
+- 商品の販売可否、価格、在庫、仕入先情報は、実データと連携処理で検証してください。
+- デプロイが `READY` であることだけでは、ブラウザ上の全ページや外部連携が正常であることまでは保証されません。
+- 環境変数・認証情報をログや公開ドキュメントへ出力しないでください。

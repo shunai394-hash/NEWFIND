@@ -1,5 +1,5 @@
-import { FeedView } from "@/components/feed-view";
+import { permanentRedirect } from "next/navigation";
 
 export default function FeedPage() {
-  return <FeedView kind="foryou" />;
+  permanentRedirect("/");
 }

@@ -97,29 +97,31 @@ export function StorefrontHome({ products }: { products: DiscoveryProduct[] }) {
 
   return (
     <div className="min-h-screen bg-[#fffdfa] text-[#20201e]">
-      <div className="nf-marquee overflow-hidden bg-[#20201e] text-white" aria-label="NEWFIND オンラインストア取扱カテゴリー">
-        <div className="nf-marquee-track flex w-max whitespace-nowrap py-2 text-[11px] font-semibold tracking-[0.22em]">
-          <span>{marqueeText.repeat(3)}</span>
-          <span aria-hidden="true">{marqueeText.repeat(3)}</span>
+      <div className="fixed inset-x-0 top-0 z-50 shadow-[0_10px_30px_-18px_rgba(32,32,30,0.35)]">
+        <div className="nf-marquee overflow-hidden bg-[#20201e] text-white" aria-label="NEWFIND オンラインストア取扱カテゴリー">
+          <div className="nf-marquee-track flex w-max whitespace-nowrap py-2 text-[11px] font-semibold tracking-[0.22em]">
+            <span>{marqueeText.repeat(3)}</span>
+            <span aria-hidden="true">{marqueeText.repeat(3)}</span>
+          </div>
         </div>
+        <header className="border-b border-neutral-200/80 bg-[#fffdfa]/92 backdrop-blur-md">
+          <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-8">
+            <Link href="/" className="font-display text-3xl font-bold tracking-tight">
+              NEWFIND<span className="text-[#b85d3f]">.</span>
+            </Link>
+            <nav aria-label="商品ナビゲーション" className="hidden items-center gap-7 text-sm md:flex">
+              <Link href="/products" className="whitespace-nowrap hover:text-[#a64f35]">すべての商品</Link>
+              <a href="#categories" className="whitespace-nowrap hover:text-[#a64f35]">カテゴリー</a>
+              <a href="#ranking" className="whitespace-nowrap hover:text-[#a64f35]">ランキング</a>
+              <a href="#new-arrivals" className="whitespace-nowrap hover:text-[#a64f35]">新着商品</a>
+            </nav>
+            <Link href="/products" className="rounded-full bg-[#20201e] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#a6533a]">
+              商品を探す　⌕
+            </Link>
+          </div>
+        </header>
       </div>
-
-      <header className="sticky top-0 z-40 border-b border-neutral-200/80 bg-[#fffdfa]/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-8">
-          <Link href="/" className="font-display text-3xl font-bold tracking-tight">
-            NEWFIND<span className="text-[#b85d3f]">.</span>
-          </Link>
-          <nav aria-label="商品ナビゲーション" className="order-3 flex w-full items-center gap-5 overflow-x-auto text-sm sm:order-none sm:w-auto sm:gap-7">
-            <Link href="/products" className="whitespace-nowrap hover:text-[#a64f35]">すべての商品</Link>
-            <a href="#categories" className="whitespace-nowrap hover:text-[#a64f35]">カテゴリー</a>
-            <a href="#ranking" className="whitespace-nowrap hover:text-[#a64f35]">ランキング</a>
-            <a href="#new-arrivals" className="whitespace-nowrap hover:text-[#a64f35]">新着商品</a>
-          </nav>
-          <Link href="/products" className="rounded-full bg-[#20201e] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#a6533a]">
-            商品を探す　⌕
-          </Link>
-        </div>
-      </header>
+      <div aria-hidden="true" className="h-[101px] bg-[#eee6dc]" />
 
       <main>
         <section className="relative overflow-hidden bg-[#eee6dc]">

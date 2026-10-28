@@ -31,9 +31,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         コンテンツへスキップ
       </a>
       <div
-        className={`relative mx-auto flex min-h-dvh w-full flex-col overflow-x-clip bg-white text-black ${
-          isAdmin ? "max-w-3xl" : "max-w-none"
-        }`}
+        className={`relative mx-auto flex min-h-dvh w-full flex-col bg-white text-black ${
+          isStorefront ? "" : "overflow-x-clip"
+        } ${isAdmin ? "max-w-3xl" : "max-w-none"}`}
       >
         {hideChrome ? null : (
           <header className="sticky top-0 z-40 border-b border-neutral-800 bg-black pt-[env(safe-area-inset-top,0px)]">

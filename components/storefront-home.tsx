@@ -238,7 +238,7 @@ export function StorefrontHome({ products }: { products: DiscoveryProduct[] }) {
           </div>
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
             {CATEGORIES.map((category, index) => {
-              const imageProduct = categoryImages.get(category.key);
+              const imageProduct = categoryImages.get(category.key) ?? products[0];
               return (
                 <Link
                   key={category.key}

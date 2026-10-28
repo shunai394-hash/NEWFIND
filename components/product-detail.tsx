@@ -44,6 +44,17 @@ export function ProductDetail({
     <article className="min-h-screen bg-[#fffdfa] pb-20 text-neutral-900 lg:pb-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c") }} />
       <ProductViewTracker productId={product.id} />
+      <header className="border-b border-neutral-200/80 bg-[#fffdfa]">
+        <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-4 px-4 py-4 sm:px-8">
+          <Link href="/" className="font-display text-2xl font-bold tracking-tight text-neutral-900">
+            NEWFIND<span className="text-[#b85d3f]">.</span>
+          </Link>
+          <nav aria-label="商品ナビゲーション" className="flex items-center gap-5 text-sm">
+            <Link href="/" className="hover:text-[#a64f35]">ホーム</Link>
+            <Link href="/products" className="hover:text-[#a64f35]">商品一覧</Link>
+          </nav>
+        </div>
+      </header>
       <div className="mx-auto grid max-w-[1240px] gap-8 px-4 py-6 sm:px-8 sm:py-12 lg:grid-cols-2 lg:gap-14">
         <div className="min-w-0">
           {imageOk && product.productImageUrl ? (

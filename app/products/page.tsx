@@ -49,6 +49,17 @@ export default async function ProductsPage({
 
   return (
     <main className="min-h-screen bg-[#fffdfa] text-neutral-900">
+      <header className="border-b border-neutral-200/80 bg-[#fffdfa]">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-8">
+          <Link href="/" className="font-display text-2xl font-bold tracking-tight text-neutral-900">
+            NEWFIND<span className="text-[#b85d3f]">.</span>
+          </Link>
+          <nav aria-label="商品ナビゲーション" className="flex items-center gap-5 text-sm">
+            <Link href="/" className="hover:text-[#a64f35]">ホーム</Link>
+            <Link href="/products" aria-current="page" className="font-semibold text-neutral-900">商品一覧</Link>
+          </nav>
+        </div>
+      </header>
       <div className="relative overflow-hidden border-b border-neutral-200 bg-[#eee6dc] px-4 py-10 sm:px-8 sm:py-14">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_420px_at_90%_-20%,rgba(184,93,63,0.18),transparent_60%)]" />
         <div className="relative mx-auto max-w-[1440px]">

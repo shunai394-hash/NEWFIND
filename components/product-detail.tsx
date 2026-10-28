@@ -41,7 +41,7 @@ export function ProductDetail({
   };
 
   return (
-    <article className="min-h-screen bg-[#fffdfa] text-neutral-900">
+    <article className="min-h-screen bg-[#fffdfa] pb-20 text-neutral-900 lg:pb-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c") }} />
       <ProductViewTracker productId={product.id} />
       <div className="mx-auto grid max-w-[1240px] gap-8 px-4 py-6 sm:px-8 sm:py-12 lg:grid-cols-2 lg:gap-14">
@@ -57,7 +57,7 @@ export function ProductDetail({
         <div className="min-w-0 lg:py-4">
           <nav aria-label="パンくずリスト" className="text-xs text-neutral-500"><Link href="/">ホーム</Link><span className="mx-2">/</span><Link href="/products">商品一覧</Link><span className="mx-2">/</span><span>{product.subcategory || product.category}</span></nav>
           <p className="mt-7 text-xs font-semibold tracking-[0.16em] text-[#a6533a]">{product.brand}</p>
-          <h1 className="mt-2 text-2xl font-semibold leading-snug tracking-tight sm:text-4xl">{product.productName}</h1>
+          <h1 className="font-display mt-2 text-2xl font-semibold leading-snug tracking-tight sm:text-4xl">{product.productName}</h1>
           {product.commercial?.sellingPriceJPY != null ? <><p className="mt-5 text-xs text-neutral-500">NEWFIND販売価格</p><p className="text-2xl font-semibold">{product.commercial.sellingPriceJPY.toLocaleString("ja-JP")} <span className="text-sm font-medium">円（税込想定）</span></p></> : product.price != null ? <><p className="mt-5 text-xs text-neutral-500">販売先の参考価格（NEWFINDの販売価格ではありません）</p><p className="text-2xl font-semibold">{product.price.toLocaleString("ja-JP")} <span className="text-sm font-medium">{product.currency}</span></p></> : <p className="mt-5 text-sm text-neutral-500">価格は販売先でご確認ください。</p>}
           <p className="mt-5 text-sm leading-8 text-neutral-700">{product.description || "商品の詳細情報は販売先のページでご確認ください。"}</p>
           <div className="mt-7 space-y-3 border-y border-neutral-200 py-5 text-sm">
@@ -71,6 +71,25 @@ export function ProductDetail({
         </div>
       </div>
       {related.length > 0 ? <section className="border-t border-neutral-200 bg-[#f5f1eb] px-4 py-10 sm:px-8 sm:py-14"><div className="mx-auto max-w-[1440px]"><div className="flex items-end justify-between"><h2 className="text-xl font-semibold sm:text-2xl">こちらもおすすめ</h2><Link href="/products" className="text-sm underline underline-offset-4">商品一覧へ</Link></div><div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4 xl:grid-cols-5">{related.map((item) => <ProductCard key={item.id} product={item} />)}</div></div></section> : null}
+      {shopUrl ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/92 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_-18px_rgba(32,32,30,0.4)] backdrop-blur-md lg:hidden">
+          <div className="mx-auto flex max-w-[1240px] items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] text-neutral-500">{product.productName}</p>
+              <p className="text-base font-bold leading-tight">
+                {product.commercial?.sellingPriceJPY != null
+                  ? `${product.commercial.sellingPriceJPY.toLocaleString("ja-JP")} 円`
+                  : product.price != null
+                    ? `${product.price.toLocaleString("ja-JP")} ${product.currency ?? ""}`
+                    : "価格は販売先で確認"}
+              </p>
+            </div>
+            <a href={shopUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-full bg-[#20201e] px-6 text-sm font-semibold text-white transition active:bg-[#a6533a]">
+              購入する <span className="ml-2">↗</span>
+            </a>
+          </div>
+        </div>
+      ) : null}
     </article>
   );
 }

@@ -49,10 +49,11 @@ export default async function ProductsPage({
 
   return (
     <main className="min-h-screen bg-[#fffdfa] text-neutral-900">
-      <div className="border-b border-neutral-200 bg-[#f5f1eb] px-4 py-10 sm:px-8 sm:py-14">
-        <div className="mx-auto max-w-[1440px]">
+      <div className="relative overflow-hidden border-b border-neutral-200 bg-[#eee6dc] px-4 py-10 sm:px-8 sm:py-14">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_420px_at_90%_-20%,rgba(184,93,63,0.18),transparent_60%)]" />
+        <div className="relative mx-auto max-w-[1440px]">
           <p className="text-xs font-bold tracking-[0.2em] text-[#a6533a]">NEWFIND ONLINE STORE</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">商品一覧</h1>
+          <h1 className="font-display mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">商品一覧</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-600">ファッション、コスメ、暮らしの道具。気になる商品を見比べて、販売先の情報を確認できます。</p>
           <form action="/products" className="mt-6 flex max-w-xl gap-2">
             {category !== "all" ? <input type="hidden" name="category" value={category} /> : null}

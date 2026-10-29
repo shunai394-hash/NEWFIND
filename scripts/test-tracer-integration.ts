@@ -81,6 +81,14 @@ async function main() {
     assert.match(handlers, /discovery promotion after duplicate recovery failed/);
   });
 
+  await test("inbound TRACER product candidates require explicit expected profit >= ¥2,500 before inbox insertion", () => {
+    const route = readFileSync(new URL("../app/api/integrations/tracer/route.ts", import.meta.url), "utf8");
+    assert.match(route, /envelope\.source === "tracer" && envelope\.event_type === "product_candidate"/);
+    assert.match(route, /typeof expectedProfit !== "number" \|\| !Number\.isFinite\(expectedProfit\) \|\| expectedProfit < 2500/);
+    assert.match(route, /tracer_expected_profit_below_minimum/);
+    assert.ok(route.indexOf("expectedProfit < 2500") < route.indexOf("receiveInboxEvent(envelope)"));
+  });
+
   await test("event type catalog", () => {
     assert.deepEqual([...TRACER_INBOUND_EVENT_TYPES], [
       "market_info",

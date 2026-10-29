@@ -109,6 +109,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
   }
 
+  // Fail closed for TRACER product promotions: profit must be explicitly supplied
+  // and meet the minimum before an inbox event or discovery product is created.
+  if (envelope.source === "tracer" && envelope.event_type === "product_candidate") {
+    const expectedProfit = envelope.payload.expected_profit;
+    if (typeof expectedProfit !== "number" || !Number.isFinite(expectedProfit) || expectedProfit < 2500) {
+      await recordIntegrationFailure({
+        eventId: envelope.event_id,
+        source: envelope.source,
+        destination: "newfind",
+        eventType: envelope.event_type,
+        attempt: 1,
+        httpStatus: 400,
+        errorCode: "tracer_expected_profit_below_minimum",
+        errorMessage: "TRACER product candidates require an explicit expected_profit of at least JPY 2500",
+      });
+      return NextResponse.json(
+        { ok: false, error: "tracer_expected_profit_below_minimum", minimum_expected_profit: 2500 },
+        { status: 400 },
+      );
+    }
+  }
+
   let inbox;
   try {
     inbox = await receiveInboxEvent(envelope);

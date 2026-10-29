@@ -316,6 +316,17 @@ async function handleProductCandidate(
   };
 }
 
+const TRACER_STORE_HOST = "ieufrg-tb.myshopify.com";
+
+function isTracerStoreUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname === TRACER_STORE_HOST && url.pathname.startsWith("/products/");
+  } catch {
+    return false;
+  }
+}
+
 // TRACER unpublished the listing: take its promotion out of the public feed.
 // Only TRACER-sourced, currently approved rows are touched; nothing is
 // deleted (status moves to "pending", which the public feed excludes).
@@ -335,8 +346,25 @@ async function handleProductWithdrawn(
     .eq("status", "approved")
     .select("id");
   if (error) return { ok: false, detail: `withdraw failed: ${error.message}` };
-  await storeBridgeNote({ eventType: "product_withdrawn", eventId, payload: { ...payload, withdrawn: data?.length ?? 0 } });
-  return { ok: true, detail: `withdrawn ${data?.length ?? 0} discovery product(s)` };
+  // The owner's TRACER Shopify products were also seeded editorially (see
+  // lib/discovery/tracer-seed.ts). TRACER is authoritative for its own store,
+  // so a withdrawal also covers editorial rows pointing at that store only.
+  const ownStoreCandidates = candidates.filter((url) => isTracerStoreUrl(url));
+  let editorialWithdrawn = 0;
+  if (ownStoreCandidates.length) {
+    const editorial = await admin
+      .from("discovery_products")
+      .update({ status: "pending", updated_at: new Date().toISOString() })
+      .in("product_url", ownStoreCandidates)
+      .eq("discovery_source", "editorial")
+      .eq("status", "approved")
+      .select("id");
+    if (editorial.error) return { ok: false, detail: `editorial withdraw failed: ${editorial.error.message}` };
+    editorialWithdrawn = editorial.data?.length ?? 0;
+  }
+  const withdrawn = (data?.length ?? 0) + editorialWithdrawn;
+  await storeBridgeNote({ eventType: "product_withdrawn", eventId, payload: { ...payload, withdrawn } });
+  return { ok: true, detail: `withdrawn ${withdrawn} discovery product(s)` };
 }
 
 async function handleFactOnly(

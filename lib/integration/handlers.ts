@@ -146,6 +146,10 @@ async function handleProductCandidate(
       .from("discovery_products")
       .update({
         status: "approved",
+        brand: brand || "TRACER",
+        product_name: productName,
+        category,
+        description: asString(payload.note) || asString(payload.discovery_reason) || "",
         product_image_url: imageUrl,
         ...(!isBrandBridge && (asString(payload.official_url) || asString(payload.officialUrl))
           ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
@@ -172,11 +176,11 @@ async function handleProductCandidate(
       .from("discovery_products")
       .insert({
         id: crypto.randomUUID(),
-        brand: brand || "Unknown",
+        brand: brand || "TRACER",
         product_name: productName,
         category,
         country,
-        description: asString(payload.discovery_reason) || asString(payload.note) || "",
+        description: asString(payload.note) || asString(payload.discovery_reason) || "",
         product_image_url: imageUrl,
         product_url: canonical,
         official_url:
@@ -246,6 +250,10 @@ async function handleProductCandidate(
           .from("discovery_products")
           .update({
             status: "approved",
+            brand: brand || "TRACER",
+            product_name: productName,
+            category,
+            description: asString(payload.note) || asString(payload.discovery_reason) || "",
             product_image_url: imageUrl,
             ...(!isBrandBridge && (asString(payload.official_url) || asString(payload.officialUrl))
               ? { official_url: asString(payload.official_url) || asString(payload.officialUrl) }
@@ -265,6 +273,54 @@ async function handleProductCandidate(
       }
     } else {
       productId = String(insert.data.id);
+    }
+  }
+
+  // Keep an actual purchase destination on the product record. Without this
+  // sale row, NEWFIND can display the discovery card but the detail page has
+  // no verified purchase CTA.
+  if (!isBrandBridge && productId) {
+    const salesUrl =
+      asString(payload.sales_url) ||
+      asString(payload.tracer_url) ||
+      asString(payload.product_url);
+    if (salesUrl && /^https:\/\//i.test(salesUrl)) {
+      const sellerName = asString(payload.seller_name) || "TRACER ONLINE STORE";
+      const availableInventory = Number(payload.available_inventory);
+      const merchantHeldStock =
+        payload.merchant_held_stock === true &&
+        payload.fulfillment_mode === "merchant_held_stock" &&
+        Number.isSafeInteger(availableInventory) &&
+        availableInventory > 0;
+      const saleValues = {
+        product_id: productId,
+        seller_name: sellerName,
+        product_url: salesUrl,
+        price: asNumber(payload.price),
+        currency: asString(payload.currency) || "JPY",
+        availability: merchantHeldStock ? "in_stock" : "unknown",
+        official_store: true,
+        seller_kind: "official",
+        affiliate_url: salesUrl,
+        last_verified_at: new Date().toISOString(),
+      };
+      const existingSale = await admin
+        .from("discovery_product_sales")
+        .select("id")
+        .eq("product_id", productId)
+        .eq("seller_name", sellerName)
+        .order("last_verified_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingSale.error) {
+        return { ok: false, detail: `TRACER sale lookup failed: ${existingSale.error.message}` };
+      }
+      const saleWrite = existingSale.data?.id
+        ? await admin.from("discovery_product_sales").update(saleValues).eq("id", existingSale.data.id)
+        : await admin.from("discovery_product_sales").insert(saleValues);
+      if (saleWrite.error) {
+        return { ok: false, detail: `TRACER sale write failed: ${saleWrite.error.message}` };
+      }
     }
   }
 

@@ -71,8 +71,8 @@ async function handleProductCandidate(
   payload: Record<string, unknown>,
 ): Promise<{ ok: boolean; detail: string; productId?: string }> {
   const isBrandBridge = eventType === "brandbridge_product";
-  // Publish gate: a TRACER product is promoted only with TRACER's signed
-  // attestation that it is published and passed the Sales Test Gate.
+  // Publish gate: supplier products need the Sales Test Gate. Verified
+  // merchant-held inventory may use the separate signed stock attestation.
   if (!isBrandBridge) {
     const attestation = checkTracerPublicationAttestation(payload);
     if (!attestation.ok) return { ok: false, detail: attestation.reason };

@@ -60,7 +60,7 @@ async function main() {
       subcategory: "Protein",
       country: "JP",
       productImageUrl: "https://cdn.example.com/protein.webp",
-      productUrl: "https://www.amazon.co.jp/dp/B0HNWHHBXJ",
+      productUrl: "https://example.com/product",
       officialUrl: null,
       price: 3400,
       currency: "JPY",
@@ -105,6 +105,7 @@ async function main() {
       ...base,
       id: "tracer-owned-stock",
       brand: "BEAUTY FORMULA",
+      productUrl: "https://tracer-pied-alpha.vercel.app/shop/1ae04dd1-a228-43b7-b003-3a2fb75da98a",
       productName: "BEAUTY FORMULA チョコレート風味プロテイン 300g",
       description: "内容量300g。ASIN：B0HNWHHBXJ",
       sales: [{

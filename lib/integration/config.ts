@@ -1,6 +1,8 @@
 export type IntegrationConfig = {
   sharedSecret: string;
   integrationKey: string;
+  tracerSharedSecret: string;
+  tracerIntegrationKey: string;
   tracerIngestUrl: string;
   timestampSkewSec: number;
   maxAttempts: number;
@@ -14,6 +16,9 @@ export function getIntegrationConfig(): IntegrationConfig {
     process.env.TRACER_WEBHOOK_SECRET?.trim() ||
     "";
   const brandBridgeSecret = process.env.BRANDBRIDGE_INTEGRATION_HMAC_SECRET?.trim() || "";
+  // Dedicated credentials isolate TRACER traffic from other integration partners.
+  const tracerSharedSecret = process.env.TRACER_INTEGRATION_HMAC_SECRET?.trim() || "";
+  const tracerIntegrationKey = process.env.TRACER_INTEGRATION_KEY?.trim() || "";
   const integrationKey =
     process.env.INTEGRATION_KEY?.trim() ||
     process.env.NEWFIND_INTEGRATION_KEY?.trim() ||
@@ -27,6 +32,8 @@ export function getIntegrationConfig(): IntegrationConfig {
   return {
     sharedSecret,
     integrationKey,
+    tracerSharedSecret,
+    tracerIntegrationKey,
     tracerIngestUrl,
     timestampSkewSec: Number.isFinite(skew) && skew > 0 ? skew : 300,
     maxAttempts: Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 8,

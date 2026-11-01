@@ -76,7 +76,12 @@ export function verifyIntegrationRequest(input: {
   const cfg = getIntegrationConfig();
   const verificationSecret = input.source === "brandbridge"
     ? cfg.brandBridgeSecret
-    : cfg.sharedSecret;
+    : input.source === "tracer"
+      ? cfg.tracerSharedSecret || cfg.sharedSecret
+      : cfg.sharedSecret;
+  const expectedIntegrationKey = input.source === "tracer"
+    ? cfg.tracerIntegrationKey || cfg.integrationKey
+    : cfg.integrationKey;
   if (!verificationSecret) {
     return { ok: false, status: 503, error: "integration secret not configured" };
   }
@@ -100,7 +105,7 @@ export function verifyIntegrationRequest(input: {
     if (!Number.isFinite(Number(ts)) || skew > cfg.timestampSkewSec) {
       return { ok: false, status: 401, error: "timestamp skew too large" };
     }
-    if (key && key !== cfg.integrationKey) {
+    if (key && key !== expectedIntegrationKey) {
       return { ok: false, status: 401, error: "invalid integration key" };
     }
     if (idHeader !== input.eventId) {

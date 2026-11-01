@@ -32,7 +32,16 @@ export function trustedTracerSalesHosts(): string[] {
 
 export function checkTracerPublicationAttestation(payload: Record<string, unknown>): TracerAttestation {
   if (payload.tracer_published !== true) return { ok: false, reason: "tracer_not_published" };
-  if (payload.sales_test_gate !== "passed") return { ok: false, reason: "tracer_sales_test_gate_not_passed" };
+  const salesTestPassed = payload.sales_test_gate === "passed";
+  const availableInventory = Number(payload.available_inventory);
+  const merchantHeldStockVerified =
+    payload.merchant_held_stock === true &&
+    payload.fulfillment_mode === "merchant_held_stock" &&
+    Number.isSafeInteger(availableInventory) &&
+    availableInventory > 0;
+  if (!salesTestPassed && !merchantHeldStockVerified) {
+    return { ok: false, reason: "tracer_sales_test_gate_or_merchant_stock_proof_required" };
+  }
   const listingId = text(payload.tracer_listing_id);
   if (!listingId) return { ok: false, reason: "tracer_listing_id_missing" };
   const salesUrl = text(payload.sales_url) ?? text(payload.tracer_url);

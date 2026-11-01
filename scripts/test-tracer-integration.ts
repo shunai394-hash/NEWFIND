@@ -31,6 +31,8 @@ import {
 
 process.env.INTEGRATION_HMAC_SECRET = "test-shared-secret-for-integration";
 process.env.INTEGRATION_KEY = "newfind-tracer";
+process.env.TRACER_INTEGRATION_HMAC_SECRET = "test-tracer-only-hmac-secret";
+process.env.TRACER_INTEGRATION_KEY = "test-tracer-only-key";
 process.env.INTEGRATION_TIMESTAMP_SKEW_SEC = "300";
 
 let passed = 0;
@@ -117,6 +119,30 @@ async function main() {
     assert.equal(r.ok, true);
   });
 
+  await test("publish gate: verified merchant-held stock is accepted without supplier Sales Test Gate", () => {
+    const r = checkTracerPublicationAttestation({
+      ...published,
+      sales_test_gate: "not_required_merchant_held_stock",
+      merchant_held_stock: true,
+      fulfillment_mode: "merchant_held_stock",
+      available_inventory: 50,
+    });
+    assert.equal(r.ok, true);
+  });
+
+  await test("publish gate: merchant-held stock proof requires positive integer inventory", () => {
+    for (const available_inventory of [0, -1, 1.5, "unknown"]) {
+      const r = checkTracerPublicationAttestation({
+        ...published,
+        sales_test_gate: "not_required_merchant_held_stock",
+        merchant_held_stock: true,
+        fulfillment_mode: "merchant_held_stock",
+        available_inventory,
+      });
+      assert.equal(r.ok, false, String(available_inventory));
+    }
+  });
+
   await test("publish gate: unpublished / draft / VALIDATING rejected", () => {
     assert.deepEqual(checkTracerPublicationAttestation({ ...published, tracer_published: false }), { ok: false, reason: "tracer_not_published" });
     const { tracer_published: _p, ...noFlag } = published;
@@ -126,7 +152,7 @@ async function main() {
   });
 
   await test("publish gate: TEST_READY-only (no Sales Test Gate) rejected", () => {
-    assert.deepEqual(checkTracerPublicationAttestation({ ...published, sales_test_gate: "pending" }), { ok: false, reason: "tracer_sales_test_gate_not_passed" });
+    assert.deepEqual(checkTracerPublicationAttestation({ ...published, sales_test_gate: "pending" }), { ok: false, reason: "tracer_sales_test_gate_or_merchant_stock_proof_required" });
     // Legacy "test_ready_opportunity" events normalize to product_candidate
     // but carry no attestation, so they can no longer be promoted.
     assert.equal(normalizeInboundEventType("test_ready_opportunity"), "product_candidate");
@@ -164,6 +190,31 @@ async function main() {
     assert.equal(normalizeInboundEventType("demand_snapshot"), "demand_info");
     assert.equal(normalizeInboundEventType("sales_test_result"), "sales_test_result");
     assert.equal(normalizeInboundEventType("nope"), null);
+  });
+
+  await test("TRACER-specific HMAC credentials do not depend on shared integration credentials", () => {
+    const eventId = "tracer-owned-stock-1";
+    const rawBody = JSON.stringify({ source: "tracer", event_id: eventId, event_type: "product_candidate" });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = signIntegrationBody({
+      secret: process.env.TRACER_INTEGRATION_HMAC_SECRET!,
+      timestamp,
+      eventId,
+      rawBody,
+    });
+    const headers = new Headers({
+      "X-Integration-Key": process.env.TRACER_INTEGRATION_KEY!,
+      "X-Integration-Timestamp": timestamp,
+      "X-Integration-Id": eventId,
+      "X-Integration-Signature": signature,
+    });
+    const result = verifyIntegrationRequest({ headers, rawBody, eventId, source: "tracer" });
+    assert.equal(result.ok, true);
+    const wrongKeyHeaders = new Headers(headers);
+    wrongKeyHeaders.set("X-Integration-Key", "wrong-key");
+    const wrongKey = verifyIntegrationRequest({ headers: wrongKeyHeaders, rawBody, eventId, source: "tracer" });
+    assert.equal(wrongKey.ok, false);
+    if (!wrongKey.ok) assert.equal(wrongKey.error, "invalid integration key");
   });
 
   await test("HMAC sign/verify success", () => {

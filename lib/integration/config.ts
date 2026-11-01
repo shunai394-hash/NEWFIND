@@ -48,5 +48,5 @@ export function isOutboundConfigured() {
 
 export function isInboundConfigured() {
   const cfg = getIntegrationConfig();
-  return Boolean(cfg.sharedSecret || cfg.brandBridgeSecret);
+  return Boolean(cfg.tracerSharedSecret || cfg.sharedSecret || cfg.brandBridgeSecret);
 }

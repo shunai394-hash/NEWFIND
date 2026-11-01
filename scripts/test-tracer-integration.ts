@@ -152,7 +152,7 @@ async function main() {
   });
 
   await test("publish gate: TEST_READY-only (no Sales Test Gate) rejected", () => {
-    assert.deepEqual(checkTracerPublicationAttestation({ ...published, sales_test_gate: "pending" }), { ok: false, reason: "tracer_sales_test_gate_not_passed" });
+    assert.deepEqual(checkTracerPublicationAttestation({ ...published, sales_test_gate: "pending" }), { ok: false, reason: "tracer_sales_test_gate_or_merchant_stock_proof_required" });
     // Legacy "test_ready_opportunity" events normalize to product_candidate
     // but carry no attestation, so they can no longer be promoted.
     assert.equal(normalizeInboundEventType("test_ready_opportunity"), "product_candidate");

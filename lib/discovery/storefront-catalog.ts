@@ -8,15 +8,26 @@ function identity(value: string | null | undefined) {
 }
 
 function hasTracerPurchaseDestination(product: DiscoveryProduct) {
-  return product.sales.some((sale) =>
-    /tracer online store/i.test(sale.sellerName) &&
-    /^https:\/\/tracer-pied-alpha\.vercel\.app\/shop\//i.test(sale.affiliateUrl ?? sale.productUrl),
-  );
+  return product.sales.some((sale) => {
+    const urls = [sale.affiliateUrl, sale.productUrl].filter(Boolean).join(" ");
+    return /tracer-pied-alpha\.vercel\.app\/shop\//i.test(urls);
+  });
 }
 
 function asinIdentity(product: DiscoveryProduct) {
-  const text = [product.productName, product.description, product.modelNumber ?? ""].join(" ");
-  const match = /\bASIN\s*[：:]?\s*([A-Z0-9]{10})\b/i.exec(text);
+  const saleUrls = product.sales.flatMap((sale) => [sale.productUrl, sale.affiliateUrl ?? ""]).join(" ");
+  const text = [
+    product.productName,
+    product.description,
+    product.modelNumber ?? "",
+    product.productUrl ?? "",
+    product.officialUrl ?? "",
+    saleUrls,
+  ].join(" ");
+  const match =
+    /\bASIN\s*[：:]?\s*([A-Z0-9]{10})\b/i.exec(text) ??
+    /\/dp\/([A-Z0-9]{10})\b/i.exec(text) ??
+    /\/gp\/product\/([A-Z0-9]{10})\b/i.exec(text);
   const candidate = match?.[1] ??
     (product.modelNumber && /^[A-Z0-9]{10}$/i.test(product.modelNumber) ? product.modelNumber : null);
   return candidate ? `asin:${candidate.toUpperCase()}` : null;

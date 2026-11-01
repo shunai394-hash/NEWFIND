@@ -86,7 +86,7 @@ async function main() {
       id: "old-marketplace-seed",
       brand: "BEAUTY FORMULA",
       productName: "BEAUTY FORMULA ソイプロテイン コラーゲン配合 チョコレート風味 300g",
-      description: "濃厚チョコレート風味。ASIN：B0HNWHHBXJ",
+      description: "濃厚チョコレート風味。",
       sales: [{
         id: "amazon-sale",
         sellerName: "Marketplace",
@@ -105,6 +105,7 @@ async function main() {
       ...base,
       id: "tracer-owned-stock",
       brand: "BEAUTY FORMULA",
+      productUrl: "https://tracer-pied-alpha.vercel.app/shop/1ae04dd1-a228-43b7-b003-3a2fb75da98a",
       productName: "BEAUTY FORMULA チョコレート風味プロテイン 300g",
       description: "内容量300g。ASIN：B0HNWHHBXJ",
       sales: [{

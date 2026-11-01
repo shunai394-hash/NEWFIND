@@ -8,6 +8,7 @@ import {
   listSeedDiscoveryProducts,
 } from "@/lib/discovery/store";
 import { loadMarketplaceDossier } from "@/lib/marketplace/store";
+import { dedupeStorefrontProducts } from "@/lib/discovery/storefront-catalog";
 import type { DiscoveryProduct } from "@/lib/discovery/types";
 
 export const dynamic = "force-dynamic";
@@ -20,13 +21,19 @@ function productMetadataText(value: string | null | undefined, maxLength: number
 }
 
 async function getStorefrontProduct(id: string): Promise<DiscoveryProduct | null> {
+  let product: DiscoveryProduct | null = null;
   try {
-    const liveProduct = await getDiscoveryProduct(id, false);
-    if (liveProduct) return liveProduct;
+    product = await getDiscoveryProduct(id, false);
   } catch (error) {
     console.error("[STOREFRONT] live product detail unavailable; trying approved seed catalog", error);
   }
-  return listSeedDiscoveryProducts().find((item) => item.id === id && item.status === "approved") ?? null;
+  product ??= listSeedDiscoveryProducts().find((item) => item.id === id && item.status === "approved") ?? null;
+  if (!product) return null;
+
+  // A duplicate detail URL must not keep an obsolete marketplace-only sale
+  // page reachable after the canonical TRACER purchase destination wins.
+  const visible = dedupeStorefrontProducts(await getStorefrontCatalog());
+  return visible.some((item) => item.id === id) ? product : null;
 }
 
 async function getStorefrontCatalog(): Promise<DiscoveryProduct[]> {

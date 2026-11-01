@@ -60,7 +60,7 @@ async function main() {
       subcategory: "Protein",
       country: "JP",
       productImageUrl: "https://cdn.example.com/protein.webp",
-      productUrl: "https://example.com/product",
+      productUrl: "https://www.amazon.co.jp/dp/B0HNWHHBXJ",
       officialUrl: null,
       price: 3400,
       currency: "JPY",
@@ -86,7 +86,7 @@ async function main() {
       id: "old-marketplace-seed",
       brand: "BEAUTY FORMULA",
       productName: "BEAUTY FORMULA ソイプロテイン コラーゲン配合 チョコレート風味 300g",
-      description: "濃厚チョコレート風味。ASIN：B0HNWHHBXJ",
+      description: "濃厚チョコレート風味。",
       sales: [{
         id: "amazon-sale",
         sellerName: "Marketplace",

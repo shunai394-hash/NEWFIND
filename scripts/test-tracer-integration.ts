@@ -28,6 +28,8 @@ import {
   checkTracerPublicationAttestation,
   withdrawnProductUrls,
 } from "../lib/integration/tracer-attestation";
+import { dedupeStorefrontProducts } from "../lib/discovery/storefront-catalog";
+import type { DiscoveryProduct } from "../lib/discovery/types";
 
 process.env.INTEGRATION_HMAC_SECRET = "test-shared-secret-for-integration";
 process.env.INTEGRATION_KEY = "newfind-tracer";
@@ -52,6 +54,77 @@ async function test(name: string, fn: () => void | Promise<void>) {
 }
 
 async function main() {
+  await test("same ASIN keeps the live TRACER sale page and hides the stale duplicate", () => {
+    const base = {
+      category: "food" as const,
+      subcategory: "Protein",
+      country: "JP",
+      productImageUrl: "https://cdn.example.com/protein.webp",
+      productUrl: "https://example.com/product",
+      officialUrl: null,
+      price: 3400,
+      currency: "JPY",
+      sku: null,
+      gtin: null,
+      modelNumber: null,
+      trendScore: 0,
+      confidenceScore: 0,
+      discoverySource: "tracer",
+      discoveredAt: null,
+      attentionReason: "",
+      status: "approved" as const,
+      normalizedBrand: "beauty formula",
+      normalizedProductName: "protein",
+      trendTags: [],
+      sources: [],
+      people: [],
+      createdAt: "2026-11-01T00:00:00.000Z",
+      updatedAt: "2026-11-01T00:00:00.000Z",
+    };
+    const marketplace = {
+      ...base,
+      id: "old-marketplace-seed",
+      brand: "BEAUTY FORMULA",
+      productName: "BEAUTY FORMULA ソイプロテイン コラーゲン配合 チョコレート風味 300g",
+      description: "濃厚チョコレート風味。ASIN：B0HNWHHBXJ",
+      sales: [{
+        id: "amazon-sale",
+        sellerName: "Marketplace",
+        productUrl: "https://www.amazon.co.jp/dp/B0HNWHHBXJ",
+        price: 3400,
+        currency: "JPY",
+        availability: "in_stock" as const,
+        officialStore: false,
+        sellerKind: "marketplace" as const,
+        affiliateUrl: "https://www.amazon.co.jp/dp/B0HNWHHBXJ",
+        lastVerifiedAt: null,
+        createdAt: "2026-11-01T00:00:00.000Z",
+      }],
+    } as DiscoveryProduct;
+    const tracer = {
+      ...base,
+      id: "tracer-owned-stock",
+      brand: "BEAUTY FORMULA",
+      productName: "BEAUTY FORMULA チョコレート風味プロテイン 300g",
+      description: "内容量300g。ASIN：B0HNWHHBXJ",
+      sales: [{
+        id: "tracer-sale",
+        sellerName: "TRACER ONLINE STORE",
+        productUrl: "https://tracer-pied-alpha.vercel.app/shop/1ae04dd1-a228-43b7-b003-3a2fb75da98a",
+        price: 3400,
+        currency: "JPY",
+        availability: "in_stock" as const,
+        officialStore: true,
+        sellerKind: "official" as const,
+        affiliateUrl: "https://tracer-pied-alpha.vercel.app/shop/1ae04dd1-a228-43b7-b003-3a2fb75da98a",
+        lastVerifiedAt: "2026-11-01T00:00:00.000Z",
+        createdAt: "2026-11-01T00:00:00.000Z",
+      }],
+    } as DiscoveryProduct;
+    const result = dedupeStorefrontProducts([marketplace, tracer]);
+    assert.deepEqual(result.map((item) => item.id), ["tracer-owned-stock"]);
+  });
+
   await test("TRACER attestation gate can promote profitable decor without generic craft suppression", () => {
     const handlers = readFileSync(new URL("../lib/integration/handlers.ts", import.meta.url), "utf8");
     assert.match(handlers, /if \(isBrandBridge && isDecorativeCraftObject/);

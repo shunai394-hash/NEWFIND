@@ -70,15 +70,26 @@ function HeroCard({
 }
 
 export function StorefrontHome({ products }: { products: DiscoveryProduct[] }) {
-  const newProducts = [...products].sort((a, b) =>
-    (b.discoveredAt ?? b.createdAt ?? "").localeCompare(a.discoveredAt ?? a.createdAt ?? ""),
-  );
-  const featured = products.slice(0, 4);
+  // Keep the owner's priority product in a dedicated homepage pickup slot.
+  // It must not depend on trend ranking or discovery recency.
+  const pinnedProduct = products.find(
+    (product) => product.productName === "BEAUTY FORMULA チョコレート風味プロテイン 300g",
+  ) ?? null;
+  const newProducts = [...products]
+    .filter((product) => product.id !== pinnedProduct?.id)
+    .sort((a, b) =>
+      (b.discoveredAt ?? b.createdAt ?? "").localeCompare(a.discoveredAt ?? a.createdAt ?? ""),
+    );
+  const featured = products.filter((product) => product.id !== pinnedProduct?.id).slice(0, 4);
   const heroProducts = featured.slice(0, 3);
   const pickup =
-    products.find((product) => product.trendTags?.includes("editorial_pick")) ?? featured[0] ?? null;
+    pinnedProduct ??
+    products.find((product) => product.trendTags?.includes("editorial_pick")) ??
+    featured[0] ??
+    null;
   const pickupShopUrl = pickup ? discoveryShopUrl(pickup) : null;
   const ranking = [...products]
+    .filter((product) => product.id !== pinnedProduct?.id)
     .sort((a, b) => {
       const score = (product: DiscoveryProduct) =>
         (product.trendTags?.includes("best_seller") ? 2 : 0) +

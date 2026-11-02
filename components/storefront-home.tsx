@@ -83,8 +83,7 @@ export function StorefrontHome({ products }: { products: DiscoveryProduct[] }) {
   const featured = products.filter((product) => product.id !== pinnedProduct?.id).slice(0, 4);
   const heroProducts = featured.slice(0, 3);
   const pickup =
-    pinnedProduct ??
-    products.find((product) => product.trendTags?.includes("editorial_pick")) ??
+    products.find((product) => product.id !== pinnedProduct?.id && product.trendTags?.includes("editorial_pick")) ??
     featured[0] ??
     null;
   const pickupShopUrl = pickup ? discoveryShopUrl(pickup) : null;
@@ -135,6 +134,23 @@ export function StorefrontHome({ products }: { products: DiscoveryProduct[] }) {
       <div aria-hidden="true" className="h-[101px] bg-[#eee6dc]" />
 
       <main>
+        <section aria-label="最上段のおすすめ商品" className="border-b border-[#d8c8b8] bg-[#f4eee6]">
+          <div className="mx-auto grid max-w-[1440px] items-center gap-5 px-4 py-5 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:px-8 sm:py-7">
+            <a href="https://ieufrg-tb.myshopify.com/products/beauty-formula-%E3%83%81%E3%83%A7%E3%82%B3%E3%83%AC%E3%83%BC%E3%83%88%E9%A2%A8%E5%91%B3%E3%83%97%E3%83%AD%E3%83%86%E3%82%A4%E3%83%B3-300g" target="_blank" rel="noopener noreferrer" className="group block overflow-hidden rounded-xl bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="https://cdn.shopify.com/s/files/1/0746/2443/4220/files/beauty-formula-protein-chocolate-300g-set.png?v=1792777066" alt="BEAUTY FORMULA チョコレート風味プロテイン 300g" className="aspect-[16/7] w-full object-contain transition duration-500 group-hover:scale-[1.02]" fetchPriority="high" />
+            </a>
+            <div>
+              <p className="text-[10px] font-bold tracking-[0.24em] text-[#9c4c35]">NEWFIND FEATURED · TOP PICK</p>
+              <h2 className="font-display mt-2 text-xl font-semibold leading-snug sm:text-2xl">BEAUTY FORMULA チョコレート風味プロテイン 300g</h2>
+              <p className="mt-2 text-2xl font-bold text-[#20201e]">¥3,400 <span className="text-xs font-medium text-neutral-500">税込</span></p>
+              <p className="mt-1 text-xs text-neutral-600">販売ページの最新在庫・配送条件をご確認のうえご購入ください。</p>
+              <a href="https://ieufrg-tb.myshopify.com/products/beauty-formula-%E3%83%81%E3%83%A7%E3%82%B3%E3%83%AC%E3%83%BC%E3%83%88%E9%A2%A8%E5%91%B3%E3%83%97%E3%83%AD%E3%83%86%E3%82%A4%E3%83%B3-300g" target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-[#20201e] px-6 text-sm font-semibold text-white transition hover:bg-[#a6533a]">
+                商品ページで購入する ↗
+              </a>
+            </div>
+          </div>
+        </section>
         <section className="relative overflow-hidden bg-[#eee6dc]">
           <div
             aria-hidden="true"
